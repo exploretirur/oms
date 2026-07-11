@@ -451,6 +451,9 @@ tr:hover td { background: #f8fafd; }
   <div class="nav-item" id="nav-users" onclick="navTo('users',this)">
     <span class="icon">👤</span> User Management
   </div>
+  <div class="nav-item" id="nav-import-students" onclick="navTo('import-students',this)">
+    <span class="icon">📥</span> Import Students
+  </div>
   <div class="nav-item" id="nav-settings" onclick="navTo('settings',this)">
     <span class="icon">⚙️</span> Configuration
   </div>
@@ -575,18 +578,7 @@ tr:hover td { background: #f8fafd; }
           <div class="form-group"><label>Mode <span class="required">*</span></label><select id="adm-mode"><option value="Offline">Offline</option><option value="Online">Online</option></select></div>
           <div class="form-group"><label>Admission Date <span class="required">*</span></label><input id="adm-date" type="date"></div>
           <div class="form-group"><label>Duration (Months)</label><select id="adm-duration"><option>1</option><option>2</option><option>3</option><option>6</option><option>12</option></select></div>
-          <div class="form-group"><label>Monthly Installment Day</label>
-            <select id="adm-duedate">
-              <option value="">— Select day —</option>
-              <option value="1">1st of every month</option>
-              <option value="5">5th of every month</option>
-              <option value="10">10th of every month</option>
-              <option value="15">15th of every month</option>
-              <option value="20">20th of every month</option>
-              <option value="25">25th of every month</option>
-              <option value="28">28th of every month</option>
-            </select>
-          </div>
+          <div class="form-group"><label>Fee Due Date</label><input id="adm-duedate" type="date"></div>
           <div class="form-group"><label>Total Fees (₹) <span class="required">*</span></label><input id="adm-totalfees" type="number" placeholder="0"></div>
           <div class="form-group"><label>Concession (₹)</label><input id="adm-concession" type="number" placeholder="0" value="0"></div>
         </div>
@@ -996,22 +988,12 @@ tr:hover td { background: #f8fafd; }
     <!-- ===== USER MANAGEMENT (Admin only) ===== -->
     <div id="page-users" class="page">
       <div id="users-alert"></div>
-
-      <!-- STAFF LIST + ADD BUTTON -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><span class="icon">👥</span> Staff Accounts</div>
-          <button class="btn btn-teal" onclick="openAddUserModal()" style="padding:6px 14px;font-size:12.5px;">➕ Add User</button>
+          <div class="card-title"><span class="icon">👥</span> System Users</div>
+          <button class="btn btn-teal" onclick="openAddUserModal()" style="padding:7px 16px;font-size:13px;">+ Add User</button>
         </div>
-        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px;">
-          Add, edit, deactivate, or reset the password for any Office Staff, Teacher, or Admin account below.
-        </p>
         <div id="users-list"></div>
-      </div>
-
-      <div style="margin-top:16px;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#7a5800;">
-        💡 <strong>Tip:</strong> After adding a new staff member, share their email and temporary password with them. Ask them to change the password after first login.
-        Deactivating an account blocks sign-in instantly and can be reversed at any time — their historical records are always kept.
       </div>
     </div>
 
@@ -1354,8 +1336,7 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-success" onclick="exportToExcel()">⬇️ Download Excel Workbook (.xlsx)</button>
-          <button class="btn btn-outline" onclick="document.getElementById('excel-import-input').click()">⬆️ Import from CSV</button>
-          <input type="file" id="excel-import-input" accept=".xlsx,.csv" style="display:none;" onchange="importFromExcel(event)">
+          <button class="btn btn-outline" onclick="navTo('import-students', document.getElementById('nav-settings'))">⬆️ Import Students from Excel</button>
         </div>
         <div id="excel-status" style="margin-top:12px;"></div>
         <div class="alert alert-info" style="margin-top:16px;">
@@ -1363,6 +1344,75 @@ tr:hover td { background: #f8fafd; }
         </div>
       </div>
 
+    </div>
+
+
+    <!-- ===== IMPORT STUDENTS ===== -->
+    <div id="page-import-students" class="page">
+      <div id="import-alert"></div>
+
+      <!-- STEP 1 -->
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">1️⃣</span> Download Template (Optional)</div></div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">If your Excel uses different column names, download this template and fill it in — it uses the exact column names the system expects.</p>
+        <button class="btn btn-outline" onclick="downloadImportTemplate()">⬇️ Download Student Import Template (.xlsx)</button>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">2️⃣</span> Upload Your Excel File</div></div>
+        <div id="import-dropzone" onclick="document.getElementById('import-file-input').click()"
+          style="border:2px dashed var(--border);border-radius:12px;padding:36px;text-align:center;cursor:pointer;transition:border-color .2s;"
+          ondragover="event.preventDefault();this.style.borderColor=\'var(--teal)\'"
+          ondragleave="this.style.borderColor=\'var(--border)\'"
+          ondrop="event.preventDefault();this.style.borderColor=\'var(--border)\';handleImportFile(event.dataTransfer.files[0])">
+          <div style="font-size:36px;margin-bottom:8px;">📂</div>
+          <div style="font-size:14px;font-weight:500;color:var(--text);">Click to browse or drag &amp; drop your Excel file here</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Supports .xlsx, .xls files</div>
+        </div>
+        <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleImportFile(this.files[0])">
+        <div id="import-file-name" style="margin-top:10px;font-size:13px;color:var(--muted);"></div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="card" id="import-mapping-card" style="display:none;">
+        <div class="card-header"><div class="card-title"><span class="icon">3️⃣</span> Match Your Columns</div></div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Match each column from your Excel file to the correct field in the system. Leave as "— Skip —" if not needed.</p>
+        <div id="import-mapping-grid" style="display:grid;grid-template-columns:1fr 30px 1fr;gap:10px 8px;align-items:center;font-size:13px;"></div>
+        <div class="action-bar" style="margin-top:16px;">
+          <button class="btn btn-teal" onclick="previewImport()">👁️ Preview Data</button>
+        </div>
+      </div>
+
+      <!-- STEP 4 -->
+      <div class="card" id="import-preview-card" style="display:none;">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">4️⃣</span> Preview</div>
+          <div id="import-preview-count" style="font-size:13px;color:var(--muted);"></div>
+        </div>
+        <div id="import-preview-warn" style="margin-bottom:12px;"></div>
+        <div class="table-wrap" style="max-height:300px;overflow-y:auto;">
+          <table id="import-preview-table">
+            <thead id="import-preview-head"></thead>
+            <tbody id="import-preview-body"></tbody>
+          </table>
+        </div>
+        <div class="action-bar" style="margin-top:16px;">
+          <button class="btn btn-outline" onclick="resetImport()">↩ Start Over</button>
+          <button class="btn btn-teal" onclick="confirmImport()" id="import-confirm-btn">✅ Import All Students</button>
+        </div>
+      </div>
+
+      <!-- STEP 5 -->
+      <div class="card" id="import-done-card" style="display:none;text-align:center;padding:32px;">
+        <div style="font-size:48px;margin-bottom:12px;">🎉</div>
+        <div id="import-done-msg" style="font-size:16px;font-weight:600;color:var(--green);margin-bottom:8px;"></div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">All students are now live in Student Records and visible to all staff.</div>
+        <div style="display:flex;gap:10px;justify-content:center;">
+          <button class="btn btn-teal" onclick="navTo('students',document.getElementById('nav-students'))">👥 View Student Records</button>
+          <button class="btn btn-outline" onclick="resetImport()">📥 Import More</button>
+        </div>
+      </div>
     </div>
 
   </div><!-- /content -->
@@ -1418,7 +1468,7 @@ tr:hover td { background: #f8fafd; }
       </div>
     </div>
     <div id="uf-password-note" class="alert alert-info" style="display:none;margin-top:10px;">
-      ℹ️ The email/login ID cannot be changed once an account exists. To change this user's password, close this window and use the 🔑 <strong>Reset Password</strong> button next to their name — it emails them a secure reset link.
+      ℹ️ Password is managed by Firebase Authentication and cannot be changed from here. To reset a password, use the Firebase Console or ask the user to use "Forgot Password".
     </div>
     <input type="hidden" id="uf-edit-index" value="">
     <input type="hidden" id="uf-edit-uid" value="">
@@ -1461,18 +1511,7 @@ tr:hover td { background: #f8fafd; }
       <div class="form-group"><label>Batch</label><select id="es-batch"></select></div>
       <div class="form-group"><label>Course Type</label><select id="es-coursetype"><option value="Regular">Regular</option><option value="Fast Track">Fast Track</option></select></div>
       <div class="form-group"><label>Mode</label><select id="es-mode"><option value="Offline">Offline</option><option value="Online">Online</option></select></div>
-      <div class="form-group"><label>Monthly Installment Day</label>
-            <select id="es-duedate">
-              <option value="">— Select day —</option>
-              <option value="1">1st of every month</option>
-              <option value="5">5th of every month</option>
-              <option value="10">10th of every month</option>
-              <option value="15">15th of every month</option>
-              <option value="20">20th of every month</option>
-              <option value="25">25th of every month</option>
-              <option value="28">28th of every month</option>
-            </select>
-          </div>
+      <div class="form-group"><label>Fee Due Date</label><input id="es-duedate" type="date"></div>
       <div class="form-group"><label>Total Fees (₹)</label><input id="es-totalfees" type="number"></div>
       <div class="form-group"><label>Concession (₹)</label><input id="es-concession" type="number"></div>
       <div class="form-group"><label>Status</label><select id="es-status"><option>Active</option><option>Completed</option><option>Dropped</option></select></div>
@@ -1497,13 +1536,14 @@ tr:hover td { background: #f8fafd; }
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
-  setPersistence, browserLocalPersistence,
-  createUserWithEmailAndPassword, sendPasswordResetEmail
+  setPersistence, browserLocalPersistence, createUserWithEmailAndPassword,
+  updateProfile
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
   getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc,
   updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCHtMPsafgqRUtxutMXAk3p7cv3a5gmndc",
@@ -1517,29 +1557,32 @@ const FIREBASE_CONFIG = {
 const firebaseApp = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(firebaseApp);
 const firestoreDB = getFirestore(firebaseApp);
+const cloudFns = getFunctions(firebaseApp);
 let firebaseInitialized = true; // kept for compatibility with the rest of the app's checks
-
-// ---- Secondary Auth instance, used ONLY for creating new staff logins ----
-// Creating a new Firebase Auth account (createUserWithEmailAndPassword)
-// automatically signs in AS that new account on whichever Auth instance
-// runs it. To stop that from kicking the Admin out of their own session,
-// new accounts are created on a second, independent Firebase App instance
-// ("UserCreation") with its own separate Auth session. The Admin's real
-// session (on `auth` above) is never touched by this.
-const secondaryApp = initializeApp(FIREBASE_CONFIG, 'UserCreation');
-const secondaryAuth = getAuth(secondaryApp);
 
 // Expose the pieces that non-module inline `onclick="..."` handlers need,
 // since <script type="module"> is scoped and not global by default.
 window.__fb = {
-  auth, firestoreDB, secondaryAuth,
+  auth, firestoreDB, cloudFns,
   signInWithEmailAndPassword, signOut, onAuthStateChanged,
-  createUserWithEmailAndPassword, sendPasswordResetEmail,
+  createUserWithEmailAndPassword, updateProfile,
   collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
-  query, where, orderBy, onSnapshot, serverTimestamp
+  query, where, orderBy, onSnapshot, serverTimestamp, httpsCallable
 };
 
-setPersistence(auth, browserLocalPersistence).catch(e => console.warn('Persistence setup failed:', e));
+// Secondary Firebase app — used ONLY for creating new staff Auth accounts.
+// By using a separate app instance, creating a new user does NOT sign out
+// the Admin or affect the Admin's current session in any way.
+// This is the standard Firebase pattern for admin-side user creation
+// without needing a server or Cloud Functions.
+let _secondaryApp = null;
+function getSecondaryAuth() {
+  if (!_secondaryApp) {
+    _secondaryApp = initializeApp(HARDCODED_FIREBASE_CONFIG, 'secondary-user-creation');
+  }
+  return getAuth(_secondaryApp);
+}
+window.getSecondaryAuth = getSecondaryAuth;
 
 // ---- Friendly error messages for every failure mode requested ----
 function friendlyAuthError(err) {
@@ -1862,15 +1905,15 @@ onAuthStateChanged(auth, async (user) => {
   try {
     const profile = await loadUserProfile(user.uid);
     if (!profile) {
-      await signOut(auth); // triggers resetAppState() first, which clears any old error
       errEl.textContent = '❌ Your account has no profile set up. Contact your Admin.';
       errEl.style.display = 'block';
+      await signOut(auth);
       return;
     }
     if (profile.active === false) {
-      await signOut(auth);
       errEl.textContent = '❌ This account has been deactivated. Contact your Admin.';
       errEl.style.display = 'block';
+      await signOut(auth);
       return;
     }
 
@@ -1894,9 +1937,9 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('sidebar-overlay').classList.remove('open');
   } catch (err) {
     console.error('Profile load failed:', err);
-    await signOut(auth).catch(()=>{});
     errEl.textContent = friendlyFirestoreError(err);
     errEl.style.display = 'block';
+    await signOut(auth);
   }
 });
 
@@ -1908,6 +1951,7 @@ Object.defineProperty(window, 'currentUser', {
 window.firebaseInitialized = true;
 window.auth = auth;
 window.firestoreDB = firestoreDB;
+window.cloudFns = cloudFns;
 </script>
 
 <script>
@@ -1919,7 +1963,7 @@ window.firestoreDB = firestoreDB;
 // canEnter = can submit new records (admission, payments, attendance)
 // canModify = can edit or delete existing records (admin only)
 const PERMISSIONS = {
-  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','settings'], canEnter: true, canModify: true },
+  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings'], canEnter: true, canModify: true },
   office:  { pages: ['dashboard','admission','students','fees','receipt','certificates','absent-list','student-dashboard'],                                                                               canEnter: true, canModify: false },
   teacher: { pages: ['dashboard','attendance','attendance-report','student-dashboard','marks'],                                                                              canEnter: true, canModify: false }
 };
@@ -1950,7 +1994,7 @@ function applyRoleUI() {
   document.getElementById('sb-urole').textContent = role.toUpperCase();
 
   // Nav items — lock inaccessible pages
-  const allPages = ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','settings'];
+  const allPages = ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings'];
   allPages.forEach(p => {
     const nav = document.getElementById('nav-' + p);
     if (!nav) return;
@@ -2005,7 +2049,7 @@ function navTo(page, el) {
     attendance:'Attendance Entry', 'absent-list':'Absent List',
     'attendance-report':'Attendance Report', 'student-dashboard':'Student Dashboard',
     marks:'Marks Entry', master:'Master Data', salary:'Staff Salary',
-    users:'User Management', settings:'Configuration'
+    users:'User Management', 'import-students':'Import Students from Excel', settings:'Configuration'
   };
   document.getElementById('page-title').textContent = titles[page] || page;
   if (['admission','students','attendance','absent-list','attendance-report','marks'].includes(page)) populateCourseBatchSelects();
@@ -2019,6 +2063,7 @@ function navTo(page, el) {
   if (page === 'master') renderMasterData();
   if (page === 'salary') initSalaryPage();
   if (page === 'absent-list') { document.getElementById('abs-date').value = todayStr(); renderAbsentHistory(); }
+  if (page === 'import-students') resetImport();
 }
 
 function showPage(page) {
@@ -2107,27 +2152,17 @@ async function renderUsersPage() {
       : '';
     const statusChip = u.active === false
       ? '<span class="chip chip-red" style="font-size:10px;">Inactive</span>'
-      : '<span class="chip chip-green" style="font-size:10px;">Active</span>';
-    const isSelf = currentUser && u.uid === currentUser.uid;
-    const deactivateBtn = isSelf
-      ? ''
-      : (u.active === false
-          ? '<button class="btn btn-outline" onclick="reactivateUser(\''+u.id+'\')" style="padding:4px 10px;font-size:11.5px;color:var(--green);border-color:var(--green);">↩️ Reactivate</button>'
-          : '<button class="btn btn-outline" onclick="removeUser(\''+u.id+'\')" style="padding:4px 10px;font-size:11.5px;color:var(--red);border-color:var(--red);">🚫 Deactivate</button>');
-    const actionBtns = '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">'
-      + '<button class="btn btn-outline" onclick="openEditUserModal(\''+u.id+'\')" style="padding:4px 10px;font-size:11.5px;color:var(--amber);border-color:var(--amber);">✏️ Edit</button>'
-      + '<button class="btn btn-outline" onclick="resetUserPassword(\''+u.id+'\')" style="padding:4px 10px;font-size:11.5px;">🔑 Reset Password</button>'
-      + deactivateBtn
-      + '</div>';
+      : '';
     html += '<div class="user-row">'
       + '<div class="user-avatar ua-'+u.role+'">'+u.name.slice(0,2).toUpperCase()+'</div>'
       + '<div style="flex:1;">'
-      + '<div style="font-weight:600;font-size:14px;">'+u.name+' '+statusChip+' <span style="font-size:12px;color:var(--muted);">'+(u.email||'')+'</span></div>'
+      + '<div style="font-weight:600;font-size:14px;">'+u.name+' <span style="font-size:12px;color:var(--muted);">'+(u.email||u.username||'')+'</span> '+statusChip+'</div>'
       + '<div style="font-size:12px;color:var(--muted);margin-top:2px;">'+(u.dept||'—')+(u.mobile?' · '+u.mobile:'')+'</div>'
       + (courseTags ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">'+courseTags+'</div>' : '')
       + '</div>'
-      + '<span class="chip chip-'+(u.role==='admin'?'purple':u.role==='office'?'blue':'green')+'" style="margin-right:4px;">'+(u.role.charAt(0).toUpperCase()+u.role.slice(1))+'</span>'
-      + actionBtns
+      + '<span class="chip chip-'+(u.role==='admin'?'purple':u.role==='office'?'blue':'green')+'">'+(u.role.charAt(0).toUpperCase()+u.role.slice(1))+'</span>'
+      + '<button class="btn btn-outline" onclick="openEditUserModal(\''+u.id+'\')" style="padding:5px 12px;font-size:12px;">Edit</button>'
+      + (currentUser && u.uid !== currentUser.uid ? '<button class="btn btn-outline" onclick="removeUser(\''+u.id+'\')" style="padding:5px 12px;font-size:12px;color:var(--red);border-color:var(--red);">Remove</button>' : '')
       + '</div>';
   });
   container.innerHTML = html || '<p style="color:var(--muted);padding:20px;">No users found.</p>';
@@ -2188,31 +2223,27 @@ function toggleTeacherFields() {
   document.getElementById('uf-courses-wrap').style.display = role === 'teacher' ? '' : 'none';
 }
 
-// Creating a brand-new staff login creates the Firebase Auth account
-// directly from the browser, using a separate ("secondary") Auth session
-// so the signed-in Admin is never affected or signed out. Right after the
-// Auth account is created, the matching Firestore profile document is
-// written (document ID = the new account's UID) and the secondary session
-// is immediately signed out. No server-side deployment is required for
-// this — it all runs inside the app.
+// Creating a brand-new staff login requires a Firebase Auth account, which
+// cannot be created securely from client-side JS (it would require the
+// Admin SDK, which must never run in a browser). Instead this calls a
+// Cloud Function ("createStaffUser") that runs server-side, creates the
+// Auth account, and writes the matching Firestore profile document in one
+// atomic operation. See functions/index.js in the deployment package.
 async function saveUser() {
-  const name = document.getElementById('uf-name').value.trim();
-  const email = document.getElementById('uf-username').value.trim().toLowerCase();
-  const password = document.getElementById('uf-password').value.trim();
-  const role = document.getElementById('uf-role').value;
-  const dept = document.getElementById('uf-dept').value.trim();
-  const mobile = document.getElementById('uf-mobile').value.trim();
+  const name      = document.getElementById('uf-name').value.trim();
+  const email     = document.getElementById('uf-username').value.trim().toLowerCase();
+  const password  = document.getElementById('uf-password').value.trim();
+  const role      = document.getElementById('uf-role').value;
+  const dept      = document.getElementById('uf-dept').value.trim();
+  const mobile    = document.getElementById('uf-mobile').value.trim();
   const editDocId = document.getElementById('uf-edit-index').value;
-  const editUid = document.getElementById('uf-edit-uid').value;
-  const alertBox = document.getElementById('user-form-alert');
-  const saveBtn = document.getElementById('uf-save-btn');
+  const alertBox  = document.getElementById('user-form-alert');
+  const saveBtn   = document.getElementById('uf-save-btn');
 
-  if (!name || !email) {
-    alertBox.innerHTML = '<div class="alert alert-error">Name and email are required.</div>';
-    return;
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    alertBox.innerHTML = '<div class="alert alert-error">Please enter a valid email address.</div>';
+  // Basic validation
+  if (!name) { alertBox.innerHTML = '<div class="alert alert-error">Full name is required.</div>'; return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    alertBox.innerHTML = '<div class="alert alert-error">Please enter a valid email address (e.g. teacher@gmail.com).</div>';
     return;
   }
 
@@ -2221,119 +2252,124 @@ async function saveUser() {
     : [];
 
   saveBtn.disabled = true;
+  alertBox.innerHTML = '';
 
+  // ─────────────────────────────────────────
+  // EDIT existing user — update Firestore only
+  // ─────────────────────────────────────────
   if (editDocId) {
-    // ---- EDIT existing user: only the Firestore profile fields change ----
-    saveBtn.textContent = 'Saving…';
+    saveBtn.textContent = '⏳ Saving…';
     const updateData = { name, role, dept, mobile, courses };
     const ok = await DB.updateDoc('users', editDocId, updateData);
-    saveBtn.disabled = false; saveBtn.textContent = '💾 Save Changes';
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 Save Changes';
     if (ok) {
-      showAlert('users-alert','success','✅ User updated successfully.');
-      const users = await getUsers();
-      const idx = users.findIndex(u => u.id === editDocId);
-      if (idx > -1) users[idx] = { ...users[idx], ...updateData };
+      // Update local cache too
+      if (_cachedUsers) {
+        const idx = _cachedUsers.findIndex(u => u.id === editDocId);
+        if (idx > -1) _cachedUsers[idx] = { ..._cachedUsers[idx], ...updateData };
+      }
+      showAlert('users-alert','success','✅ ' + name + '\'s details updated successfully.');
       closeModal('user-modal');
       renderUsersPage();
     } else {
-      alertBox.innerHTML = '<div class="alert alert-error">Could not save changes. ' + (window.friendlyFirestoreError ? '' : '') + '</div>';
+      alertBox.innerHTML = '<div class="alert alert-error">❌ Could not save changes. Please try again.</div>';
     }
     return;
   }
 
-  // ---- CREATE new user (client-side, via secondary Auth session) ----
+  // ─────────────────────────────────────────
+  // CREATE new staff account
+  // Uses a secondary Firebase app instance so the Admin stays signed in.
+  // ─────────────────────────────────────────
   if (!password || password.length < 6) {
     saveBtn.disabled = false;
-    alertBox.innerHTML = '<div class="alert alert-error">Temporary password must be at least 6 characters.</div>';
+    alertBox.innerHTML = '<div class="alert alert-error">Password must be at least 6 characters.</div>';
     return;
   }
-  saveBtn.textContent = 'Creating account…';
+
+  saveBtn.textContent = '⏳ Creating account…';
   try {
-    const fb = window.__fb;
-    // Create the Auth account on the SECONDARY app instance so this
-    // doesn't touch (or sign out) the Admin's own session.
-    const cred = await fb.createUserWithEmailAndPassword(fb.secondaryAuth, email, password);
-    const newUid = cred.user.uid;
-    // Immediately end the secondary session — it's never used for anything else.
-    await fb.signOut(fb.secondaryAuth);
-    // Write the Firestore profile doc, keyed by the new account's UID.
-    const ok = await DB.setDoc('users', newUid, {
-      uid: newUid, name, email, role, dept, mobile, courses,
-      active: true, lastLogin: null, createdAt: fb.serverTimestamp()
-    });
-    saveBtn.disabled = false; saveBtn.textContent = '💾 Save User';
-    if (ok) {
-      showAlert('users-alert','success','✅ ' + (role === 'teacher' ? 'Teacher' : 'User') + ' account created for ' + email + '. Share the temporary password with them and ask them to change it after first login.');
-      closeModal('user-modal');
-      renderUsersPage();
-    } else {
-      alertBox.innerHTML = '<div class="alert alert-error">Account was created but the profile could not be saved. Please try again or contact support.</div>';
-    }
+    // Step 1: Create the Firebase Auth account using the secondary app
+    const secondaryAuth = getSecondaryAuth();
+    const userCred = await window.__fb.createUserWithEmailAndPassword(secondaryAuth, email, password);
+    const newUid = userCred.user.uid;
+
+    // Step 2: Set their display name in Auth
+    await window.__fb.updateProfile(userCred.user, { displayName: name });
+
+    // Step 3: Sign them out of the secondary app immediately
+    // (Admin's session on the primary app is completely unaffected)
+    await secondaryAuth.signOut();
+
+    // Step 4: Write the Firestore profile at users/{uid}
+    const profileData = {
+      uid:       newUid,
+      id:        newUid,
+      name,
+      email,
+      role,
+      dept,
+      mobile,
+      courses,
+      active:    true,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser ? currentUser.uid : '',
+      lastLogin: null
+    };
+    await DB.setDoc('users', newUid, profileData);
+
+    // Update local cache
+    if (_cachedUsers) _cachedUsers.push(profileData);
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 Save User';
+    showAlert('users-alert','success',
+      '✅ Account created for ' + name + ' (' + email + '). ' +
+      'Share this password with them: <strong>' + password + '</strong>'
+    );
+    closeModal('user-modal');
+    renderUsersPage();
+
   } catch (err) {
-    saveBtn.disabled = false; saveBtn.textContent = '💾 Save User';
-    console.error('Create staff user failed:', err);
-    let msg = 'Could not create account.';
-    if (err.code === 'auth/email-already-in-use') msg = 'An account with this email already exists.';
-    else if (err.code === 'auth/invalid-email') msg = 'That email address looks invalid.';
-    else if (err.code === 'auth/weak-password') msg = 'Password is too weak — use at least 6 characters.';
-    else if (err.code === 'auth/network-request-failed') msg = 'No internet connection. Please check your network and try again.';
-    else if (err.message) msg = err.message;
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 Save User';
+    console.error('Create user failed:', err);
+    let msg = '❌ Could not create account.';
+    if (err.code === 'auth/email-already-in-use') msg = '❌ An account with this email already exists.';
+    else if (err.code === 'auth/invalid-email')   msg = '❌ That email address is invalid.';
+    else if (err.code === 'auth/weak-password')   msg = '❌ Password is too weak. Use at least 6 characters.';
+    else if (err.code === 'auth/network-request-failed') msg = '❌ No internet connection. Please check your network.';
+    else if (err.message) msg = '❌ ' + err.message;
     alertBox.innerHTML = '<div class="alert alert-error">' + msg + '</div>';
   }
 }
 
-// Deactivating a user marks active:false on their Firestore profile
-// document. The sign-in flow (see onAuthStateChanged above) checks this
-// flag on every login and blocks sign-in immediately for deactivated
-// accounts — no server-side function needed. Their historical records
-// (admissions, payments, marks, etc.) are untouched.
+// Deactivating a user calls the deactivateStaffUser Cloud Function, which
+// disables the account at the Firebase Authentication level (blocking
+// sign-in even if the Firestore profile is somehow tampered with) AND
+// marks active:false on the profile document, in one server-side operation.
 async function removeUser(docId) {
   const users = await getUsers();
   const u = users.find(x => x.id === docId);
   if (!u) return;
   if (currentUser && u.uid === currentUser.uid) { alert('You cannot deactivate your own account.'); return; }
-  if (!confirm('Deactivate "' + u.name + '"? They will no longer be able to sign in. (Their historical records are kept, and you can reactivate them anytime.)')) return;
-  const ok = await DB.updateDoc('users', docId, { active: false });
-  if (ok) {
-    showAlert('users-alert','success','✅ "' + u.name + '" has been deactivated and can no longer sign in.');
-    renderUsersPage();
-  }
-}
-
-// Reactivating simply flips the same flag back — instantly restores login access.
-async function reactivateUser(docId) {
-  const users = await getUsers();
-  const u = users.find(x => x.id === docId);
-  if (!u) return;
-  if (!confirm('Reactivate "' + u.name + '"? They will be able to sign in again.')) return;
-  const ok = await DB.updateDoc('users', docId, { active: true });
-  if (ok) {
-    showAlert('users-alert','success','✅ "' + u.name + '" has been reactivated.');
-    renderUsersPage();
-  }
-}
-window.reactivateUser = reactivateUser;
-
-// Sends a "reset your password" email straight from Firebase Authentication
-// to the staff member's own inbox — no console access needed. They just
-// click the link in the email and set a new password themselves.
-async function resetUserPassword(docId) {
-  const users = await getUsers();
-  const u = users.find(x => x.id === docId);
-  if (!u || !u.email) return;
-  if (!confirm('Send a password reset email to ' + u.email + '?')) return;
+  if (!confirm('Deactivate "' + u.name + '"? They will no longer be able to sign in. (Their historical records are kept.)')) return;
   try {
-    await window.__fb.sendPasswordResetEmail(window.auth, u.email);
-    showAlert('users-alert','success','✅ Password reset email sent to ' + u.email + '.');
+    const deactivateStaffUser = window.cloudFns ? window.__fb.httpsCallable(window.cloudFns, 'deactivateStaffUser') : null;
+    if (deactivateStaffUser) {
+      await deactivateStaffUser({ uid: u.uid || docId });
+    } else {
+      // Fallback if Cloud Functions aren't deployed yet — Firestore-only deactivation
+      await DB.updateDoc('users', docId, { active: false });
+    }
+    showAlert('users-alert','success','User deactivated.');
+    renderUsersPage();
   } catch (err) {
-    console.error('Password reset failed:', err);
-    let msg = 'Could not send reset email.';
-    if (err.code === 'auth/user-not-found') msg = 'No matching login account found for this email.';
-    else if (err.code === 'auth/network-request-failed') msg = 'No internet connection. Please check your network and try again.';
-    showAlert('users-alert','error','❌ ' + msg);
+    console.error('Deactivate failed:', err);
+    showAlert('users-alert','error','❌ Could not deactivate user: ' + (err.message || 'Unknown error'));
   }
 }
-window.resetUserPassword = resetUserPassword;
 
 
 // ============================================================
@@ -2354,7 +2390,7 @@ async function submitAdmission() {
     mode: document.getElementById('adm-mode').value,
     admDate: document.getElementById('adm-date').value,
     duration: document.getElementById('adm-duration').value,
-    customDueDate: document.getElementById('adm-duedate').value ? String(parseInt(document.getElementById('adm-duedate').value)) : null,
+    customDueDate: document.getElementById('adm-duedate').value || null,
     totalFees: parseFloat(document.getElementById('adm-totalfees').value) || 0,
     concession: parseFloat(document.getElementById('adm-concession').value) || 0,
     guardian: document.getElementById('adm-guardian').value.trim(),
@@ -2453,8 +2489,7 @@ function viewStudent(rollNo) {
         <div><span style="color:var(--muted);">Duration:</span> <strong>${s.duration} months</strong></div>
         <div><span style="color:var(--muted);">Course Type:</span> <strong>${s.courseType||'Regular'}</strong></div>
         <div><span style="color:var(--muted);">Mode:</span> <strong>${s.mode||'Offline'}</strong></div>
-        <div><span style="color:var(--muted);">Monthly Installment:</span> <strong>${getInstallmentLabel(s)}</strong></div>
-        <div><span style="color:var(--muted);">Next Due Date:</span> <strong>${getStudentDueDate(s)||'—'}</strong></div>
+        <div><span style="color:var(--muted);">Fee Due Date:</span> <strong>${getStudentDueDate(s)||'—'}</strong></div>
       </div>
       <div style="background:#f8fafd;border-radius:8px;padding:12px;">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
@@ -2481,7 +2516,7 @@ function openEditStudent(rollNo) {
   document.getElementById('es-batch').value = s.batch;
   document.getElementById('es-coursetype').value = s.courseType||'Regular';
   document.getElementById('es-mode').value = s.mode||'Offline';
-  document.getElementById('es-duedate').value = String(getInstallmentDay(s) || '');
+  document.getElementById('es-duedate').value = s.customDueDate || getStudentDueDate(s) || '';
   document.getElementById('es-totalfees').value = s.totalFees;
   document.getElementById('es-concession').value = s.concession;
   document.getElementById('es-status').value = s.status||'Active';
@@ -2505,7 +2540,7 @@ async function saveStudentEdit() {
     batch: document.getElementById('es-batch').value,
     courseType: document.getElementById('es-coursetype').value,
     mode: document.getElementById('es-mode').value,
-    customDueDate: document.getElementById('es-duedate').value ? String(parseInt(document.getElementById('es-duedate').value)) : null,
+    customDueDate: document.getElementById('es-duedate').value || null,
     totalFees: parseFloat(document.getElementById('es-totalfees').value)||0,
     concession: parseFloat(document.getElementById('es-concession').value)||0,
     status: document.getElementById('es-status').value,
@@ -3203,71 +3238,25 @@ document.querySelectorAll('.nav-item').forEach(n => {
 // ============================================================
 // DUE DATE CALCULATION
 // ============================================================
-function getInstallmentDay(s) {
-  // Returns the day-of-month number for this student's monthly installment.
-  // customDueDate stores either a legacy full date (YYYY-MM-DD) or a day number (1-31).
-  if (!s.customDueDate) return null;
-  const val = String(s.customDueDate);
-  // Legacy full date format — extract day
-  if (val.includes('-') && val.length === 10) return parseInt(val.split('-')[2]);
-  // New format — just a day number
-  const d = parseInt(val);
-  return (d >= 1 && d <= 31) ? d : null;
-}
-
 function getStudentDueDate(s) {
-  // Get the installment day for this student
-  const day = getInstallmentDay(s);
-  if (!day) return null;
-
-  const today = new Date(); today.setHours(0,0,0,0);
-  const year  = today.getFullYear();
-  const month = today.getMonth(); // 0-indexed
-
-  // Build this month's due date — clamp to last day of month (e.g. day=31 in Feb → Feb 28)
-  function makeDue(y, m, d) {
-    const lastDay = new Date(y, m+1, 0).getDate();
-    const safeDay = Math.min(d, lastDay);
-    return new Date(y, m, safeDay);
-  }
-
-  const thisDue = makeDue(year, month, day);
-
-  // If today is ON or BEFORE this month's due date → show this month's due date
-  // If today is PAST this month's due date → show next month's due date
-  if (today <= thisDue) {
-    return thisDue.toISOString().slice(0,10);
-  } else {
-    const nextMonth = month === 11 ? 0 : month + 1;
-    const nextYear  = month === 11 ? year + 1 : year;
-    return makeDue(nextYear, nextMonth, day).toISOString().slice(0,10);
-  }
+  // Custom due date override takes priority
+  if (s.customDueDate) return s.customDueDate;
+  // Default: same day-of-month as admission, every month
+  if (!s.admDate) return null;
+  const adm = new Date(s.admDate);
+  const today = new Date();
+  const due = new Date(today.getFullYear(), today.getMonth(), adm.getDate());
+  return due.toISOString().slice(0,10);
 }
 
-function getInstallmentLabel(s) {
-  // Human-readable label e.g. "10th of every month"
-  const day = getInstallmentDay(s);
-  if (!day) return '—';
-  const suffix = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th';
-  return day + suffix + ' of every month';
-}
-
-function getDueStatus(dueDateStr, s) {
+function getDueStatus(dueDateStr) {
   if (!dueDateStr) return 'unknown';
-
-  // If course is already complete (fully paid), don't show as due
-  if (s) {
-    const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
-    const net  = parseFloat(s.totalFees||0) - parseFloat(s.concession||0);
-    if (net - paid <= 0) return 'paid';
-  }
-
   const today = new Date(); today.setHours(0,0,0,0);
-  const due   = new Date(dueDateStr); due.setHours(0,0,0,0);
-  const diff  = (due - today) / (1000*60*60*24);
-  if (diff < 0)  return 'overdue';
+  const due = new Date(dueDateStr); due.setHours(0,0,0,0);
+  const diff = (due - today) / (1000*60*60*24);
+  if (diff < 0) return 'overdue';
   if (diff === 0) return 'today';
-  if (diff <= 7)  return 'soon';
+  if (diff <= 7) return 'soon';
   return 'ok';
 }
 
@@ -3283,9 +3272,8 @@ function buildDueTable(bodyId, totalId, canEdit) {
     const net = parseFloat(s.totalFees||0) - parseFloat(s.concession||0);
     const balance = net - paid;
     const dueDate = getStudentDueDate(s);
-    const status = getDueStatus(dueDate, s);
-    const installLabel = getInstallmentLabel(s);
-    return { s, balance, dueDate, status, installLabel };
+    const status = getDueStatus(dueDate);
+    return { s, balance, dueDate, status };
   }).filter(x => x.status === 'overdue' || x.status === 'today' || x.status === 'soon');
 
   dueStudents.sort((a,b) => a.dueDate.localeCompare(b.dueDate));
@@ -3304,21 +3292,18 @@ function buildDueTable(bodyId, totalId, canEdit) {
 
   const statusBadge = status => {
     if (status==='overdue') return '<span class="due-overdue">Overdue</span>';
-    if (status==='today')   return '<span class="due-today">Due Today</span>';
-    if (status==='soon')    return '<span class="due-soon">Due Soon</span>';
+    if (status==='today') return '<span class="due-today">Due Today</span>';
+    if (status==='soon') return '<span class="due-soon">Due Soon</span>';
     return '';
   };
 
-  tbody.innerHTML = dueStudents.map(({s,balance,dueDate,status,installLabel}) => `
+  tbody.innerHTML = dueStudents.map(({s,balance,dueDate,status}) => `
     <tr>
       <td><strong>${s.rollNo}</strong></td>
       <td>${s.fname} ${s.lname}</td>
       <td style="font-size:12px;">${s.course}</td>
       <td style="font-weight:700;color:var(--red);">₹${balance.toLocaleString('en-IN')}</td>
-      <td>
-        <div id="duedate-display-${s.rollNo}" style="font-weight:600;">${dueDate||'—'}</div>
-        <div style="font-size:11px;color:var(--muted);">${installLabel}</div>
-      </td>
+      <td id="duedate-display-${s.rollNo}">${dueDate||'—'}</td>
       <td>${statusBadge(status)}</td>
       <td>${canEdit ? `<button class="btn btn-outline" onclick="editDueDate('${s.rollNo}')" style="padding:4px 10px;font-size:12px;">✏️ Edit</button>` : '—'}</td>
     </tr>`).join('');
@@ -3327,22 +3312,17 @@ function buildDueTable(bodyId, totalId, canEdit) {
 async function editDueDate(rollNo) {
   const s = students.find(x=>x.rollNo===rollNo);
   if (!s) return;
-  const currentDay = getInstallmentDay(s) || '';
-  const newDay = prompt(
-    `Change monthly installment day for ${s.fname} ${s.lname} (${rollNo}):\n` +
-    `Current: ${currentDay ? currentDay+'th of every month' : 'Not set'}\n\n` +
-    `Enter day of month (1-28):`, currentDay
-  );
-  if (!newDay) return;
-  const dayNum = parseInt(newDay);
-  if (isNaN(dayNum) || dayNum < 1 || dayNum > 28) {
-    alert('Please enter a number between 1 and 28.');
-    return;
-  }
-  s.customDueDate = String(dayNum);
+  const current = s.customDueDate || getStudentDueDate(s);
+  const newDate = prompt(`Edit due date for ${s.fname} ${s.lname} (${rollNo}):
+Current: ${current}
+
+Enter new due date (YYYY-MM-DD):`, current);
+  if (!newDate) return;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) { alert('Invalid date format. Use YYYY-MM-DD'); return; }
+  s.customDueDate = newDate;
   await DB.set('students', students);
   refreshDashboard();
-  showAlert('global-alert','success','✅ Installment day updated to ' + dayNum + 'th of every month for ' + s.fname + ' ' + s.lname);
+  showAlert('global-alert','success','✅ Due date updated for '+s.fname+' '+s.lname);
 }
 
 // ============================================================
@@ -3534,6 +3514,315 @@ async function importFromExcel(event) {
   };
   reader.readAsText(file);
   event.target.value = '';
+}
+
+// ============================================================
+// IMPORT STUDENTS FROM EXCEL
+// ============================================================
+
+// System fields that students need — used to build the column mapping UI
+const STUDENT_FIELDS = [
+  { key: 'fname',       label: 'First Name',           required: true  },
+  { key: 'lname',       label: 'Last Name',            required: true  },
+  { key: 'mobile',      label: 'Mobile Number',        required: true  },
+  { key: 'course',      label: 'Course',               required: true  },
+  { key: 'batch',       label: 'Batch',                required: false },
+  { key: 'admDate',     label: 'Admission Date',       required: false },
+  { key: 'dob',         label: 'Date of Birth',        required: false },
+  { key: 'email',       label: 'Student Email',        required: false },
+  { key: 'address',     label: 'Address',              required: false },
+  { key: 'guardian',    label: 'Guardian Name',        required: false },
+  { key: 'gmobile',     label: 'Guardian Mobile',      required: false },
+  { key: 'totalFees',   label: 'Total Fees (₹)',       required: false },
+  { key: 'concession',  label: 'Concession (₹)',       required: false },
+  { key: 'mode',        label: 'Mode (Offline/Online)',required: false },
+  { key: 'courseType',  label: 'Course Type',          required: false },
+  { key: 'qual',        label: 'Qualification',        required: false },
+  { key: 'remarks',     label: 'Remarks',              required: false },
+];
+
+let _importRows    = [];   // raw rows from Excel
+let _importHeaders = [];   // column headers from Excel
+let _importMapped  = [];   // final mapped+transformed student objects ready to save
+
+// Reset the entire import flow back to Step 1
+function resetImport() {
+  _importRows = []; _importHeaders = []; _importMapped = [];
+  document.getElementById('import-file-name').textContent = '';
+  document.getElementById('import-file-input').value = '';
+  document.getElementById('import-mapping-card').style.display  = 'none';
+  document.getElementById('import-preview-card').style.display  = 'none';
+  document.getElementById('import-done-card').style.display     = 'none';
+  document.getElementById('import-alert').innerHTML = '';
+  const btn = document.getElementById('import-confirm-btn');
+  if (btn) { btn.disabled = false; btn.textContent = '✅ Import All Students'; }
+}
+
+// Download a blank template the user can fill in
+async function downloadImportTemplate() {
+  await loadXLSX();
+  const XLSX = window.XLSX;
+  const headers = STUDENT_FIELDS.map(f => f.label + (f.required ? ' *' : ''));
+  const example = ['Ravi', 'Kumar', '9876543210', 'Tally with GST', 'Morning (8:00 AM - 10:00 AM)',
+    '2026-07-10', '2005-03-15', 'ravi@gmail.com', '12 Main St, Town', 'Suresh Kumar',
+    '9123456789', '5000', '0', 'Offline', 'Regular', 'B.Com', ''];
+  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+  ws['!cols'] = headers.map(()=>({wch:22}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Students');
+  XLSX.writeFile(wb, 'Student_Import_Template.xlsx');
+}
+
+// Load SheetJS library on demand
+async function loadXLSX() {
+  if (window.XLSX) return;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// Handle file upload (from click or drag-drop)
+async function handleImportFile(file) {
+  if (!file) return;
+  resetImport();
+  document.getElementById('import-file-name').innerHTML =
+    '📄 <strong>' + file.name + '</strong> (' + (file.size/1024).toFixed(1) + ' KB)';
+
+  try {
+    await loadXLSX();
+    const XLSX = window.XLSX;
+    const buf  = await file.arrayBuffer();
+    const wb   = XLSX.read(buf, { type: 'array', cellDates: true });
+    const ws   = wb.Sheets[wb.SheetNames[0]]; // Use first sheet
+    const raw  = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    if (raw.length < 2) {
+      showAlert('import-alert','error','❌ The file appears empty or has only one row. Please check the file.');
+      return;
+    }
+
+    // First non-empty row = headers
+    _importHeaders = raw[0].map(h => String(h).trim());
+    _importRows    = raw.slice(1).filter(r => r.some(cell => String(cell).trim() !== ''));
+
+    document.getElementById('import-file-name').innerHTML +=
+      ' &nbsp;→&nbsp; <strong style="color:var(--green);">' + _importRows.length + ' rows found</strong>';
+
+    buildMappingUI();
+  } catch (err) {
+    showAlert('import-alert','error','❌ Could not read the file: ' + err.message);
+  }
+}
+
+// Build the column-mapping UI (Step 3)
+function buildMappingUI() {
+  const grid = document.getElementById('import-mapping-grid');
+
+  // Header row
+  grid.innerHTML =
+    '<div style="font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Your Excel Column</div>' +
+    '<div></div>' +
+    '<div style="font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;">System Field</div>';
+
+  // Auto-match: try to guess which Excel column corresponds to each system field
+  const autoMatch = {};
+  const normHeader = h => h.toLowerCase().replace(/[^a-z0-9]/g,'');
+  const matchHints = {
+    fname:      ['firstname','first name','fname','name','student name','studentname','given name'],
+    lname:      ['lastname','last name','lname','surname','family name'],
+    mobile:     ['mobile','phone','contact','mob','cell','number'],
+    course:     ['course','program','programme','subject'],
+    batch:      ['batch','timing','time','slot','class'],
+    admDate:    ['admission','admdate','joining','enroll','enrolled','date of joining'],
+    dob:        ['dob','birth','birthdate','date of birth','born'],
+    email:      ['email','mail','e-mail'],
+    address:    ['address','addr','location','place'],
+    guardian:   ['guardian','parent','father','mother'],
+    gmobile:    ['guardian mobile','parent mobile','parent phone','father phone'],
+    totalFees:  ['fees','total fees','totalfees','fee','amount','total amount'],
+    concession: ['concession','discount','waiver'],
+    mode:       ['mode','learning mode','online','offline'],
+    courseType: ['type','course type','track'],
+    qual:       ['qualification','edu','education','degree'],
+    remarks:    ['remarks','notes','comment'],
+  };
+
+  _importHeaders.forEach((excelCol, colIdx) => {
+    const norm = normHeader(excelCol);
+    for (const [fieldKey, hints] of Object.entries(matchHints)) {
+      if (hints.some(h => norm.includes(normHeader(h)) || normHeader(h).includes(norm))) {
+        if (!autoMatch[fieldKey]) autoMatch[fieldKey] = colIdx;
+      }
+    }
+  });
+
+  // Build one row per Excel column
+  _importHeaders.forEach((excelCol, colIdx) => {
+    // Excel column label
+    const colLabel = document.createElement('div');
+    colLabel.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12.5px;';
+    colLabel.textContent = excelCol || ('Column ' + (colIdx+1));
+    grid.appendChild(colLabel);
+
+    // Arrow
+    const arrow = document.createElement('div');
+    arrow.textContent = '→'; arrow.style.cssText = 'text-align:center;color:var(--muted);font-size:14px;';
+    grid.appendChild(arrow);
+
+    // System field dropdown
+    const sel = document.createElement('select');
+    sel.id = 'map-col-' + colIdx;
+    sel.style.cssText = 'width:100%;font-size:12.5px;';
+    sel.innerHTML = '<option value="">— Skip —</option>' +
+      STUDENT_FIELDS.map(f =>
+        '<option value="' + f.key + '">' + f.label + (f.required ? ' ✱' : '') + '</option>'
+      ).join('');
+
+    // Set auto-matched value if found
+    const matchedKey = Object.entries(autoMatch).find(([,ci])=>ci===colIdx)?.[0];
+    if (matchedKey) sel.value = matchedKey;
+
+    grid.appendChild(sel);
+  });
+
+  document.getElementById('import-mapping-card').style.display = 'block';
+}
+
+// Preview the mapped data (Step 4)
+function previewImport() {
+  // Read mapping from UI
+  const colMap = {}; // colIndex → fieldKey
+  _importHeaders.forEach((_, colIdx) => {
+    const sel = document.getElementById('map-col-' + colIdx);
+    if (sel && sel.value) colMap[colIdx] = sel.value;
+  });
+
+  // Check required fields are mapped
+  const mappedFields = Object.values(colMap);
+  const missingRequired = STUDENT_FIELDS.filter(f => f.required && !mappedFields.includes(f.key));
+  if (missingRequired.length) {
+    showAlert('import-alert','error','❌ Please map these required fields: ' +
+      missingRequired.map(f=>f.label).join(', '));
+    return;
+  }
+
+  // Build preview rows
+  _importMapped = _importRows.map((row, rowIdx) => {
+    const student = {};
+    Object.entries(colMap).forEach(([colIdx, fieldKey]) => {
+      let val = row[parseInt(colIdx)];
+      // Handle Date objects from SheetJS
+      if (val instanceof Date) {
+        val = val.toISOString().slice(0,10);
+      } else {
+        val = String(val || '').trim();
+      }
+      student[fieldKey] = val;
+    });
+    return student;
+  }).filter(s => s.fname || s.lname || s.mobile); // skip blank rows
+
+  if (!_importMapped.length) {
+    showAlert('import-alert','error','❌ No valid student rows found. Check that the data starts on row 2 and required columns are mapped.');
+    return;
+  }
+
+  // Build preview table
+  const previewFields = STUDENT_FIELDS.filter(f => mappedFields.includes(f.key));
+  const thead = document.getElementById('import-preview-head');
+  const tbody = document.getElementById('import-preview-body');
+
+  thead.innerHTML = '<tr>' + previewFields.map(f =>
+    '<th>' + f.label + '</th>'
+  ).join('') + '</tr>';
+
+  const showRows = _importMapped.slice(0, 10);
+  tbody.innerHTML = showRows.map(s =>
+    '<tr>' + previewFields.map(f =>
+      '<td style="white-space:nowrap;">' + (s[f.key] || '—') + '</td>'
+    ).join('') + '</tr>'
+  ).join('');
+
+  // Warning for duplicates
+  const warnEl = document.getElementById('import-preview-warn');
+  const existingMobiles = new Set(students.map(s=>s.mobile));
+  const dupes = _importMapped.filter(s => s.mobile && existingMobiles.has(s.mobile));
+  if (dupes.length) {
+    warnEl.innerHTML = '<div class="alert alert-warn">⚠️ ' + dupes.length +
+      ' student(s) have a mobile number already in the system. They will be imported as new records — check for duplicates after import.</div>';
+  } else {
+    warnEl.innerHTML = '';
+  }
+
+  document.getElementById('import-preview-count').textContent =
+    'Showing ' + showRows.length + ' of ' + _importMapped.length + ' students';
+  document.getElementById('import-preview-card').style.display = 'block';
+  document.getElementById('import-preview-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Final import — write all students to Firestore
+async function confirmImport() {
+  const btn = document.getElementById('import-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Importing…';
+
+  try {
+    // Generate roll numbers continuing from the last existing one
+    const existingNums = students
+      .map(s => parseInt((s.rollNo||'').replace(/\D/g,'')))
+      .filter(n => !isNaN(n));
+    let nextNum = existingNums.length ? Math.max(...existingNums) + 1 : 1;
+
+    const today = todayStr();
+    const newStudents = _importMapped.map(s => {
+      const roll = 'EXP' + String(nextNum++).padStart(4,'0');
+      return {
+        rollNo:      roll,
+        id:          roll,
+        fname:       s.fname  || '',
+        lname:       s.lname  || '',
+        mobile:      s.mobile || '',
+        course:      s.course || '',
+        batch:       s.batch  || (masterData.batches[0] ? masterData.batches[0].name + ' (' + masterData.batches[0].time + ')' : ''),
+        admDate:     s.admDate     || today,
+        dob:         s.dob        || '',
+        email:       s.email      || '',
+        address:     s.address    || '',
+        guardian:    s.guardian   || '',
+        gmobile:     s.gmobile    || '',
+        totalFees:   s.totalFees  || '0',
+        concession:  s.concession || '0',
+        mode:        s.mode       || 'Offline',
+        courseType:  s.courseType || 'Regular',
+        qual:        s.qual       || '',
+        remarks:     s.remarks    || '',
+        customDueDate: null,
+        status:      'Active',
+        createdAt:   new Date().toISOString(),
+        addedBy:     currentUser ? currentUser.email : 'import',
+        importedAt:  new Date().toISOString(),
+      };
+    });
+
+    // Merge with existing students and save to Firestore
+    const allStudents = [...students, ...newStudents];
+    await DB.set('students', allStudents);
+
+    document.getElementById('import-done-msg').textContent =
+      '✅ ' + newStudents.length + ' students imported successfully!';
+    document.getElementById('import-mapping-card').style.display = 'none';
+    document.getElementById('import-preview-card').style.display = 'none';
+    document.getElementById('import-done-card').style.display = 'block';
+    document.getElementById('import-done-card').scrollIntoView({ behavior: 'smooth' });
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '✅ Import All Students';
+    showAlert('import-alert','error','❌ Import failed: ' + err.message);
+  }
 }
 
 function parseCSVLine(line) {
