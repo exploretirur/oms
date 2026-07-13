@@ -451,9 +451,6 @@ tr:hover td { background: #f8fafd; }
   <div class="nav-item" id="nav-users" onclick="navTo('users',this)">
     <span class="icon">👤</span> User Management
   </div>
-  <div class="nav-item" id="nav-import-students" onclick="navTo('import-students',this)">
-    <span class="icon">📥</span> Import Students
-  </div>
   <div class="nav-item" id="nav-settings" onclick="navTo('settings',this)">
     <span class="icon">⚙️</span> Configuration
   </div>
@@ -572,6 +569,7 @@ tr:hover td { background: #f8fafd; }
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">🎓</span> Course & Batch</div></div>
         <div class="form-grid">
+          <div class="form-group"><label>Student ID <span class="required">*</span></label><input id="adm-rollno" type="text" placeholder="e.g. EXP001 or 2024-001" style="font-weight:600;letter-spacing:0.5px;"></div>
           <div class="form-group"><label>Course <span class="required">*</span></label><select id="adm-course"><option value="">Select course</option></select></div>
           <div class="form-group"><label>Batch <span class="required">*</span></label><select id="adm-batch"><option value="">Select batch</option></select></div>
           <div class="form-group"><label>Course Type <span class="required">*</span></label><select id="adm-coursetype"><option value="Regular">Regular</option><option value="Fast Track">Fast Track</option></select></div>
@@ -1336,7 +1334,8 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-success" onclick="exportToExcel()">⬇️ Download Excel Workbook (.xlsx)</button>
-          <button class="btn btn-outline" onclick="navTo('import-students', document.getElementById('nav-settings'))">⬆️ Import Students from Excel</button>
+          <button class="btn btn-outline" onclick="document.getElementById('excel-import-input').click()">⬆️ Import from CSV</button>
+          <input type="file" id="excel-import-input" accept=".xlsx,.csv" style="display:none;" onchange="importFromExcel(event)">
         </div>
         <div id="excel-status" style="margin-top:12px;"></div>
         <div class="alert alert-info" style="margin-top:16px;">
@@ -1344,75 +1343,6 @@ tr:hover td { background: #f8fafd; }
         </div>
       </div>
 
-    </div>
-
-
-    <!-- ===== IMPORT STUDENTS ===== -->
-    <div id="page-import-students" class="page">
-      <div id="import-alert"></div>
-
-      <!-- STEP 1 -->
-      <div class="card">
-        <div class="card-header"><div class="card-title"><span class="icon">1️⃣</span> Download Template (Optional)</div></div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">If your Excel uses different column names, download this template and fill it in — it uses the exact column names the system expects.</p>
-        <button class="btn btn-outline" onclick="downloadImportTemplate()">⬇️ Download Student Import Template (.xlsx)</button>
-      </div>
-
-      <!-- STEP 2 -->
-      <div class="card">
-        <div class="card-header"><div class="card-title"><span class="icon">2️⃣</span> Upload Your Excel File</div></div>
-        <div id="import-dropzone" onclick="document.getElementById('import-file-input').click()"
-          style="border:2px dashed var(--border);border-radius:12px;padding:36px;text-align:center;cursor:pointer;transition:border-color .2s;"
-          ondragover="event.preventDefault();this.style.borderColor=\'var(--teal)\'"
-          ondragleave="this.style.borderColor=\'var(--border)\'"
-          ondrop="event.preventDefault();this.style.borderColor=\'var(--border)\';handleImportFile(event.dataTransfer.files[0])">
-          <div style="font-size:36px;margin-bottom:8px;">📂</div>
-          <div style="font-size:14px;font-weight:500;color:var(--text);">Click to browse or drag &amp; drop your Excel file here</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Supports .xlsx, .xls files</div>
-        </div>
-        <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleImportFile(this.files[0])">
-        <div id="import-file-name" style="margin-top:10px;font-size:13px;color:var(--muted);"></div>
-      </div>
-
-      <!-- STEP 3 -->
-      <div class="card" id="import-mapping-card" style="display:none;">
-        <div class="card-header"><div class="card-title"><span class="icon">3️⃣</span> Match Your Columns</div></div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Match each column from your Excel file to the correct field in the system. Leave as "— Skip —" if not needed.</p>
-        <div id="import-mapping-grid" style="display:grid;grid-template-columns:1fr 30px 1fr;gap:10px 8px;align-items:center;font-size:13px;"></div>
-        <div class="action-bar" style="margin-top:16px;">
-          <button class="btn btn-teal" onclick="previewImport()">👁️ Preview Data</button>
-        </div>
-      </div>
-
-      <!-- STEP 4 -->
-      <div class="card" id="import-preview-card" style="display:none;">
-        <div class="card-header">
-          <div class="card-title"><span class="icon">4️⃣</span> Preview</div>
-          <div id="import-preview-count" style="font-size:13px;color:var(--muted);"></div>
-        </div>
-        <div id="import-preview-warn" style="margin-bottom:12px;"></div>
-        <div class="table-wrap" style="max-height:300px;overflow-y:auto;">
-          <table id="import-preview-table">
-            <thead id="import-preview-head"></thead>
-            <tbody id="import-preview-body"></tbody>
-          </table>
-        </div>
-        <div class="action-bar" style="margin-top:16px;">
-          <button class="btn btn-outline" onclick="resetImport()">↩ Start Over</button>
-          <button class="btn btn-teal" onclick="confirmImport()" id="import-confirm-btn">✅ Import All Students</button>
-        </div>
-      </div>
-
-      <!-- STEP 5 -->
-      <div class="card" id="import-done-card" style="display:none;text-align:center;padding:32px;">
-        <div style="font-size:48px;margin-bottom:12px;">🎉</div>
-        <div id="import-done-msg" style="font-size:16px;font-weight:600;color:var(--green);margin-bottom:8px;"></div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">All students are now live in Student Records and visible to all staff.</div>
-        <div style="display:flex;gap:10px;justify-content:center;">
-          <button class="btn btn-teal" onclick="navTo('students',document.getElementById('nav-students'))">👥 View Student Records</button>
-          <button class="btn btn-outline" onclick="resetImport()">📥 Import More</button>
-        </div>
-      </div>
     </div>
 
   </div><!-- /content -->
@@ -1536,8 +1466,7 @@ tr:hover td { background: #f8fafd; }
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
-  setPersistence, browserLocalPersistence, createUserWithEmailAndPassword,
-  updateProfile
+  setPersistence, browserLocalPersistence
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
   getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc,
@@ -1565,24 +1494,11 @@ let firebaseInitialized = true; // kept for compatibility with the rest of the a
 window.__fb = {
   auth, firestoreDB, cloudFns,
   signInWithEmailAndPassword, signOut, onAuthStateChanged,
-  createUserWithEmailAndPassword, updateProfile,
   collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
   query, where, orderBy, onSnapshot, serverTimestamp, httpsCallable
 };
 
-// Secondary Firebase app — used ONLY for creating new staff Auth accounts.
-// By using a separate app instance, creating a new user does NOT sign out
-// the Admin or affect the Admin's current session in any way.
-// This is the standard Firebase pattern for admin-side user creation
-// without needing a server or Cloud Functions.
-let _secondaryApp = null;
-function getSecondaryAuth() {
-  if (!_secondaryApp) {
-    _secondaryApp = initializeApp(HARDCODED_FIREBASE_CONFIG, 'secondary-user-creation');
-  }
-  return getAuth(_secondaryApp);
-}
-window.getSecondaryAuth = getSecondaryAuth;
+setPersistence(auth, browserLocalPersistence).catch(e => console.warn('Persistence setup failed:', e));
 
 // ---- Friendly error messages for every failure mode requested ----
 function friendlyAuthError(err) {
@@ -1963,8 +1879,8 @@ window.cloudFns = cloudFns;
 // canEnter = can submit new records (admission, payments, attendance)
 // canModify = can edit or delete existing records (admin only)
 const PERMISSIONS = {
-  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings'], canEnter: true, canModify: true },
-  office:  { pages: ['dashboard','admission','students','fees','receipt','certificates','absent-list','student-dashboard'],                                                                               canEnter: true, canModify: false },
+  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','settings'], canEnter: true, canModify: true },
+  office:  { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','absent-list','student-dashboard'],                                                                               canEnter: true, canModify: false },
   teacher: { pages: ['dashboard','attendance','attendance-report','student-dashboard','marks'],                                                                              canEnter: true, canModify: false }
 };
 
@@ -1994,7 +1910,7 @@ function applyRoleUI() {
   document.getElementById('sb-urole').textContent = role.toUpperCase();
 
   // Nav items — lock inaccessible pages
-  const allPages = ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings'];
+  const allPages = ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','settings'];
   allPages.forEach(p => {
     const nav = document.getElementById('nav-' + p);
     if (!nav) return;
@@ -2049,7 +1965,7 @@ function navTo(page, el) {
     attendance:'Attendance Entry', 'absent-list':'Absent List',
     'attendance-report':'Attendance Report', 'student-dashboard':'Student Dashboard',
     marks:'Marks Entry', master:'Master Data', salary:'Staff Salary',
-    users:'User Management', 'import-students':'Import Students from Excel', settings:'Configuration'
+    users:'User Management', settings:'Configuration'
   };
   document.getElementById('page-title').textContent = titles[page] || page;
   if (['admission','students','attendance','absent-list','attendance-report','marks'].includes(page)) populateCourseBatchSelects();
@@ -2063,7 +1979,6 @@ function navTo(page, el) {
   if (page === 'master') renderMasterData();
   if (page === 'salary') initSalaryPage();
   if (page === 'absent-list') { document.getElementById('abs-date').value = todayStr(); renderAbsentHistory(); }
-  if (page === 'import-students') resetImport();
 }
 
 function showPage(page) {
@@ -2230,20 +2145,23 @@ function toggleTeacherFields() {
 // Auth account, and writes the matching Firestore profile document in one
 // atomic operation. See functions/index.js in the deployment package.
 async function saveUser() {
-  const name      = document.getElementById('uf-name').value.trim();
-  const email     = document.getElementById('uf-username').value.trim().toLowerCase();
-  const password  = document.getElementById('uf-password').value.trim();
-  const role      = document.getElementById('uf-role').value;
-  const dept      = document.getElementById('uf-dept').value.trim();
-  const mobile    = document.getElementById('uf-mobile').value.trim();
+  const name = document.getElementById('uf-name').value.trim();
+  const email = document.getElementById('uf-username').value.trim().toLowerCase();
+  const password = document.getElementById('uf-password').value.trim();
+  const role = document.getElementById('uf-role').value;
+  const dept = document.getElementById('uf-dept').value.trim();
+  const mobile = document.getElementById('uf-mobile').value.trim();
   const editDocId = document.getElementById('uf-edit-index').value;
-  const alertBox  = document.getElementById('user-form-alert');
-  const saveBtn   = document.getElementById('uf-save-btn');
+  const editUid = document.getElementById('uf-edit-uid').value;
+  const alertBox = document.getElementById('user-form-alert');
+  const saveBtn = document.getElementById('uf-save-btn');
 
-  // Basic validation
-  if (!name) { alertBox.innerHTML = '<div class="alert alert-error">Full name is required.</div>'; return; }
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    alertBox.innerHTML = '<div class="alert alert-error">Please enter a valid email address (e.g. teacher@gmail.com).</div>';
+  if (!name || !email) {
+    alertBox.innerHTML = '<div class="alert alert-error">Name and email are required.</div>';
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    alertBox.innerHTML = '<div class="alert alert-error">Please enter a valid email address.</div>';
     return;
   }
 
@@ -2252,95 +2170,53 @@ async function saveUser() {
     : [];
 
   saveBtn.disabled = true;
-  alertBox.innerHTML = '';
 
-  // ─────────────────────────────────────────
-  // EDIT existing user — update Firestore only
-  // ─────────────────────────────────────────
   if (editDocId) {
-    saveBtn.textContent = '⏳ Saving…';
+    // ---- EDIT existing user: only the Firestore profile fields change ----
+    saveBtn.textContent = 'Saving…';
     const updateData = { name, role, dept, mobile, courses };
     const ok = await DB.updateDoc('users', editDocId, updateData);
-    saveBtn.disabled = false;
-    saveBtn.textContent = '💾 Save Changes';
+    saveBtn.disabled = false; saveBtn.textContent = '💾 Save Changes';
     if (ok) {
-      // Update local cache too
-      if (_cachedUsers) {
-        const idx = _cachedUsers.findIndex(u => u.id === editDocId);
-        if (idx > -1) _cachedUsers[idx] = { ..._cachedUsers[idx], ...updateData };
-      }
-      showAlert('users-alert','success','✅ ' + name + '\'s details updated successfully.');
+      showAlert('users-alert','success','✅ User updated successfully.');
+      const users = await getUsers();
+      const idx = users.findIndex(u => u.id === editDocId);
+      if (idx > -1) users[idx] = { ...users[idx], ...updateData };
       closeModal('user-modal');
       renderUsersPage();
     } else {
-      alertBox.innerHTML = '<div class="alert alert-error">❌ Could not save changes. Please try again.</div>';
+      alertBox.innerHTML = '<div class="alert alert-error">Could not save changes. ' + (window.friendlyFirestoreError ? '' : '') + '</div>';
     }
     return;
   }
 
-  // ─────────────────────────────────────────
-  // CREATE new staff account
-  // Uses a secondary Firebase app instance so the Admin stays signed in.
-  // ─────────────────────────────────────────
+  // ---- CREATE new user via Cloud Function ----
   if (!password || password.length < 6) {
     saveBtn.disabled = false;
-    alertBox.innerHTML = '<div class="alert alert-error">Password must be at least 6 characters.</div>';
+    alertBox.innerHTML = '<div class="alert alert-error">Temporary password must be at least 6 characters.</div>';
     return;
   }
-
-  saveBtn.textContent = '⏳ Creating account…';
+  saveBtn.textContent = 'Creating account…';
   try {
-    // Step 1: Create the Firebase Auth account using the secondary app
-    const secondaryAuth = getSecondaryAuth();
-    const userCred = await window.__fb.createUserWithEmailAndPassword(secondaryAuth, email, password);
-    const newUid = userCred.user.uid;
-
-    // Step 2: Set their display name in Auth
-    await window.__fb.updateProfile(userCred.user, { displayName: name });
-
-    // Step 3: Sign them out of the secondary app immediately
-    // (Admin's session on the primary app is completely unaffected)
-    await secondaryAuth.signOut();
-
-    // Step 4: Write the Firestore profile at users/{uid}
-    const profileData = {
-      uid:       newUid,
-      id:        newUid,
-      name,
-      email,
-      role,
-      dept,
-      mobile,
-      courses,
-      active:    true,
-      createdAt: new Date().toISOString(),
-      createdBy: currentUser ? currentUser.uid : '',
-      lastLogin: null
-    };
-    await DB.setDoc('users', newUid, profileData);
-
-    // Update local cache
-    if (_cachedUsers) _cachedUsers.push(profileData);
-
-    saveBtn.disabled = false;
-    saveBtn.textContent = '💾 Save User';
-    showAlert('users-alert','success',
-      '✅ Account created for ' + name + ' (' + email + '). ' +
-      'Share this password with them: <strong>' + password + '</strong>'
-    );
-    closeModal('user-modal');
-    renderUsersPage();
-
+    const createStaffUser = window.cloudFns ? window.__fb.httpsCallable(window.cloudFns, 'createStaffUser') : null;
+    if (!createStaffUser) throw new Error('Cloud Functions not available.');
+    const result = await createStaffUser({ name, email, password, role, dept, mobile, courses });
+    saveBtn.disabled = false; saveBtn.textContent = '💾 Save User';
+    if (result.data && result.data.success) {
+      showAlert('users-alert','success','✅ ' + (role === 'teacher' ? 'Teacher' : 'User') + ' account created for ' + email + '. Share the temporary password with them and ask them to change it after first login.');
+      closeModal('user-modal');
+      renderUsersPage();
+    } else {
+      alertBox.innerHTML = '<div class="alert alert-error">' + (result.data && result.data.message ? result.data.message : 'Could not create account.') + '</div>';
+    }
   } catch (err) {
-    saveBtn.disabled = false;
-    saveBtn.textContent = '💾 Save User';
-    console.error('Create user failed:', err);
-    let msg = '❌ Could not create account.';
-    if (err.code === 'auth/email-already-in-use') msg = '❌ An account with this email already exists.';
-    else if (err.code === 'auth/invalid-email')   msg = '❌ That email address is invalid.';
-    else if (err.code === 'auth/weak-password')   msg = '❌ Password is too weak. Use at least 6 characters.';
-    else if (err.code === 'auth/network-request-failed') msg = '❌ No internet connection. Please check your network.';
-    else if (err.message) msg = '❌ ' + err.message;
+    saveBtn.disabled = false; saveBtn.textContent = '💾 Save User';
+    console.error('createStaffUser failed:', err);
+    let msg = 'Could not create account.';
+    if (err.code === 'functions/already-exists') msg = 'An account with this email already exists.';
+    else if (err.code === 'functions/permission-denied') msg = 'Only an Admin can create new staff accounts.';
+    else if (err.code === 'functions/unavailable' || err.message.includes('Cloud Functions not available')) msg = 'Account creation service is not deployed yet. See the deployment guide (functions/index.js must be deployed with "firebase deploy --only functions").';
+    else if (err.message) msg = err.message;
     alertBox.innerHTML = '<div class="alert alert-error">' + msg + '</div>';
   }
 }
@@ -2376,6 +2252,7 @@ async function removeUser(docId) {
 // ADMISSION
 // ============================================================
 async function submitAdmission() {
+  const roll = document.getElementById('adm-rollno').value.trim().toUpperCase();
   const fields = {
     fname: document.getElementById('adm-fname').value.trim(),
     lname: document.getElementById('adm-lname').value.trim(),
@@ -2399,28 +2276,33 @@ async function submitAdmission() {
     idType: document.getElementById('adm-idtype').value,
     remarks: document.getElementById('adm-remarks').value.trim()
   };
+
+  // Validate required fields
+  if (!roll) { showAlert('admission-alert','error','❌ Student ID is required. Please enter an ID (e.g. EXP001).'); return; }
   if (!fields.fname || !fields.lname || !fields.mobile || !fields.course || !fields.batch) {
     showAlert('admission-alert','error','❌ Fill all required fields (name, mobile, course, batch).'); return;
   }
   if (!/^\d{10}$/.test(fields.mobile)) { showAlert('admission-alert','error','❌ Mobile must be 10 digits.'); return; }
 
+  // Check Student ID is not already taken
+  if (students.find(s => s.rollNo.toUpperCase() === roll)) {
+    showAlert('admission-alert','error','❌ Student ID <strong>' + roll + '</strong> is already used by another student. Please enter a different ID.'); return;
+  }
+
   const btn = document.getElementById('adm-submit-btn');
   const txt = document.getElementById('adm-btn-text');
   btn.disabled = true; txt.innerHTML = '<span class="loader"></span> Saving...';
 
-  const roll = 'ST' + String(students.length + 1).padStart(4,'0');
-  students.push({ ...fields, rollNo: roll, status:'Active', createdAt: new Date().toISOString(), addedBy: currentUser.email });
+  students.push({ ...fields, rollNo: roll, id: roll, status:'Active', createdAt: new Date().toISOString(), addedBy: currentUser.email });
   await DB.set('students', students);
 
   btn.disabled = false; txt.innerHTML = '💾 Save Student';
-
-  const msg = '✅ Admitted! Roll No: <strong>' + roll + '</strong>' + (firebaseInitialized ? ' — Saved to Firebase!' : ' (Local — connect Firebase in Settings for cloud sync)');
-  showAlert('admission-alert','success',msg);
+  showAlert('admission-alert','success','✅ Student admitted! ID: <strong>' + roll + '</strong> — Saved to Firebase.');
   clearAdmissionForm();
 }
 
 function clearAdmissionForm() {
-  ['adm-fname','adm-lname','adm-dob','adm-email','adm-address','adm-mobile','adm-totalfees','adm-guardian','adm-gmobile','adm-qual','adm-remarks','adm-duedate'].forEach(id => document.getElementById(id).value='');
+  ['adm-fname','adm-lname','adm-dob','adm-email','adm-address','adm-mobile','adm-totalfees','adm-guardian','adm-gmobile','adm-qual','adm-remarks','adm-duedate','adm-rollno'].forEach(id => document.getElementById(id).value='');
   ['adm-gender','adm-course','adm-batch','adm-idtype','adm-coursetype','adm-mode'].forEach(id => document.getElementById(id).selectedIndex=0);
   document.getElementById('adm-date').value = todayStr();
   document.getElementById('adm-concession').value = '0';
@@ -3514,315 +3396,6 @@ async function importFromExcel(event) {
   };
   reader.readAsText(file);
   event.target.value = '';
-}
-
-// ============================================================
-// IMPORT STUDENTS FROM EXCEL
-// ============================================================
-
-// System fields that students need — used to build the column mapping UI
-const STUDENT_FIELDS = [
-  { key: 'fname',       label: 'First Name',           required: true  },
-  { key: 'lname',       label: 'Last Name',            required: true  },
-  { key: 'mobile',      label: 'Mobile Number',        required: true  },
-  { key: 'course',      label: 'Course',               required: true  },
-  { key: 'batch',       label: 'Batch',                required: false },
-  { key: 'admDate',     label: 'Admission Date',       required: false },
-  { key: 'dob',         label: 'Date of Birth',        required: false },
-  { key: 'email',       label: 'Student Email',        required: false },
-  { key: 'address',     label: 'Address',              required: false },
-  { key: 'guardian',    label: 'Guardian Name',        required: false },
-  { key: 'gmobile',     label: 'Guardian Mobile',      required: false },
-  { key: 'totalFees',   label: 'Total Fees (₹)',       required: false },
-  { key: 'concession',  label: 'Concession (₹)',       required: false },
-  { key: 'mode',        label: 'Mode (Offline/Online)',required: false },
-  { key: 'courseType',  label: 'Course Type',          required: false },
-  { key: 'qual',        label: 'Qualification',        required: false },
-  { key: 'remarks',     label: 'Remarks',              required: false },
-];
-
-let _importRows    = [];   // raw rows from Excel
-let _importHeaders = [];   // column headers from Excel
-let _importMapped  = [];   // final mapped+transformed student objects ready to save
-
-// Reset the entire import flow back to Step 1
-function resetImport() {
-  _importRows = []; _importHeaders = []; _importMapped = [];
-  document.getElementById('import-file-name').textContent = '';
-  document.getElementById('import-file-input').value = '';
-  document.getElementById('import-mapping-card').style.display  = 'none';
-  document.getElementById('import-preview-card').style.display  = 'none';
-  document.getElementById('import-done-card').style.display     = 'none';
-  document.getElementById('import-alert').innerHTML = '';
-  const btn = document.getElementById('import-confirm-btn');
-  if (btn) { btn.disabled = false; btn.textContent = '✅ Import All Students'; }
-}
-
-// Download a blank template the user can fill in
-async function downloadImportTemplate() {
-  await loadXLSX();
-  const XLSX = window.XLSX;
-  const headers = STUDENT_FIELDS.map(f => f.label + (f.required ? ' *' : ''));
-  const example = ['Ravi', 'Kumar', '9876543210', 'Tally with GST', 'Morning (8:00 AM - 10:00 AM)',
-    '2026-07-10', '2005-03-15', 'ravi@gmail.com', '12 Main St, Town', 'Suresh Kumar',
-    '9123456789', '5000', '0', 'Offline', 'Regular', 'B.Com', ''];
-  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
-  ws['!cols'] = headers.map(()=>({wch:22}));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Students');
-  XLSX.writeFile(wb, 'Student_Import_Template.xlsx');
-}
-
-// Load SheetJS library on demand
-async function loadXLSX() {
-  if (window.XLSX) return;
-  await new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    s.onload = resolve; s.onerror = reject;
-    document.head.appendChild(s);
-  });
-}
-
-// Handle file upload (from click or drag-drop)
-async function handleImportFile(file) {
-  if (!file) return;
-  resetImport();
-  document.getElementById('import-file-name').innerHTML =
-    '📄 <strong>' + file.name + '</strong> (' + (file.size/1024).toFixed(1) + ' KB)';
-
-  try {
-    await loadXLSX();
-    const XLSX = window.XLSX;
-    const buf  = await file.arrayBuffer();
-    const wb   = XLSX.read(buf, { type: 'array', cellDates: true });
-    const ws   = wb.Sheets[wb.SheetNames[0]]; // Use first sheet
-    const raw  = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-
-    if (raw.length < 2) {
-      showAlert('import-alert','error','❌ The file appears empty or has only one row. Please check the file.');
-      return;
-    }
-
-    // First non-empty row = headers
-    _importHeaders = raw[0].map(h => String(h).trim());
-    _importRows    = raw.slice(1).filter(r => r.some(cell => String(cell).trim() !== ''));
-
-    document.getElementById('import-file-name').innerHTML +=
-      ' &nbsp;→&nbsp; <strong style="color:var(--green);">' + _importRows.length + ' rows found</strong>';
-
-    buildMappingUI();
-  } catch (err) {
-    showAlert('import-alert','error','❌ Could not read the file: ' + err.message);
-  }
-}
-
-// Build the column-mapping UI (Step 3)
-function buildMappingUI() {
-  const grid = document.getElementById('import-mapping-grid');
-
-  // Header row
-  grid.innerHTML =
-    '<div style="font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Your Excel Column</div>' +
-    '<div></div>' +
-    '<div style="font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;">System Field</div>';
-
-  // Auto-match: try to guess which Excel column corresponds to each system field
-  const autoMatch = {};
-  const normHeader = h => h.toLowerCase().replace(/[^a-z0-9]/g,'');
-  const matchHints = {
-    fname:      ['firstname','first name','fname','name','student name','studentname','given name'],
-    lname:      ['lastname','last name','lname','surname','family name'],
-    mobile:     ['mobile','phone','contact','mob','cell','number'],
-    course:     ['course','program','programme','subject'],
-    batch:      ['batch','timing','time','slot','class'],
-    admDate:    ['admission','admdate','joining','enroll','enrolled','date of joining'],
-    dob:        ['dob','birth','birthdate','date of birth','born'],
-    email:      ['email','mail','e-mail'],
-    address:    ['address','addr','location','place'],
-    guardian:   ['guardian','parent','father','mother'],
-    gmobile:    ['guardian mobile','parent mobile','parent phone','father phone'],
-    totalFees:  ['fees','total fees','totalfees','fee','amount','total amount'],
-    concession: ['concession','discount','waiver'],
-    mode:       ['mode','learning mode','online','offline'],
-    courseType: ['type','course type','track'],
-    qual:       ['qualification','edu','education','degree'],
-    remarks:    ['remarks','notes','comment'],
-  };
-
-  _importHeaders.forEach((excelCol, colIdx) => {
-    const norm = normHeader(excelCol);
-    for (const [fieldKey, hints] of Object.entries(matchHints)) {
-      if (hints.some(h => norm.includes(normHeader(h)) || normHeader(h).includes(norm))) {
-        if (!autoMatch[fieldKey]) autoMatch[fieldKey] = colIdx;
-      }
-    }
-  });
-
-  // Build one row per Excel column
-  _importHeaders.forEach((excelCol, colIdx) => {
-    // Excel column label
-    const colLabel = document.createElement('div');
-    colLabel.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12.5px;';
-    colLabel.textContent = excelCol || ('Column ' + (colIdx+1));
-    grid.appendChild(colLabel);
-
-    // Arrow
-    const arrow = document.createElement('div');
-    arrow.textContent = '→'; arrow.style.cssText = 'text-align:center;color:var(--muted);font-size:14px;';
-    grid.appendChild(arrow);
-
-    // System field dropdown
-    const sel = document.createElement('select');
-    sel.id = 'map-col-' + colIdx;
-    sel.style.cssText = 'width:100%;font-size:12.5px;';
-    sel.innerHTML = '<option value="">— Skip —</option>' +
-      STUDENT_FIELDS.map(f =>
-        '<option value="' + f.key + '">' + f.label + (f.required ? ' ✱' : '') + '</option>'
-      ).join('');
-
-    // Set auto-matched value if found
-    const matchedKey = Object.entries(autoMatch).find(([,ci])=>ci===colIdx)?.[0];
-    if (matchedKey) sel.value = matchedKey;
-
-    grid.appendChild(sel);
-  });
-
-  document.getElementById('import-mapping-card').style.display = 'block';
-}
-
-// Preview the mapped data (Step 4)
-function previewImport() {
-  // Read mapping from UI
-  const colMap = {}; // colIndex → fieldKey
-  _importHeaders.forEach((_, colIdx) => {
-    const sel = document.getElementById('map-col-' + colIdx);
-    if (sel && sel.value) colMap[colIdx] = sel.value;
-  });
-
-  // Check required fields are mapped
-  const mappedFields = Object.values(colMap);
-  const missingRequired = STUDENT_FIELDS.filter(f => f.required && !mappedFields.includes(f.key));
-  if (missingRequired.length) {
-    showAlert('import-alert','error','❌ Please map these required fields: ' +
-      missingRequired.map(f=>f.label).join(', '));
-    return;
-  }
-
-  // Build preview rows
-  _importMapped = _importRows.map((row, rowIdx) => {
-    const student = {};
-    Object.entries(colMap).forEach(([colIdx, fieldKey]) => {
-      let val = row[parseInt(colIdx)];
-      // Handle Date objects from SheetJS
-      if (val instanceof Date) {
-        val = val.toISOString().slice(0,10);
-      } else {
-        val = String(val || '').trim();
-      }
-      student[fieldKey] = val;
-    });
-    return student;
-  }).filter(s => s.fname || s.lname || s.mobile); // skip blank rows
-
-  if (!_importMapped.length) {
-    showAlert('import-alert','error','❌ No valid student rows found. Check that the data starts on row 2 and required columns are mapped.');
-    return;
-  }
-
-  // Build preview table
-  const previewFields = STUDENT_FIELDS.filter(f => mappedFields.includes(f.key));
-  const thead = document.getElementById('import-preview-head');
-  const tbody = document.getElementById('import-preview-body');
-
-  thead.innerHTML = '<tr>' + previewFields.map(f =>
-    '<th>' + f.label + '</th>'
-  ).join('') + '</tr>';
-
-  const showRows = _importMapped.slice(0, 10);
-  tbody.innerHTML = showRows.map(s =>
-    '<tr>' + previewFields.map(f =>
-      '<td style="white-space:nowrap;">' + (s[f.key] || '—') + '</td>'
-    ).join('') + '</tr>'
-  ).join('');
-
-  // Warning for duplicates
-  const warnEl = document.getElementById('import-preview-warn');
-  const existingMobiles = new Set(students.map(s=>s.mobile));
-  const dupes = _importMapped.filter(s => s.mobile && existingMobiles.has(s.mobile));
-  if (dupes.length) {
-    warnEl.innerHTML = '<div class="alert alert-warn">⚠️ ' + dupes.length +
-      ' student(s) have a mobile number already in the system. They will be imported as new records — check for duplicates after import.</div>';
-  } else {
-    warnEl.innerHTML = '';
-  }
-
-  document.getElementById('import-preview-count').textContent =
-    'Showing ' + showRows.length + ' of ' + _importMapped.length + ' students';
-  document.getElementById('import-preview-card').style.display = 'block';
-  document.getElementById('import-preview-card').scrollIntoView({ behavior: 'smooth' });
-}
-
-// Final import — write all students to Firestore
-async function confirmImport() {
-  const btn = document.getElementById('import-confirm-btn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Importing…';
-
-  try {
-    // Generate roll numbers continuing from the last existing one
-    const existingNums = students
-      .map(s => parseInt((s.rollNo||'').replace(/\D/g,'')))
-      .filter(n => !isNaN(n));
-    let nextNum = existingNums.length ? Math.max(...existingNums) + 1 : 1;
-
-    const today = todayStr();
-    const newStudents = _importMapped.map(s => {
-      const roll = 'EXP' + String(nextNum++).padStart(4,'0');
-      return {
-        rollNo:      roll,
-        id:          roll,
-        fname:       s.fname  || '',
-        lname:       s.lname  || '',
-        mobile:      s.mobile || '',
-        course:      s.course || '',
-        batch:       s.batch  || (masterData.batches[0] ? masterData.batches[0].name + ' (' + masterData.batches[0].time + ')' : ''),
-        admDate:     s.admDate     || today,
-        dob:         s.dob        || '',
-        email:       s.email      || '',
-        address:     s.address    || '',
-        guardian:    s.guardian   || '',
-        gmobile:     s.gmobile    || '',
-        totalFees:   s.totalFees  || '0',
-        concession:  s.concession || '0',
-        mode:        s.mode       || 'Offline',
-        courseType:  s.courseType || 'Regular',
-        qual:        s.qual       || '',
-        remarks:     s.remarks    || '',
-        customDueDate: null,
-        status:      'Active',
-        createdAt:   new Date().toISOString(),
-        addedBy:     currentUser ? currentUser.email : 'import',
-        importedAt:  new Date().toISOString(),
-      };
-    });
-
-    // Merge with existing students and save to Firestore
-    const allStudents = [...students, ...newStudents];
-    await DB.set('students', allStudents);
-
-    document.getElementById('import-done-msg').textContent =
-      '✅ ' + newStudents.length + ' students imported successfully!';
-    document.getElementById('import-mapping-card').style.display = 'none';
-    document.getElementById('import-preview-card').style.display = 'none';
-    document.getElementById('import-done-card').style.display = 'block';
-    document.getElementById('import-done-card').scrollIntoView({ behavior: 'smooth' });
-
-  } catch (err) {
-    btn.disabled = false;
-    btn.textContent = '✅ Import All Students';
-    showAlert('import-alert','error','❌ Import failed: ' + err.message);
-  }
 }
 
 function parseCSVLine(line) {
