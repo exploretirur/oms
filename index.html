@@ -569,14 +569,16 @@ tr:hover td { background: #f8fafd; }
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">🎓</span> Course & Batch</div></div>
         <div class="form-grid">
-          <div class="form-group"><label>Student ID <span class="required">*</span></label><input id="adm-rollno" type="text" placeholder="e.g. EXP001 or 2024-001" style="font-weight:600;letter-spacing:0.5px;"></div>
           <div class="form-group"><label>Course <span class="required">*</span></label><select id="adm-course"><option value="">Select course</option></select></div>
           <div class="form-group"><label>Batch <span class="required">*</span></label><select id="adm-batch"><option value="">Select batch</option></select></div>
           <div class="form-group"><label>Course Type <span class="required">*</span></label><select id="adm-coursetype"><option value="Regular">Regular</option><option value="Fast Track">Fast Track</option></select></div>
           <div class="form-group"><label>Mode <span class="required">*</span></label><select id="adm-mode"><option value="Offline">Offline</option><option value="Online">Online</option></select></div>
           <div class="form-group"><label>Admission Date <span class="required">*</span></label><input id="adm-date" type="date"></div>
           <div class="form-group"><label>Duration (Months)</label><select id="adm-duration"><option>1</option><option>2</option><option>3</option><option>6</option><option>12</option></select></div>
-          <div class="form-group"><label>Fee Due Date</label><input id="adm-duedate" type="date"></div>
+          <div class="form-group">
+            <label>Monthly Due Date <span style="font-size:11px;color:var(--muted);">(day of month)</span></label>
+            <input id="adm-duedate" type="number" min="1" max="28" placeholder="e.g. 10 means due on 10th every month">
+          </div>
           <div class="form-group"><label>Total Fees (₹) <span class="required">*</span></label><input id="adm-totalfees" type="number" placeholder="0"></div>
           <div class="form-group"><label>Concession (₹)</label><input id="adm-concession" type="number" placeholder="0" value="0"></div>
         </div>
@@ -1441,7 +1443,10 @@ tr:hover td { background: #f8fafd; }
       <div class="form-group"><label>Batch</label><select id="es-batch"></select></div>
       <div class="form-group"><label>Course Type</label><select id="es-coursetype"><option value="Regular">Regular</option><option value="Fast Track">Fast Track</option></select></div>
       <div class="form-group"><label>Mode</label><select id="es-mode"><option value="Offline">Offline</option><option value="Online">Online</option></select></div>
-      <div class="form-group"><label>Fee Due Date</label><input id="es-duedate" type="date"></div>
+      <div class="form-group">
+        <label>Monthly Due Date <span style="font-size:11px;color:var(--muted);">(day of month)</span></label>
+        <input id="es-duedate" type="number" min="1" max="28" placeholder="e.g. 10 means due on 10th every month">
+      </div>
       <div class="form-group"><label>Total Fees (₹)</label><input id="es-totalfees" type="number"></div>
       <div class="form-group"><label>Concession (₹)</label><input id="es-concession" type="number"></div>
       <div class="form-group"><label>Status</label><select id="es-status"><option>Active</option><option>Completed</option><option>Dropped</option></select></div>
@@ -2252,7 +2257,6 @@ async function removeUser(docId) {
 // ADMISSION
 // ============================================================
 async function submitAdmission() {
-  const roll = document.getElementById('adm-rollno').value.trim().toUpperCase();
   const fields = {
     fname: document.getElementById('adm-fname').value.trim(),
     lname: document.getElementById('adm-lname').value.trim(),
@@ -2267,7 +2271,7 @@ async function submitAdmission() {
     mode: document.getElementById('adm-mode').value,
     admDate: document.getElementById('adm-date').value,
     duration: document.getElementById('adm-duration').value,
-    customDueDate: document.getElementById('adm-duedate').value || null,
+    customDueDate: document.getElementById('adm-duedate').value ? String(parseInt(document.getElementById('adm-duedate').value)) : null,
     totalFees: parseFloat(document.getElementById('adm-totalfees').value) || 0,
     concession: parseFloat(document.getElementById('adm-concession').value) || 0,
     guardian: document.getElementById('adm-guardian').value.trim(),
@@ -2276,33 +2280,28 @@ async function submitAdmission() {
     idType: document.getElementById('adm-idtype').value,
     remarks: document.getElementById('adm-remarks').value.trim()
   };
-
-  // Validate required fields
-  if (!roll) { showAlert('admission-alert','error','❌ Student ID is required. Please enter an ID (e.g. EXP001).'); return; }
   if (!fields.fname || !fields.lname || !fields.mobile || !fields.course || !fields.batch) {
     showAlert('admission-alert','error','❌ Fill all required fields (name, mobile, course, batch).'); return;
   }
   if (!/^\d{10}$/.test(fields.mobile)) { showAlert('admission-alert','error','❌ Mobile must be 10 digits.'); return; }
 
-  // Check Student ID is not already taken
-  if (students.find(s => s.rollNo.toUpperCase() === roll)) {
-    showAlert('admission-alert','error','❌ Student ID <strong>' + roll + '</strong> is already used by another student. Please enter a different ID.'); return;
-  }
-
   const btn = document.getElementById('adm-submit-btn');
   const txt = document.getElementById('adm-btn-text');
   btn.disabled = true; txt.innerHTML = '<span class="loader"></span> Saving...';
 
-  students.push({ ...fields, rollNo: roll, id: roll, status:'Active', createdAt: new Date().toISOString(), addedBy: currentUser.email });
+  const roll = 'ST' + String(students.length + 1).padStart(4,'0');
+  students.push({ ...fields, rollNo: roll, status:'Active', createdAt: new Date().toISOString(), addedBy: currentUser.email });
   await DB.set('students', students);
 
   btn.disabled = false; txt.innerHTML = '💾 Save Student';
-  showAlert('admission-alert','success','✅ Student admitted! ID: <strong>' + roll + '</strong> — Saved to Firebase.');
+
+  const msg = '✅ Admitted! Roll No: <strong>' + roll + '</strong>' + (firebaseInitialized ? ' — Saved to Firebase!' : ' (Local — connect Firebase in Settings for cloud sync)');
+  showAlert('admission-alert','success',msg);
   clearAdmissionForm();
 }
 
 function clearAdmissionForm() {
-  ['adm-fname','adm-lname','adm-dob','adm-email','adm-address','adm-mobile','adm-totalfees','adm-guardian','adm-gmobile','adm-qual','adm-remarks','adm-duedate','adm-rollno'].forEach(id => document.getElementById(id).value='');
+  ['adm-fname','adm-lname','adm-dob','adm-email','adm-address','adm-mobile','adm-totalfees','adm-guardian','adm-gmobile','adm-qual','adm-remarks','adm-duedate'].forEach(id => document.getElementById(id).value='');
   ['adm-gender','adm-course','adm-batch','adm-idtype','adm-coursetype','adm-mode'].forEach(id => document.getElementById(id).selectedIndex=0);
   document.getElementById('adm-date').value = todayStr();
   document.getElementById('adm-concession').value = '0';
@@ -2371,7 +2370,8 @@ function viewStudent(rollNo) {
         <div><span style="color:var(--muted);">Duration:</span> <strong>${s.duration} months</strong></div>
         <div><span style="color:var(--muted);">Course Type:</span> <strong>${s.courseType||'Regular'}</strong></div>
         <div><span style="color:var(--muted);">Mode:</span> <strong>${s.mode||'Offline'}</strong></div>
-        <div><span style="color:var(--muted);">Fee Due Date:</span> <strong>${getStudentDueDate(s)||'—'}</strong></div>
+        <div><span style="color:var(--muted);">Monthly Due Date:</span> <strong>${getInstallmentLabel(s)}</strong></div>
+        <div><span style="color:var(--muted);">Next Due:</span> <strong>${getStudentDueDate(s) || '—'}</strong></div>
       </div>
       <div style="background:#f8fafd;border-radius:8px;padding:12px;">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
@@ -2398,7 +2398,7 @@ function openEditStudent(rollNo) {
   document.getElementById('es-batch').value = s.batch;
   document.getElementById('es-coursetype').value = s.courseType||'Regular';
   document.getElementById('es-mode').value = s.mode||'Offline';
-  document.getElementById('es-duedate').value = s.customDueDate || getStudentDueDate(s) || '';
+  document.getElementById('es-duedate').value = s.customDueDate ? String(parseInt(s.customDueDate)) : '';
   document.getElementById('es-totalfees').value = s.totalFees;
   document.getElementById('es-concession').value = s.concession;
   document.getElementById('es-status').value = s.status||'Active';
@@ -2422,7 +2422,7 @@ async function saveStudentEdit() {
     batch: document.getElementById('es-batch').value,
     courseType: document.getElementById('es-coursetype').value,
     mode: document.getElementById('es-mode').value,
-    customDueDate: document.getElementById('es-duedate').value || null,
+    customDueDate: document.getElementById('es-duedate').value ? String(parseInt(document.getElementById('es-duedate').value)) : null,
     totalFees: parseFloat(document.getElementById('es-totalfees').value)||0,
     concession: parseFloat(document.getElementById('es-concession').value)||0,
     status: document.getElementById('es-status').value,
@@ -2438,12 +2438,31 @@ async function saveStudentEdit() {
 async function deleteStudent() {
   if (!canModify()) { showAlert('global-alert','error','❌ Only Admin can delete records.'); return; }
   const roll = document.getElementById('es-roll').value;
-  if (!confirm('Delete student ' + roll + '? This cannot be undone.')) return;
-  students = students.filter(s=>s.rollNo!==roll);
-  await DB.set('students', students);
+  const s = students.find(st => st.rollNo === roll);
+  if (!s) return;
+  if (!confirm('Permanently delete student ' + roll + ' (' + (s.fname||'') + ' ' + (s.lname||'') + ')?\n\nThis will remove the record completely from the database and cannot be undone.')) return;
+
+  // Find the Firestore document ID — could be rollNo or the id field
+  const docId = s.id || s.rollNo;
+
+  // Step 1: Directly delete the Firestore document (guaranteed removal)
+  const deleted = await fbDeleteDoc('students', docId);
+  if (!deleted) {
+    showAlert('global-alert','error','❌ Could not delete from database. Please try again.'); return;
+  }
+
+  // Step 2: Remove from local in-memory array so UI updates immediately
+  students = students.filter(st => st.rollNo !== roll);
+
+  // Step 3: Update _lastSyncedIds so diff-sync knows this doc is gone
+  if (window._lastSyncedIds && window._lastSyncedIds['students']) {
+    window._lastSyncedIds['students'].delete(docId);
+  }
+
   closeModal('edit-student-modal');
   renderStudentsTable();
-  showAlert('global-alert','success','Student deleted.');
+  refreshDashboard();
+  showAlert('global-alert','success','✅ Student <strong>' + roll + '</strong> permanently deleted from database.');
 }
 
 // ============================================================
@@ -3120,47 +3139,85 @@ document.querySelectorAll('.nav-item').forEach(n => {
 // ============================================================
 // DUE DATE CALCULATION
 // ============================================================
-function getStudentDueDate(s) {
-  // Custom due date override takes priority
-  if (s.customDueDate) return s.customDueDate;
-  // Default: same day-of-month as admission, every month
-  if (!s.admDate) return null;
-  const adm = new Date(s.admDate);
-  const today = new Date();
-  const due = new Date(today.getFullYear(), today.getMonth(), adm.getDate());
-  return due.toISOString().slice(0,10);
+function getInstallmentDay(s) {
+  // Returns the day-of-month number stored for this student's monthly installment.
+  // customDueDate stores either a legacy full date (YYYY-MM-DD) or just a day number (1-28).
+  if (!s.customDueDate) return null;
+  const val = String(s.customDueDate);
+  if (val.includes('-') && val.length === 10) return parseInt(val.split('-')[2]); // legacy full date
+  const d = parseInt(val);
+  return (d >= 1 && d <= 31) ? d : null;
 }
 
-function getDueStatus(dueDateStr) {
-  if (!dueDateStr) return 'unknown';
+function getStudentDueDate(s) {
+  // Returns the next due date string (YYYY-MM-DD) based on the installment day.
+  // If today is on or before this month's due date → returns this month's date.
+  // If today is past it → returns next month's date.
+  const day = getInstallmentDay(s);
+  if (!day) return null;
+
   const today = new Date(); today.setHours(0,0,0,0);
-  const due = new Date(dueDateStr); due.setHours(0,0,0,0);
-  const diff = (due - today) / (1000*60*60*24);
-  if (diff < 0) return 'overdue';
+  const y = today.getFullYear();
+  const m = today.getMonth(); // 0-indexed
+
+  function makeDue(yr, mo, d) {
+    const lastDay = new Date(yr, mo + 1, 0).getDate();
+    const safeDay = Math.min(d, lastDay);
+    return new Date(yr, mo, safeDay);
+  }
+
+  const thisDue = makeDue(y, m, day);
+  if (today <= thisDue) {
+    return thisDue.toISOString().slice(0, 10);
+  } else {
+    const nm = m === 11 ? 0 : m + 1;
+    const ny = m === 11 ? y + 1 : y;
+    return makeDue(ny, nm, day).toISOString().slice(0, 10);
+  }
+}
+
+function getInstallmentLabel(s) {
+  const day = getInstallmentDay(s);
+  if (!day) return '—';
+  const suffix = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th';
+  return day + suffix + ' of every month';
+}
+
+function getDueStatus(dueDateStr, s) {
+  if (!dueDateStr) return 'unknown';
+  // If fully paid, don't show as due
+  if (s) {
+    const paid = payments.filter(p => p.rollNo === s.rollNo).reduce((a, p) => a + parseFloat(p.amount || 0), 0);
+    const net  = parseFloat(s.totalFees || 0) - parseFloat(s.concession || 0);
+    if (net - paid <= 0) return 'paid';
+  }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const due   = new Date(dueDateStr); due.setHours(0,0,0,0);
+  const diff  = (due - today) / (1000 * 60 * 60 * 24);
+  if (diff < 0)   return 'overdue';
   if (diff === 0) return 'today';
-  if (diff <= 7) return 'soon';
+  if (diff <= 7)  return 'soon';
   return 'ok';
 }
 
 function buildDueTable(bodyId, totalId, canEdit) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  // Students with outstanding balance
   const dueStudents = students.filter(s => {
-    const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
-    const net = parseFloat(s.totalFees||0) - parseFloat(s.concession||0);
+    const paid = payments.filter(p => p.rollNo === s.rollNo).reduce((a, p) => a + parseFloat(p.amount || 0), 0);
+    const net  = parseFloat(s.totalFees || 0) - parseFloat(s.concession || 0);
     return net - paid > 0;
   }).map(s => {
-    const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
-    const net = parseFloat(s.totalFees||0) - parseFloat(s.concession||0);
+    const paid    = payments.filter(p => p.rollNo === s.rollNo).reduce((a, p) => a + parseFloat(p.amount || 0), 0);
+    const net     = parseFloat(s.totalFees || 0) - parseFloat(s.concession || 0);
     const balance = net - paid;
     const dueDate = getStudentDueDate(s);
-    const status = getDueStatus(dueDate);
-    return { s, balance, dueDate, status };
+    const status  = getDueStatus(dueDate, s);
+    const installLabel = getInstallmentLabel(s);
+    return { s, balance, dueDate, status, installLabel };
   }).filter(x => x.status === 'overdue' || x.status === 'today' || x.status === 'soon');
 
-  dueStudents.sort((a,b) => a.dueDate.localeCompare(b.dueDate));
+  dueStudents.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
 
-  const tbody = document.getElementById(bodyId);
+  const tbody   = document.getElementById(bodyId);
   const totalEl = document.getElementById(totalId);
 
   if (!dueStudents.length) {
@@ -3169,42 +3226,51 @@ function buildDueTable(bodyId, totalId, canEdit) {
     return;
   }
 
-  const totalDue = dueStudents.reduce((a,x)=>a+x.balance,0);
-  if (totalEl) totalEl.textContent = 'Total: ₹'+totalDue.toLocaleString('en-IN');
+  const totalDue = dueStudents.reduce((a, x) => a + x.balance, 0);
+  if (totalEl) totalEl.textContent = 'Total: ₹' + totalDue.toLocaleString('en-IN');
 
-  const statusBadge = status => {
-    if (status==='overdue') return '<span class="due-overdue">Overdue</span>';
-    if (status==='today') return '<span class="due-today">Due Today</span>';
-    if (status==='soon') return '<span class="due-soon">Due Soon</span>';
+  const statusBadge = st => {
+    if (st === 'overdue') return '<span class="due-overdue">Overdue</span>';
+    if (st === 'today')   return '<span class="due-today">Due Today</span>';
+    if (st === 'soon')    return '<span class="due-soon">Due Soon</span>';
     return '';
   };
 
-  tbody.innerHTML = dueStudents.map(({s,balance,dueDate,status}) => `
+  tbody.innerHTML = dueStudents.map(({ s, balance, dueDate, status, installLabel }) => `
     <tr>
       <td><strong>${s.rollNo}</strong></td>
       <td>${s.fname} ${s.lname}</td>
       <td style="font-size:12px;">${s.course}</td>
       <td style="font-weight:700;color:var(--red);">₹${balance.toLocaleString('en-IN')}</td>
-      <td id="duedate-display-${s.rollNo}">${dueDate||'—'}</td>
+      <td>
+        <div style="font-weight:600;">${dueDate || '—'}</div>
+        <div style="font-size:11px;color:var(--muted);">${installLabel}</div>
+      </td>
       <td>${statusBadge(status)}</td>
       <td>${canEdit ? `<button class="btn btn-outline" onclick="editDueDate('${s.rollNo}')" style="padding:4px 10px;font-size:12px;">✏️ Edit</button>` : '—'}</td>
     </tr>`).join('');
 }
 
 async function editDueDate(rollNo) {
-  const s = students.find(x=>x.rollNo===rollNo);
+  const s = students.find(x => x.rollNo === rollNo);
   if (!s) return;
-  const current = s.customDueDate || getStudentDueDate(s);
-  const newDate = prompt(`Edit due date for ${s.fname} ${s.lname} (${rollNo}):
-Current: ${current}
-
-Enter new due date (YYYY-MM-DD):`, current);
-  if (!newDate) return;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) { alert('Invalid date format. Use YYYY-MM-DD'); return; }
-  s.customDueDate = newDate;
+  const currentDay = getInstallmentDay(s) || '';
+  const input = prompt(
+    `Change monthly due date for ${s.fname} ${s.lname} (${rollNo})\n` +
+    `Current: ${currentDay ? currentDay + 'th of every month' : 'Not set'}\n\n` +
+    `Enter day of month (1 to 28):`,
+    currentDay
+  );
+  if (input === null) return; // cancelled
+  const day = parseInt(input);
+  if (isNaN(day) || day < 1 || day > 28) {
+    alert('Please enter a number between 1 and 28.');
+    return;
+  }
+  s.customDueDate = String(day);
   await DB.set('students', students);
   refreshDashboard();
-  showAlert('global-alert','success','✅ Due date updated for '+s.fname+' '+s.lname);
+  showAlert('global-alert', 'success', '✅ Due date updated to ' + day + 'th of every month for ' + s.fname + ' ' + s.lname + '.');
 }
 
 // ============================================================
