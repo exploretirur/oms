@@ -1471,7 +1471,7 @@ tr:hover td { background: #f8fafd; }
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
-  setPersistence, browserLocalPersistence
+  setPersistence, browserLocalPersistence, createUserWithEmailAndPassword
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
   getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc,
@@ -1494,11 +1494,22 @@ const firestoreDB = getFirestore(firebaseApp);
 const cloudFns = getFunctions(firebaseApp);
 let firebaseInitialized = true; // kept for compatibility with the rest of the app's checks
 
+// ---- Secondary Firebase app instance (Auth-only) ----
+// Creating a new staff login means calling createUserWithEmailAndPassword,
+// which — if called on the *primary* `auth` instance — immediately signs the
+// browser in as the brand-new user, kicking the Admin out of their own
+// session. To avoid that, new accounts are created on a second, independent
+// Firebase App instance with its own isolated Auth session. Once the account
+// exists we sign that secondary session out (it's never used again) and the
+// Admin's primary session is untouched throughout.
+const secondaryApp = initializeApp(FIREBASE_CONFIG, 'Secondary');
+const secondaryAuth = getAuth(secondaryApp);
+
 // Expose the pieces that non-module inline `onclick="..."` handlers need,
 // since <script type="module"> is scoped and not global by default.
 window.__fb = {
-  auth, firestoreDB, cloudFns,
-  signInWithEmailAndPassword, signOut, onAuthStateChanged,
+  auth, firestoreDB, cloudFns, secondaryAuth,
+  signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword,
   collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
   query, where, orderBy, onSnapshot, serverTimestamp, httpsCallable
 };
@@ -1516,7 +1527,10 @@ function friendlyAuthError(err) {
     'auth/invalid-credential': 'Incorrect email or password.',
     'auth/too-many-requests': 'Too many failed attempts. Please wait a few minutes and try again.',
     'auth/network-request-failed': 'No internet connection. Please check your network and try again.',
-    'auth/internal-error': 'Something went wrong. Please try again.'
+    'auth/internal-error': 'Something went wrong. Please try again.',
+    'auth/email-already-in-use': 'An account with this email already exists.',
+    'auth/weak-password': 'Temporary password must be at least 6 characters.',
+    'auth/operation-not-allowed': 'Email/Password sign-in is not enabled for this project. Enable it in Firebase Console → Authentication → Sign-in method.'
   };
   return map[code] || ('Sign-in failed: ' + (err.message || 'Unknown error.'));
 }
@@ -1873,6 +1887,11 @@ window.firebaseInitialized = true;
 window.auth = auth;
 window.firestoreDB = firestoreDB;
 window.cloudFns = cloudFns;
+window.secondaryAuth = secondaryAuth;
+window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+window.serverTimestamp = serverTimestamp;
+window.friendlyAuthError = friendlyAuthError;
+window.fbSignOut = signOut;
 </script>
 
 <script>
@@ -2143,12 +2162,11 @@ function toggleTeacherFields() {
   document.getElementById('uf-courses-wrap').style.display = role === 'teacher' ? '' : 'none';
 }
 
-// Creating a brand-new staff login requires a Firebase Auth account, which
-// cannot be created securely from client-side JS (it would require the
-// Admin SDK, which must never run in a browser). Instead this calls a
-// Cloud Function ("createStaffUser") that runs server-side, creates the
-// Auth account, and writes the matching Firestore profile document in one
-// atomic operation. See functions/index.js in the deployment package.
+// Creating a brand-new staff login needs two things: (1) a Firebase Auth
+// account so the person can sign in, and (2) a matching Firestore profile
+// document (id = Auth UID) that carries their name/role/etc. Step 1 is done
+// on the isolated `secondaryAuth` session (see its setup above) so the
+// Admin's own sign-in is never disturbed; step 2 uses the normal DB helper.
 async function saveUser() {
   const name = document.getElementById('uf-name').value.trim();
   const email = document.getElementById('uf-username').value.trim().toLowerCase();
@@ -2195,7 +2213,7 @@ async function saveUser() {
     return;
   }
 
-  // ---- CREATE new user via Cloud Function ----
+  // ---- CREATE new user: client-side Auth account + Firestore profile ----
   if (!password || password.length < 6) {
     saveBtn.disabled = false;
     alertBox.innerHTML = '<div class="alert alert-error">Temporary password must be at least 6 characters.</div>';
@@ -2203,33 +2221,52 @@ async function saveUser() {
   }
   saveBtn.textContent = 'Creating account…';
   try {
-    const createStaffUser = window.cloudFns ? window.__fb.httpsCallable(window.cloudFns, 'createStaffUser') : null;
-    if (!createStaffUser) throw new Error('Cloud Functions not available.');
-    const result = await createStaffUser({ name, email, password, role, dept, mobile, courses });
+    // Step 1 — create the Firebase Auth account on the isolated secondary
+    // session, so the Admin stays signed in on the primary session.
+    const cred = await window.createUserWithEmailAndPassword(window.secondaryAuth, email, password);
+    const newUid = cred.user.uid;
+
+    // The secondary session is only ever used for this one call — sign it
+    // out immediately so no stray session lingers.
+    window.fbSignOut(window.secondaryAuth).catch(() => {});
+
+    // Step 2 — write the matching Firestore profile document, keyed by the
+    // new Auth UID (this is the schema the rest of the app expects).
+    const ok = await DB.setDoc('users', newUid, {
+      name, email, role, dept, mobile, courses,
+      active: true,
+      createdAt: window.serverTimestamp(),
+      createdBy: currentUser ? currentUser.uid : null
+    });
+
     saveBtn.disabled = false; saveBtn.textContent = '💾 Save User';
-    if (result.data && result.data.success) {
+
+    if (ok) {
       showAlert('users-alert','success','✅ ' + (role === 'teacher' ? 'Teacher' : 'User') + ' account created for ' + email + '. Share the temporary password with them and ask them to change it after first login.');
       closeModal('user-modal');
       renderUsersPage();
     } else {
-      alertBox.innerHTML = '<div class="alert alert-error">' + (result.data && result.data.message ? result.data.message : 'Could not create account.') + '</div>';
+      // Auth account exists but the Firestore profile write failed — the
+      // person could sign in but would hit "no profile" on login. Surface
+      // that clearly so the Admin knows to retry or clean up.
+      alertBox.innerHTML = '<div class="alert alert-error">Account was created, but saving the profile failed. Please check your connection and try editing this user, or contact support if the problem continues.</div>';
     }
   } catch (err) {
     saveBtn.disabled = false; saveBtn.textContent = '💾 Save User';
-    console.error('createStaffUser failed:', err);
-    let msg = 'Could not create account.';
-    if (err.code === 'functions/already-exists') msg = 'An account with this email already exists.';
-    else if (err.code === 'functions/permission-denied') msg = 'Only an Admin can create new staff accounts.';
-    else if (err.code === 'functions/unavailable' || err.message.includes('Cloud Functions not available')) msg = 'Account creation service is not deployed yet. See the deployment guide (functions/index.js must be deployed with "firebase deploy --only functions").';
-    else if (err.message) msg = err.message;
-    alertBox.innerHTML = '<div class="alert alert-error">' + msg + '</div>';
+    console.error('Create staff account failed:', err);
+    alertBox.innerHTML = '<div class="alert alert-error">' + window.friendlyAuthError(err) + '</div>';
   }
 }
 
-// Deactivating a user calls the deactivateStaffUser Cloud Function, which
-// disables the account at the Firebase Authentication level (blocking
-// sign-in even if the Firestore profile is somehow tampered with) AND
-// marks active:false on the profile document, in one server-side operation.
+// Deactivating a user marks active:false on their Firestore profile, which
+// is what every permission check in this app reads (see PERMISSIONS /
+// onAuthStateChanged). This alone blocks them from using the app.
+//
+// Fully disabling the Auth account too (so a stale session can't sneak
+// back in) requires the Admin SDK and therefore a Cloud Function. If one
+// is deployed as `deactivateStaffUser`, it's used for the extra safety net;
+// if not (or if it errors), this quietly falls back to the Firestore-only
+// deactivation above instead of surfacing a confusing server error.
 async function removeUser(docId) {
   const users = await getUsers();
   const u = users.find(x => x.id === docId);
@@ -2237,13 +2274,20 @@ async function removeUser(docId) {
   if (currentUser && u.uid === currentUser.uid) { alert('You cannot deactivate your own account.'); return; }
   if (!confirm('Deactivate "' + u.name + '"? They will no longer be able to sign in. (Their historical records are kept.)')) return;
   try {
-    const deactivateStaffUser = window.cloudFns ? window.__fb.httpsCallable(window.cloudFns, 'deactivateStaffUser') : null;
-    if (deactivateStaffUser) {
-      await deactivateStaffUser({ uid: u.uid || docId });
-    } else {
-      // Fallback if Cloud Functions aren't deployed yet — Firestore-only deactivation
-      await DB.updateDoc('users', docId, { active: false });
+    await DB.updateDoc('users', docId, { active: false });
+
+    // Best-effort extra step — disable the Auth account server-side too, if
+    // that Cloud Function happens to be deployed. Never lets a missing/
+    // failing function block the deactivation the user asked for.
+    if (window.cloudFns) {
+      try {
+        const deactivateStaffUser = window.__fb.httpsCallable(window.cloudFns, 'deactivateStaffUser');
+        await deactivateStaffUser({ uid: u.uid || docId });
+      } catch (fnErr) {
+        console.warn('Auth-level deactivation skipped (function not deployed or failed):', fnErr);
+      }
     }
+
     showAlert('users-alert','success','User deactivated.');
     renderUsersPage();
   } catch (err) {
