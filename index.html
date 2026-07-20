@@ -1336,8 +1336,8 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-success" onclick="exportToExcel()">⬇️ Download Excel Workbook (.xlsx)</button>
-          <button class="btn btn-outline" onclick="document.getElementById('excel-import-input').click()">⬆️ Import from CSV</button>
-          <input type="file" id="excel-import-input" accept=".xlsx,.csv" style="display:none;" onchange="importFromExcel(event)">
+          <button class="btn btn-outline" onclick="document.getElementById('excel-import-input').click()">⬆️ Import from Excel</button>
+          <input type="file" id="excel-import-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importFromExcel(event)">
         </div>
         <div id="excel-status" style="margin-top:12px;"></div>
         <div class="alert alert-info" style="margin-top:16px;">
@@ -2951,7 +2951,7 @@ function loadStudentDashboard() {
 
   const isTeacher = currentUser && currentUser.role === 'teacher';
 
-  document.getElementById('sd-avatar').textContent=(s.fname[0]+s.lname[0]).toUpperCase();
+  document.getElementById('sd-avatar').textContent=((s.fname||'?')[0]+((s.lname||'')[0]||'')).toUpperCase();
   document.getElementById('sd-name').textContent=s.fname+' '+s.lname;
   document.getElementById('sd-course').textContent=s.course+' — '+s.batch.split('(')[0].trim();
   document.getElementById('sd-roll').textContent=s.rollNo;
@@ -3157,7 +3157,7 @@ function refreshDashboard() {
   const recentEl=document.getElementById('recent-admissions');
   recentEl.innerHTML=students.length ? [...students].reverse().slice(0,5).map(s=>`
     <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;">
-      <div style="width:32px;height:32px;border-radius:50%;background:var(--navy);color:var(--teal-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${s.fname[0]}${s.lname[0]}</div>
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--navy);color:var(--teal-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${(s.fname||'?')[0]}${(s.lname||'')[0]||''}</div>
       <div style="flex:1;"><div style="font-weight:500;font-size:13.5px;">${s.fname} ${s.lname}</div><div style="font-size:11px;color:var(--muted);">${s.course} — ${s.admDate}</div></div>
       <span class="chip chip-blue">${s.rollNo}</span>
     </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No admissions yet.</p>';
@@ -3460,52 +3460,170 @@ async function pushAllToFirebase() {
   }
 }
 
+// Dynamically loads the SheetJS library (same CDN build used by
+// exportToExcel/exportFeeReportExcel elsewhere in this file) if it isn't
+// already on the page. Shared by any import/export flow that needs to
+// read or write real .xlsx workbooks.
+async function ensureXLSXLoaded() {
+  if (window.XLSX) return window.XLSX;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return window.XLSX;
+}
+
+// Every student record elsewhere in this app (dashboard, attendance, fee
+// receipts, certificates...) expects an exact set of field names: fname,
+// lname, rollNo, mobile, email, course, batch, admDate, totalFees,
+// concession, mode, gender, dob, address, guardian, guardianMobile, qual,
+// remarks. An uploaded Excel sheet almost never uses those exact header
+// names ("First Name" vs "fname", "Roll No." vs "rollNo", etc.), so a raw
+// dump of spreadsheet rows breaks every feature that reads s.fname,
+// s.rollNo, and so on. This maps common header variants onto the schema
+// the app actually needs, and only then falls back to whatever the sheet
+// called something the map doesn't recognize.
+const STUDENT_HEADER_MAP = {
+  fname:'fname', firstname:'fname', 'first name':'fname',
+  lname:'lname', lastname:'lname', 'last name':'lname', surname:'lname',
+  rollno:'rollNo', 'roll no':'rollNo', 'roll no.':'rollNo', 'roll number':'rollNo', studentid:'rollNo', 'student id':'rollNo',
+  mobile:'mobile', phone:'mobile', 'phone number':'mobile', 'mobile number':'mobile', contact:'mobile',
+  email:'email', 'email id':'email', 'e-mail':'email',
+  address:'address',
+  course:'course', 'course name':'course',
+  batch:'batch',
+  coursetype:'courseType', 'course type':'courseType',
+  mode:'mode', 'mode of study':'mode',
+  admdate:'admDate', 'admission date':'admDate', 'adm date':'admDate', 'date of admission':'admDate', 'joining date':'admDate',
+  duration:'duration',
+  totalfees:'totalFees', 'total fees':'totalFees', fees:'totalFees', 'course fee':'totalFees', 'course fees':'totalFees',
+  concession:'concession', discount:'concession',
+  gender:'gender', sex:'gender',
+  dob:'dob', 'date of birth':'dob',
+  guardian:'guardian', 'guardian name':'guardian', 'parent name':'guardian', 'father name':'guardian',
+  guardianmobile:'guardianMobile', 'guardian mobile':'guardianMobile', 'parent mobile':'guardianMobile', 'guardian contact':'guardianMobile',
+  qual:'qual', qualification:'qual',
+  idtype:'idType', 'id type':'idType',
+  remarks:'remarks', notes:'remarks', status:'status'
+};
+
+// Normalizes one raw spreadsheet row into the app's student schema. Any
+// column the map doesn't recognize is kept as-is (no data is silently
+// dropped), and a combined "Name" / "Student Name" column is split into
+// fname/lname if separate first/last name columns weren't provided.
+function normalizeStudentRow(row) {
+  const out = {};
+  let combinedName = null;
+  for (const key of Object.keys(row)) {
+    const norm = key.trim().toLowerCase().replace(/\s+/g, ' ');
+    if (STUDENT_HEADER_MAP[norm]) {
+      out[STUDENT_HEADER_MAP[norm]] = String(row[key]).trim();
+    } else if (['name','student name','full name'].includes(norm)) {
+      combinedName = String(row[key]).trim();
+    } else {
+      out[key] = row[key]; // preserve unrecognized columns rather than lose data
+    }
+  }
+  if (combinedName && !out.fname) {
+    const parts = combinedName.split(/\s+/);
+    out.fname = parts[0] || '';
+    out.lname = parts.slice(1).join(' ') || '';
+  }
+  // Every place in this app that renders a student assumes these two
+  // strings exist, even if blank — never leave them undefined.
+  out.fname = out.fname || '';
+  out.lname = out.lname || '';
+  if (out.totalFees !== undefined) out.totalFees = parseFloat(out.totalFees) || 0;
+  if (out.concession !== undefined) out.concession = parseFloat(out.concession) || 0;
+  return out;
+}
+
 async function importFromExcel(event) {
   const file = event.target.files[0];
+  const statusEl = document.getElementById('excel-status');
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async e => {
-    try {
-      const text = e.target.result;
-      const lines = text.split('\n').filter(l=>l.trim());
-      if (lines.length < 2) { document.getElementById('excel-status').innerHTML='<div class="alert alert-error">❌ File appears empty.</div>'; return; }
-      const headers = lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
-      const rows = lines.slice(1).map(line => {
+
+  const fname = file.name.toLowerCase();
+  const isExcel = fname.endsWith('.xlsx') || fname.endsWith('.xls');
+
+  try {
+    let rows;
+
+    if (isExcel) {
+      // Real Excel workbooks are binary (zip) files — they must be read as
+      // an ArrayBuffer and parsed with SheetJS, never as plain text.
+      statusEl.innerHTML = '<div class="alert alert-info">⏳ Reading Excel file...</div>';
+      const XLSX = await ensureXLSXLoaded();
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+
+      // If the workbook has multiple sheets, prefer one whose name matches
+      // the kind of data we can recognize (Students, Payments, etc.);
+      // otherwise fall back to the first sheet.
+      const knownKeys = ['student', 'payment', 'attendance', 'marks', 'salary'];
+      let sheetName = wb.SheetNames.find(n => knownKeys.some(k => n.toLowerCase().includes(k)));
+      if (!sheetName) sheetName = wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
+
+      // defval:'' fills blank cells instead of omitting the key, so every
+      // row object has a consistent set of columns.
+      rows = XLSX.utils.sheet_to_json(sheet, { defval: '' , raw: false});
+    } else {
+      // Plain .csv — read as text and parse manually (existing behavior).
+      const text = await file.text();
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length < 2) { statusEl.innerHTML = '<div class="alert alert-error">❌ File appears empty.</div>'; return; }
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      rows = lines.slice(1).map(line => {
         const vals = parseCSVLine(line);
         const obj = {};
-        headers.forEach((h,i)=>{ obj[h]=vals[i]||''; });
+        headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
         return obj;
       });
-      // Auto-detect sheet by headers
-      const fname = file.name.toLowerCase();
-      let imported = 0;
-      if (fname.includes('student')) {
-        students = rows.filter(r=>r.rollNo||r['Roll No']||r['rollNo']);
-        if (!students.length) students = rows;
-        await DB.set('students', students); imported = students.length;
-        document.getElementById('excel-status').innerHTML=`<div class="alert alert-success">✅ Imported ${imported} students.</div>`;
-      } else if (fname.includes('payment')) {
-        payments = rows; await DB.set('payments', payments); imported = payments.length;
-        document.getElementById('excel-status').innerHTML=`<div class="alert alert-success">✅ Imported ${imported} payments.</div>`;
-      } else if (fname.includes('attendance')) {
-        attendance = rows; await DB.set('attendance', attendance); imported = attendance.length;
-        document.getElementById('excel-status').innerHTML=`<div class="alert alert-success">✅ Imported ${imported} attendance records.</div>`;
-      } else if (fname.includes('marks')) {
-        marks = rows; await DB.set('marks', marks); imported = marks.length;
-        document.getElementById('excel-status').innerHTML=`<div class="alert alert-success">✅ Imported ${imported} marks records.</div>`;
-      } else if (fname.includes('salary')) {
-        salaries = rows; await DB.set('salaries', salaries); imported = salaries.length;
-        document.getElementById('excel-status').innerHTML=`<div class="alert alert-success">✅ Imported ${imported} salary records.</div>`;
-      } else {
-        document.getElementById('excel-status').innerHTML='<div class="alert alert-warn">⚠️ Could not detect data type from filename. Rename file to include: students, payments, attendance, marks, or salary.</div>';
-      }
-      refreshDashboard();
-    } catch(err) {
-      document.getElementById('excel-status').innerHTML=`<div class="alert alert-error">❌ Import failed: ${err.message}</div>`;
     }
-  };
-  reader.readAsText(file);
-  event.target.value = '';
+
+    if (!rows || !rows.length) {
+      statusEl.innerHTML = '<div class="alert alert-error">❌ No rows found in the file.</div>';
+      return;
+    }
+
+    // Auto-detect target collection by filename first, then by column headers
+    // (covers Excel files whose filename doesn't hint at the content).
+    const headerKeys = Object.keys(rows[0]).map(h => h.toLowerCase());
+    const looksLike = (kind) => fname.includes(kind) || headerKeys.some(h => h.includes(kind));
+
+    let imported = 0;
+    if (looksLike('student') || headerKeys.some(h => h.includes('rollno') || h.includes('roll no') || h.includes('first name') || h.includes('firstname'))) {
+      students = rows.map(normalizeStudentRow).filter(r => r.fname || r.rollNo);
+      if (!students.length) students = rows.map(normalizeStudentRow);
+      // Auto-generate a rollNo for any row the sheet didn't already have one for.
+      students.forEach((s, i) => { if (!s.rollNo) s.rollNo = 'ST' + String(i + 1).padStart(4, '0'); });
+      await DB.set('students', students); imported = students.length;
+      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} students.</div>`;
+    } else if (looksLike('payment')) {
+      payments = rows; await DB.set('payments', payments); imported = payments.length;
+      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} payments.</div>`;
+    } else if (looksLike('attendance')) {
+      attendance = rows; await DB.set('attendance', attendance); imported = attendance.length;
+      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} attendance records.</div>`;
+    } else if (looksLike('marks')) {
+      marks = rows; await DB.set('marks', marks); imported = marks.length;
+      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} marks records.</div>`;
+    } else if (looksLike('salary')) {
+      salaries = rows; await DB.set('salaries', salaries); imported = salaries.length;
+      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} salary records.</div>`;
+    } else {
+      statusEl.innerHTML = '<div class="alert alert-warn">⚠️ Could not detect data type. Rename the file (or its sheet tab) to include: students, payments, attendance, marks, or salary.</div>';
+    }
+    try { refreshDashboard(); } catch (refreshErr) { console.warn('Dashboard refresh after import had an issue (data was still saved):', refreshErr); }
+  } catch (err) {
+    console.error('Import failed:', err);
+    statusEl.innerHTML = `<div class="alert alert-error">❌ Import failed: ${err.message}</div>`;
+  } finally {
+    event.target.value = '';
+  }
 }
 
 function parseCSVLine(line) {
