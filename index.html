@@ -575,9 +575,17 @@ tr:hover td { background: #f8fafd; }
           <div class="form-group"><label>Mode <span class="required">*</span></label><select id="adm-mode"><option value="Offline">Offline</option><option value="Online">Online</option></select></div>
           <div class="form-group"><label>Admission Date <span class="required">*</span></label><input id="adm-date" type="date"></div>
           <div class="form-group"><label>Duration (Months)</label><select id="adm-duration"><option>1</option><option>2</option><option>3</option><option>6</option><option>12</option></select></div>
-          <div class="form-group">
-            <label>Monthly Due Date <span style="font-size:11px;color:var(--muted);">(day of month)</span></label>
-            <input id="adm-duedate" type="number" min="1" max="28" placeholder="e.g. 10 means due on 10th every month">
+          <div class="form-group"><label>Monthly Installment Day</label>
+            <select id="adm-duedate">
+              <option value="">— Select day —</option>
+              <option value="1">1st of every month</option>
+              <option value="5">5th of every month</option>
+              <option value="10">10th of every month</option>
+              <option value="15">15th of every month</option>
+              <option value="20">20th of every month</option>
+              <option value="25">25th of every month</option>
+              <option value="28">28th of every month</option>
+            </select>
           </div>
           <div class="form-group"><label>Total Fees (₹) <span class="required">*</span></label><input id="adm-totalfees" type="number" placeholder="0"></div>
           <div class="form-group"><label>Concession (₹)</label><input id="adm-concession" type="number" placeholder="0" value="0"></div>
@@ -838,13 +846,14 @@ tr:hover td { background: #f8fafd; }
           </div>
         </div>
       </div>
+      <div id="att-abs-notice" style="display:none;" class="alert alert-info" style="margin-bottom:12px;"></div>
       <div class="card" id="att-student-list" style="display:none;">
         <div class="card-header">
           <div class="card-title"><span class="icon">📋</span> Student List</div>
-          <div style="font-size:12px;color:var(--muted);">Mark Present / Absent</div>
+          <div style="font-size:12px;color:var(--muted);">🔴 Pre-marked absent from office absent list. Teacher can override.</div>
         </div>
-        <div style="display:grid;grid-template-columns:60px 1fr 100px 1fr 1fr;gap:8px;padding:8px 0;border-bottom:1.5px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">
-          <span>Roll</span><span>Name</span><span>Status</span><span>Topic Covered</span><span>Software Used</span>
+        <div style="display:grid;grid-template-columns:60px 1fr 100px 1fr 1fr 120px;gap:8px;padding:8px 0;border-bottom:1.5px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">
+          <span>Roll</span><span>Name</span><span>Status</span><span>Topic Covered</span><span>Software Used</span><span>Action</span>
         </div>
         <div id="att-rows"></div>
         <div class="action-bar" style="margin-top:16px;" id="att-actions">
@@ -860,6 +869,10 @@ tr:hover td { background: #f8fafd; }
     <!-- ===== ABSENT LIST ===== -->
     <div id="page-absent-list" class="page">
       <div id="abs-alert"></div>
+      <!-- Teacher-only notice -->
+      <div id="abs-teacher-notice" style="display:none;" class="alert alert-info" style="margin-bottom:12px;">
+        📖 This is the absence list entered by office staff. To correct any wrong entry, go to <strong>Attendance Entry</strong> — absent students appear pre-marked and you can click <em>Mark Present</em> to override.
+      </div>
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">🚫</span> Select Class</div></div>
         <div class="form-grid-3">
@@ -879,10 +892,10 @@ tr:hover td { background: #f8fafd; }
       <div class="card" id="abs-student-list" style="display:none;">
         <div class="card-header">
           <div class="card-title"><span class="icon">📋</span> Student List</div>
-          <div style="font-size:12px;color:var(--muted);">Tick students who are absent and add a reason</div>
+          <div id="abs-list-subtitle" style="font-size:12px;color:var(--muted);">Tick students who are absent and add a reason</div>
         </div>
         <div style="display:grid;grid-template-columns:50px 90px 1fr 130px 1fr;gap:8px;padding:8px 0;border-bottom:1.5px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">
-          <span>Absent</span><span>ID No.</span><span>Name</span><span>Mobile</span><span>Reason</span>
+          <span id="abs-col-check">Absent</span><span>ID No.</span><span>Name</span><span>Mobile</span><span>Reason</span>
         </div>
         <div id="abs-rows"></div>
         <div class="action-bar" style="margin-top:16px;" id="abs-actions">
@@ -988,10 +1001,82 @@ tr:hover td { background: #f8fafd; }
     <!-- ===== USER MANAGEMENT (Admin only) ===== -->
     <div id="page-users" class="page">
       <div id="users-alert"></div>
+
+      <!-- HOW TO MANAGE USERS -->
+      <div class="card" style="border-left:4px solid var(--teal);">
+        <div class="card-header"><div class="card-title"><span class="icon">ℹ️</span> How to Add / Remove Staff</div></div>
+        <p style="font-size:13.5px;color:var(--text);line-height:1.7;margin-bottom:16px;">
+          Staff accounts are managed directly from the <strong>Firebase Console</strong>. Follow the steps below for each action.
+        </p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+          <!-- ADD STAFF -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;">
+            <div style="font-weight:600;font-size:14px;margin-bottom:10px;color:var(--teal);">➕ Add New Staff</div>
+            <ol style="font-size:12.5px;color:var(--text-muted);line-height:2;padding-left:18px;">
+              <li>Go to <strong>console.firebase.google.com</strong></li>
+              <li>Open project <strong>exploremanagment</strong></li>
+              <li>Left menu → <strong>Authentication</strong></li>
+              <li>Click <strong>"Add user"</strong></li>
+              <li>Enter their <strong>email</strong> and a <strong>temporary password</strong></li>
+              <li>Click <strong>Add user</strong> — copy the <strong>UID</strong> shown</li>
+              <li>Go to <strong>Firestore → users collection</strong></li>
+              <li>Click <strong>"Add document"</strong></li>
+              <li>Set Document ID = the <strong>UID</strong> you copied</li>
+              <li>Add these fields:</li>
+            </ol>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:11px;line-height:1.9;margin-top:8px;">
+              uid → (the UID)<br>
+              name → Full Name<br>
+              email → their@email.com<br>
+              role → admin / office / teacher<br>
+              active → true<br>
+              dept → subject or department<br>
+              mobile → phone number<br>
+              courses → (array — for teachers)<br>
+              lastLogin → null
+            </div>
+          </div>
+
+          <!-- REMOVE / DEACTIVATE STAFF -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;">
+            <div style="font-weight:600;font-size:14px;margin-bottom:10px;color:var(--red);">🚫 Remove / Deactivate Staff</div>
+            <div style="font-size:12.5px;color:var(--text-muted);line-height:1.9;">
+              <strong>To block login immediately:</strong><br>
+              Firestore → users → find their doc<br>
+              → change <code>active</code> field to <strong>false</strong><br>
+              They will see "Account deactivated" on login.<br><br>
+              <strong>To delete permanently:</strong><br>
+              1. Firestore → users → delete their doc<br>
+              2. Authentication → find their email<br>
+              → click ⋮ menu → <strong>Delete account</strong>
+            </div>
+
+            <div style="font-weight:600;font-size:14px;margin:14px 0 10px;color:var(--amber);">🔑 Reset a Password</div>
+            <div style="font-size:12.5px;color:var(--text-muted);line-height:1.9;">
+              Authentication → find their email<br>
+              → click ⋮ menu → <strong>Reset password</strong><br>
+              Firebase sends a reset email to them.
+            </div>
+
+            <div style="font-weight:600;font-size:14px;margin:14px 0 10px;color:var(--navy);">✏️ Edit Name / Role / Dept</div>
+            <div style="font-size:12.5px;color:var(--text-muted);line-height:1.9;">
+              Firestore → users → find their doc<br>
+              → click the field → edit → Update
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#7a5800;">
+          💡 <strong>Tip:</strong> After adding a new staff member, share their email and temporary password with them. Ask them to change the password after first login.
+        </div>
+      </div>
+
+      <!-- CURRENT STAFF LIST (read-only view) -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><span class="icon">👥</span> System Users</div>
-          <button class="btn btn-teal" onclick="openAddUserModal()" style="padding:7px 16px;font-size:13px;">+ Add User</button>
+          <div class="card-title"><span class="icon">👥</span> Current Staff</div>
         </div>
         <div id="users-list"></div>
       </div>
@@ -1336,8 +1421,8 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-success" onclick="exportToExcel()">⬇️ Download Excel Workbook (.xlsx)</button>
-          <button class="btn btn-outline" onclick="document.getElementById('excel-import-input').click()">⬆️ Import from Excel</button>
-          <input type="file" id="excel-import-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importFromExcel(event)">
+          <button class="btn btn-outline" onclick="document.getElementById('excel-import-input').click()">⬆️ Import from CSV</button>
+          <input type="file" id="excel-import-input" accept=".xlsx,.csv" style="display:none;" onchange="importFromExcel(event)">
         </div>
         <div id="excel-status" style="margin-top:12px;"></div>
         <div class="alert alert-info" style="margin-top:16px;">
@@ -1443,10 +1528,18 @@ tr:hover td { background: #f8fafd; }
       <div class="form-group"><label>Batch</label><select id="es-batch"></select></div>
       <div class="form-group"><label>Course Type</label><select id="es-coursetype"><option value="Regular">Regular</option><option value="Fast Track">Fast Track</option></select></div>
       <div class="form-group"><label>Mode</label><select id="es-mode"><option value="Offline">Offline</option><option value="Online">Online</option></select></div>
-      <div class="form-group">
-        <label>Monthly Due Date <span style="font-size:11px;color:var(--muted);">(day of month)</span></label>
-        <input id="es-duedate" type="number" min="1" max="28" placeholder="e.g. 10 means due on 10th every month">
-      </div>
+      <div class="form-group"><label>Monthly Installment Day</label>
+            <select id="es-duedate">
+              <option value="">— Select day —</option>
+              <option value="1">1st of every month</option>
+              <option value="5">5th of every month</option>
+              <option value="10">10th of every month</option>
+              <option value="15">15th of every month</option>
+              <option value="20">20th of every month</option>
+              <option value="25">25th of every month</option>
+              <option value="28">28th of every month</option>
+            </select>
+          </div>
       <div class="form-group"><label>Total Fees (₹)</label><input id="es-totalfees" type="number"></div>
       <div class="form-group"><label>Concession (₹)</label><input id="es-concession" type="number"></div>
       <div class="form-group"><label>Status</label><select id="es-status"><option>Active</option><option>Completed</option><option>Dropped</option></select></div>
@@ -1471,7 +1564,7 @@ tr:hover td { background: #f8fafd; }
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
-  setPersistence, browserLocalPersistence, createUserWithEmailAndPassword
+  setPersistence, browserLocalPersistence
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
   getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc,
@@ -1494,22 +1587,11 @@ const firestoreDB = getFirestore(firebaseApp);
 const cloudFns = getFunctions(firebaseApp);
 let firebaseInitialized = true; // kept for compatibility with the rest of the app's checks
 
-// ---- Secondary Firebase app instance (Auth-only) ----
-// Creating a new staff login means calling createUserWithEmailAndPassword,
-// which — if called on the *primary* `auth` instance — immediately signs the
-// browser in as the brand-new user, kicking the Admin out of their own
-// session. To avoid that, new accounts are created on a second, independent
-// Firebase App instance with its own isolated Auth session. Once the account
-// exists we sign that secondary session out (it's never used again) and the
-// Admin's primary session is untouched throughout.
-const secondaryApp = initializeApp(FIREBASE_CONFIG, 'Secondary');
-const secondaryAuth = getAuth(secondaryApp);
-
 // Expose the pieces that non-module inline `onclick="..."` handlers need,
 // since <script type="module"> is scoped and not global by default.
 window.__fb = {
-  auth, firestoreDB, cloudFns, secondaryAuth,
-  signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword,
+  auth, firestoreDB, cloudFns,
+  signInWithEmailAndPassword, signOut, onAuthStateChanged,
   collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
   query, where, orderBy, onSnapshot, serverTimestamp, httpsCallable
 };
@@ -1527,10 +1609,7 @@ function friendlyAuthError(err) {
     'auth/invalid-credential': 'Incorrect email or password.',
     'auth/too-many-requests': 'Too many failed attempts. Please wait a few minutes and try again.',
     'auth/network-request-failed': 'No internet connection. Please check your network and try again.',
-    'auth/internal-error': 'Something went wrong. Please try again.',
-    'auth/email-already-in-use': 'An account with this email already exists.',
-    'auth/weak-password': 'Temporary password must be at least 6 characters.',
-    'auth/operation-not-allowed': 'Email/Password sign-in is not enabled for this project. Enable it in Firebase Console → Authentication → Sign-in method.'
+    'auth/internal-error': 'Something went wrong. Please try again.'
   };
   return map[code] || ('Sign-in failed: ' + (err.message || 'Unknown error.'));
 }
@@ -1887,11 +1966,6 @@ window.firebaseInitialized = true;
 window.auth = auth;
 window.firestoreDB = firestoreDB;
 window.cloudFns = cloudFns;
-window.secondaryAuth = secondaryAuth;
-window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
-window.serverTimestamp = serverTimestamp;
-window.friendlyAuthError = friendlyAuthError;
-window.fbSignOut = signOut;
 </script>
 
 <script>
@@ -1903,9 +1977,9 @@ window.fbSignOut = signOut;
 // canEnter = can submit new records (admission, payments, attendance)
 // canModify = can edit or delete existing records (admin only)
 const PERMISSIONS = {
-  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','settings'], canEnter: true, canModify: true },
-  office:  { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','absent-list','student-dashboard'],                                                                               canEnter: true, canModify: false },
-  teacher: { pages: ['dashboard','attendance','attendance-report','student-dashboard','marks'],                                                                              canEnter: true, canModify: false }
+  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','settings'], canEnter: true, canModify: true,  canEditStudents: true  },
+  office:  { pages: ['dashboard','admission','students','fees','receipt','certificates','absent-list','student-dashboard'],                                                                               canEnter: true, canModify: false, canEditStudents: true  },
+  teacher: { pages: ['dashboard','attendance','absent-list','attendance-report','student-dashboard','marks'],                                                                              canEnter: true, canModify: false, canEditStudents: false }
 };
 
 function canAccess(page) {
@@ -2002,7 +2076,16 @@ function navTo(page, el) {
   if (page === 'users') renderUsersPage();
   if (page === 'master') renderMasterData();
   if (page === 'salary') initSalaryPage();
-  if (page === 'absent-list') { document.getElementById('abs-date').value = todayStr(); renderAbsentHistory(); }
+  if (page === 'absent-list') {
+    document.getElementById('abs-date').value = todayStr();
+    // Show read-only notice for teachers
+    const notice = document.getElementById('abs-teacher-notice');
+    if (notice) notice.style.display = (currentUser && currentUser.role === 'teacher') ? 'block' : 'none';
+    // Hide save button for teachers
+    const saveBtn = document.getElementById('abs-submit-btn');
+    if (saveBtn) saveBtn.style.display = (currentUser && currentUser.role === 'teacher') ? 'none' : '';
+    renderAbsentHistory();
+  }
 }
 
 function showPage(page) {
@@ -2091,17 +2174,15 @@ async function renderUsersPage() {
       : '';
     const statusChip = u.active === false
       ? '<span class="chip chip-red" style="font-size:10px;">Inactive</span>'
-      : '';
+      : '<span class="chip chip-green" style="font-size:10px;">Active</span>';
     html += '<div class="user-row">'
       + '<div class="user-avatar ua-'+u.role+'">'+u.name.slice(0,2).toUpperCase()+'</div>'
       + '<div style="flex:1;">'
-      + '<div style="font-weight:600;font-size:14px;">'+u.name+' <span style="font-size:12px;color:var(--muted);">'+(u.email||u.username||'')+'</span> '+statusChip+'</div>'
+      + '<div style="font-weight:600;font-size:14px;">'+u.name+' '+statusChip+' <span style="font-size:12px;color:var(--muted);">'+(u.email||'')+'</span></div>'
       + '<div style="font-size:12px;color:var(--muted);margin-top:2px;">'+(u.dept||'—')+(u.mobile?' · '+u.mobile:'')+'</div>'
       + (courseTags ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">'+courseTags+'</div>' : '')
       + '</div>'
       + '<span class="chip chip-'+(u.role==='admin'?'purple':u.role==='office'?'blue':'green')+'">'+(u.role.charAt(0).toUpperCase()+u.role.slice(1))+'</span>'
-      + '<button class="btn btn-outline" onclick="openEditUserModal(\''+u.id+'\')" style="padding:5px 12px;font-size:12px;">Edit</button>'
-      + (currentUser && u.uid !== currentUser.uid ? '<button class="btn btn-outline" onclick="removeUser(\''+u.id+'\')" style="padding:5px 12px;font-size:12px;color:var(--red);border-color:var(--red);">Remove</button>' : '')
       + '</div>';
   });
   container.innerHTML = html || '<p style="color:var(--muted);padding:20px;">No users found.</p>';
@@ -2162,11 +2243,12 @@ function toggleTeacherFields() {
   document.getElementById('uf-courses-wrap').style.display = role === 'teacher' ? '' : 'none';
 }
 
-// Creating a brand-new staff login needs two things: (1) a Firebase Auth
-// account so the person can sign in, and (2) a matching Firestore profile
-// document (id = Auth UID) that carries their name/role/etc. Step 1 is done
-// on the isolated `secondaryAuth` session (see its setup above) so the
-// Admin's own sign-in is never disturbed; step 2 uses the normal DB helper.
+// Creating a brand-new staff login requires a Firebase Auth account, which
+// cannot be created securely from client-side JS (it would require the
+// Admin SDK, which must never run in a browser). Instead this calls a
+// Cloud Function ("createStaffUser") that runs server-side, creates the
+// Auth account, and writes the matching Firestore profile document in one
+// atomic operation. See functions/index.js in the deployment package.
 async function saveUser() {
   const name = document.getElementById('uf-name').value.trim();
   const email = document.getElementById('uf-username').value.trim().toLowerCase();
@@ -2213,7 +2295,7 @@ async function saveUser() {
     return;
   }
 
-  // ---- CREATE new user: client-side Auth account + Firestore profile ----
+  // ---- CREATE new user via Cloud Function ----
   if (!password || password.length < 6) {
     saveBtn.disabled = false;
     alertBox.innerHTML = '<div class="alert alert-error">Temporary password must be at least 6 characters.</div>';
@@ -2221,52 +2303,33 @@ async function saveUser() {
   }
   saveBtn.textContent = 'Creating account…';
   try {
-    // Step 1 — create the Firebase Auth account on the isolated secondary
-    // session, so the Admin stays signed in on the primary session.
-    const cred = await window.createUserWithEmailAndPassword(window.secondaryAuth, email, password);
-    const newUid = cred.user.uid;
-
-    // The secondary session is only ever used for this one call — sign it
-    // out immediately so no stray session lingers.
-    window.fbSignOut(window.secondaryAuth).catch(() => {});
-
-    // Step 2 — write the matching Firestore profile document, keyed by the
-    // new Auth UID (this is the schema the rest of the app expects).
-    const ok = await DB.setDoc('users', newUid, {
-      name, email, role, dept, mobile, courses,
-      active: true,
-      createdAt: window.serverTimestamp(),
-      createdBy: currentUser ? currentUser.uid : null
-    });
-
+    const createStaffUser = window.cloudFns ? window.__fb.httpsCallable(window.cloudFns, 'createStaffUser') : null;
+    if (!createStaffUser) throw new Error('Cloud Functions not available.');
+    const result = await createStaffUser({ name, email, password, role, dept, mobile, courses });
     saveBtn.disabled = false; saveBtn.textContent = '💾 Save User';
-
-    if (ok) {
+    if (result.data && result.data.success) {
       showAlert('users-alert','success','✅ ' + (role === 'teacher' ? 'Teacher' : 'User') + ' account created for ' + email + '. Share the temporary password with them and ask them to change it after first login.');
       closeModal('user-modal');
       renderUsersPage();
     } else {
-      // Auth account exists but the Firestore profile write failed — the
-      // person could sign in but would hit "no profile" on login. Surface
-      // that clearly so the Admin knows to retry or clean up.
-      alertBox.innerHTML = '<div class="alert alert-error">Account was created, but saving the profile failed. Please check your connection and try editing this user, or contact support if the problem continues.</div>';
+      alertBox.innerHTML = '<div class="alert alert-error">' + (result.data && result.data.message ? result.data.message : 'Could not create account.') + '</div>';
     }
   } catch (err) {
     saveBtn.disabled = false; saveBtn.textContent = '💾 Save User';
-    console.error('Create staff account failed:', err);
-    alertBox.innerHTML = '<div class="alert alert-error">' + window.friendlyAuthError(err) + '</div>';
+    console.error('createStaffUser failed:', err);
+    let msg = 'Could not create account.';
+    if (err.code === 'functions/already-exists') msg = 'An account with this email already exists.';
+    else if (err.code === 'functions/permission-denied') msg = 'Only an Admin can create new staff accounts.';
+    else if (err.code === 'functions/unavailable' || err.message.includes('Cloud Functions not available')) msg = 'Account creation service is not deployed yet. See the deployment guide (functions/index.js must be deployed with "firebase deploy --only functions").';
+    else if (err.message) msg = err.message;
+    alertBox.innerHTML = '<div class="alert alert-error">' + msg + '</div>';
   }
 }
 
-// Deactivating a user marks active:false on their Firestore profile, which
-// is what every permission check in this app reads (see PERMISSIONS /
-// onAuthStateChanged). This alone blocks them from using the app.
-//
-// Fully disabling the Auth account too (so a stale session can't sneak
-// back in) requires the Admin SDK and therefore a Cloud Function. If one
-// is deployed as `deactivateStaffUser`, it's used for the extra safety net;
-// if not (or if it errors), this quietly falls back to the Firestore-only
-// deactivation above instead of surfacing a confusing server error.
+// Deactivating a user calls the deactivateStaffUser Cloud Function, which
+// disables the account at the Firebase Authentication level (blocking
+// sign-in even if the Firestore profile is somehow tampered with) AND
+// marks active:false on the profile document, in one server-side operation.
 async function removeUser(docId) {
   const users = await getUsers();
   const u = users.find(x => x.id === docId);
@@ -2274,20 +2337,13 @@ async function removeUser(docId) {
   if (currentUser && u.uid === currentUser.uid) { alert('You cannot deactivate your own account.'); return; }
   if (!confirm('Deactivate "' + u.name + '"? They will no longer be able to sign in. (Their historical records are kept.)')) return;
   try {
-    await DB.updateDoc('users', docId, { active: false });
-
-    // Best-effort extra step — disable the Auth account server-side too, if
-    // that Cloud Function happens to be deployed. Never lets a missing/
-    // failing function block the deactivation the user asked for.
-    if (window.cloudFns) {
-      try {
-        const deactivateStaffUser = window.__fb.httpsCallable(window.cloudFns, 'deactivateStaffUser');
-        await deactivateStaffUser({ uid: u.uid || docId });
-      } catch (fnErr) {
-        console.warn('Auth-level deactivation skipped (function not deployed or failed):', fnErr);
-      }
+    const deactivateStaffUser = window.cloudFns ? window.__fb.httpsCallable(window.cloudFns, 'deactivateStaffUser') : null;
+    if (deactivateStaffUser) {
+      await deactivateStaffUser({ uid: u.uid || docId });
+    } else {
+      // Fallback if Cloud Functions aren't deployed yet — Firestore-only deactivation
+      await DB.updateDoc('users', docId, { active: false });
     }
-
     showAlert('users-alert','success','User deactivated.');
     renderUsersPage();
   } catch (err) {
@@ -2414,8 +2470,8 @@ function viewStudent(rollNo) {
         <div><span style="color:var(--muted);">Duration:</span> <strong>${s.duration} months</strong></div>
         <div><span style="color:var(--muted);">Course Type:</span> <strong>${s.courseType||'Regular'}</strong></div>
         <div><span style="color:var(--muted);">Mode:</span> <strong>${s.mode||'Offline'}</strong></div>
-        <div><span style="color:var(--muted);">Monthly Due Date:</span> <strong>${getInstallmentLabel(s)}</strong></div>
-        <div><span style="color:var(--muted);">Next Due:</span> <strong>${getStudentDueDate(s) || '—'}</strong></div>
+        <div><span style="color:var(--muted);">Monthly Installment:</span> <strong>${getInstallmentLabel(s)}</strong></div>
+        <div><span style="color:var(--muted);">Next Due Date:</span> <strong>${getStudentDueDate(s)||'—'}</strong></div>
       </div>
       <div style="background:#f8fafd;border-radius:8px;padding:12px;">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
@@ -2442,7 +2498,7 @@ function openEditStudent(rollNo) {
   document.getElementById('es-batch').value = s.batch;
   document.getElementById('es-coursetype').value = s.courseType||'Regular';
   document.getElementById('es-mode').value = s.mode||'Offline';
-  document.getElementById('es-duedate').value = s.customDueDate ? String(parseInt(s.customDueDate)) : '';
+  document.getElementById('es-duedate').value = String(getInstallmentDay(s) || '');
   document.getElementById('es-totalfees').value = s.totalFees;
   document.getElementById('es-concession').value = s.concession;
   document.getElementById('es-status').value = s.status||'Active';
@@ -2482,31 +2538,12 @@ async function saveStudentEdit() {
 async function deleteStudent() {
   if (!canModify()) { showAlert('global-alert','error','❌ Only Admin can delete records.'); return; }
   const roll = document.getElementById('es-roll').value;
-  const s = students.find(st => st.rollNo === roll);
-  if (!s) return;
-  if (!confirm('Permanently delete student ' + roll + ' (' + (s.fname||'') + ' ' + (s.lname||'') + ')?\n\nThis will remove the record completely from the database and cannot be undone.')) return;
-
-  // Find the Firestore document ID — could be rollNo or the id field
-  const docId = s.id || s.rollNo;
-
-  // Step 1: Directly delete the Firestore document (guaranteed removal)
-  const deleted = await fbDeleteDoc('students', docId);
-  if (!deleted) {
-    showAlert('global-alert','error','❌ Could not delete from database. Please try again.'); return;
-  }
-
-  // Step 2: Remove from local in-memory array so UI updates immediately
-  students = students.filter(st => st.rollNo !== roll);
-
-  // Step 3: Update _lastSyncedIds so diff-sync knows this doc is gone
-  if (window._lastSyncedIds && window._lastSyncedIds['students']) {
-    window._lastSyncedIds['students'].delete(docId);
-  }
-
+  if (!confirm('Delete student ' + roll + '? This cannot be undone.')) return;
+  students = students.filter(s=>s.rollNo!==roll);
+  await DB.set('students', students);
   closeModal('edit-student-modal');
   renderStudentsTable();
-  refreshDashboard();
-  showAlert('global-alert','success','✅ Student <strong>' + roll + '</strong> permanently deleted from database.');
+  showAlert('global-alert','success','Student deleted.');
 }
 
 // ============================================================
@@ -2764,27 +2801,124 @@ function printReceipt(rcptNo) {
 // ATTENDANCE
 // ============================================================
 function loadAttStudents() {
-  const batch = document.getElementById('att-batch').value;
+  const batch  = document.getElementById('att-batch').value;
   const course = document.getElementById('att-course').value;
-  if (!batch||!course) return;
-  const filtered = students.filter(s=>s.batch===batch&&s.course===course&&(s.status||'Active')==='Active');
-  const listEl = document.getElementById('att-student-list');
+  const date   = document.getElementById('att-date').value;
+  if (!batch || !course) return;
+
+  const filtered = students.filter(s => s.batch === batch && s.course === course && (s.status||'Active') === 'Active');
+  const listEl  = document.getElementById('att-student-list');
   const emptyEl = document.getElementById('att-empty');
   if (!filtered.length) { listEl.style.display='none'; emptyEl.style.display='block'; return; }
   listEl.style.display='block'; emptyEl.style.display='none';
-  document.getElementById('att-rows').innerHTML = filtered.map(s=>`
-    <div class="att-student-row" id="att-row-${s.rollNo}" data-roll="${s.rollNo}" data-name="${s.fname} ${s.lname}">
+
+  // Get today's absent list entries for this course/batch from office
+  const absentToday = absences.filter(a =>
+    a.date === date && a.course === course && a.batch === batch
+  );
+  const absentRolls = new Set(absentToday.map(a => a.rollNo));
+  const absentReasons = {};
+  absentToday.forEach(a => { absentReasons[a.rollNo] = a.reason || ''; });
+
+  // Show notice if office has pre-marked absences
+  const noticeEl = document.getElementById('att-abs-notice');
+  if (absentRolls.size > 0) {
+    noticeEl.style.display = 'block';
+    noticeEl.innerHTML = `📋 <strong>${absentRolls.size} student(s)</strong> pre-marked absent by office staff today. Review below and correct if needed.`;
+  } else {
+    noticeEl.style.display = 'none';
+  }
+
+  document.getElementById('att-rows').innerHTML = filtered.map(s => {
+    const isAbsent = absentRolls.has(s.rollNo);
+    const reason   = absentReasons[s.rollNo] || '';
+    const absId    = date + '_' + s.rollNo + '_' + (course||'').replace(/\s+/g,'_');
+
+    // Edit button shown only if pre-marked absent by office
+    const editBtn = isAbsent
+      ? `<button class="btn btn-outline" onclick="overrideAbsent('${s.rollNo}','${absId}')"
+           style="padding:4px 10px;font-size:11px;color:var(--green);border-color:var(--green);">
+           ✏️ Mark Present
+         </button>
+         ${reason ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">Reason: ${reason}</div>` : ''}`
+      : '—';
+
+    return `
+    <div class="att-student-row" id="att-row-${s.rollNo}" data-roll="${s.rollNo}" data-name="${s.fname} ${s.lname}"
+         style="${isAbsent ? 'background:var(--red-light,#fff5f5);border-left:3px solid var(--red);padding-left:8px;' : ''}">
       <div style="width:60px;font-size:12px;font-weight:600;color:var(--muted);">${s.rollNo}</div>
-      <div class="att-name">${s.fname} ${s.lname}</div>
+      <div class="att-name">
+        ${s.fname} ${s.lname}
+        ${isAbsent ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 6px;border-radius:8px;margin-left:6px;">Office: Absent</span>' : ''}
+      </div>
       <div class="att-status">
-        <label class="att-radio"><input type="radio" name="att-${s.rollNo}" value="Present" checked onchange="toggleAttFields('${s.rollNo}','Present')"> P</label>
-        <label class="att-radio" style="color:var(--red);"><input type="radio" name="att-${s.rollNo}" value="Absent" onchange="toggleAttFields('${s.rollNo}','Absent')"> A</label>
+        <label class="att-radio">
+          <input type="radio" name="att-${s.rollNo}" value="Present" ${!isAbsent ? 'checked' : ''}
+            onchange="toggleAttFields('${s.rollNo}','Present')"> P
+        </label>
+        <label class="att-radio" style="color:var(--red);">
+          <input type="radio" name="att-${s.rollNo}" value="Absent" ${isAbsent ? 'checked' : ''}
+            onchange="toggleAttFields('${s.rollNo}','Absent')"> A
+        </label>
       </div>
       <div class="att-fields">
-        <input type="text" id="topic-${s.rollNo}" placeholder="Topic covered" style="flex:1;">
-        <input type="text" id="software-${s.rollNo}" placeholder="Software used" style="flex:1;">
+        <input type="text" id="topic-${s.rollNo}" placeholder="Topic covered" style="flex:1;" ${isAbsent ? 'disabled' : ''}>
+        <input type="text" id="software-${s.rollNo}" placeholder="Software used" style="flex:1;" ${isAbsent ? 'disabled' : ''}>
       </div>
-    </div>`).join('');
+      <div id="att-edit-${s.rollNo}" style="font-size:12px;">${editBtn}</div>
+    </div>`;
+  }).join('');
+
+  // Dim rows pre-marked absent
+  absentRolls.forEach(roll => {
+    const row = document.getElementById('att-row-' + roll);
+    if (row) row.style.opacity = '0.75';
+  });
+}
+
+// Teacher overrides office absent-marking → mark as Present and delete from absences collection
+async function overrideAbsent(rollNo, absId) {
+  if (!confirm('Mark ' + rollNo + ' as Present? This will remove them from the office absent list.')) return;
+
+  // Flip radio to Present
+  const radio = document.querySelector(`input[name="att-${rollNo}"][value="Present"]`);
+  if (radio) { radio.checked = true; toggleAttFields(rollNo, 'Present'); }
+
+  // Remove the "Office: Absent" badge and edit button
+  const row = document.getElementById('att-row-' + rollNo);
+  if (row) { row.style.background=''; row.style.borderLeft=''; row.style.paddingLeft=''; row.style.opacity='1'; }
+  const badge = row ? row.querySelector('span[style*="fee2e2"]') : null;
+  if (badge) badge.remove();
+  const editCell = document.getElementById('att-edit-' + rollNo);
+  if (editCell) editCell.innerHTML = '<span style="font-size:11px;color:var(--green);">✅ Corrected</span>';
+
+  // Delete from Firestore absences collection
+  // Try both possible doc ID formats
+  const deleted = await fbDeleteDoc('absences', absId);
+  if (!deleted) {
+    // Try alt format without course suffix
+    const altId = document.getElementById('att-date').value + '_' + rollNo;
+    await fbDeleteDoc('absences', altId);
+  }
+
+  // Update local absences array
+  absences = absences.filter(a => a.id !== absId && !(a.rollNo === rollNo && a.date === document.getElementById('att-date').value));
+
+  // Update notice count
+  const remainingAbsent = absences.filter(a =>
+    a.date === document.getElementById('att-date').value &&
+    a.course === document.getElementById('att-course').value &&
+    a.batch  === document.getElementById('att-batch').value
+  );
+  const noticeEl = document.getElementById('att-abs-notice');
+  if (noticeEl) {
+    if (remainingAbsent.length > 0) {
+      noticeEl.innerHTML = `📋 <strong>${remainingAbsent.length} student(s)</strong> still pre-marked absent by office. Review and correct if needed.`;
+    } else {
+      noticeEl.style.display = 'none';
+    }
+  }
+  showAlert('att-alert','success','✅ ' + rollNo + ' marked as Present. Removed from office absent list.');
 }
 
 function toggleAttFields(rollNo, status) {
@@ -2795,10 +2929,15 @@ function toggleAttFields(rollNo, status) {
 }
 
 function markAllPresent() {
-  document.querySelectorAll('[id^="att-row-"]').forEach(row=>{
-    const roll=row.dataset.roll;
-    const radio=document.querySelector(`input[name="att-${roll}"][value="Present"]`);
-    if (radio) { radio.checked=true; toggleAttFields(roll,'Present'); }
+  document.querySelectorAll('[id^="att-row-"]').forEach(row => {
+    const roll = row.dataset.roll;
+    const radio = document.querySelector(`input[name="att-${roll}"][value="Present"]`);
+    if (radio) {
+      radio.checked = true;
+      toggleAttFields(roll, 'Present');
+      // Clear office-absent styling
+      row.style.background = ''; row.style.borderLeft = ''; row.style.paddingLeft = ''; row.style.opacity = '1';
+    }
   });
 }
 
@@ -2833,23 +2972,66 @@ async function submitAttendance() {
 // (ID no., name, mobile) from the database, tick absentees + reason
 // ============================================================
 function loadAbsentStudents() {
-  const batch = document.getElementById('abs-batch').value;
+  const batch  = document.getElementById('abs-batch').value;
   const course = document.getElementById('abs-course').value;
-  if (!batch||!course) return;
-  const filtered = students.filter(s=>s.batch===batch&&s.course===course&&(s.status||'Active')==='Active');
-  const listEl = document.getElementById('abs-student-list');
-  const emptyEl = document.getElementById('abs-empty');
+  const date   = document.getElementById('abs-date').value;
+  if (!batch || !course) return;
+
+  const isTeacher = currentUser && currentUser.role === 'teacher';
+  const filtered  = students.filter(s => s.batch === batch && s.course === course && (s.status||'Active') === 'Active');
+  const listEl    = document.getElementById('abs-student-list');
+  const emptyEl   = document.getElementById('abs-empty');
+
   if (!filtered.length) { listEl.style.display='none'; emptyEl.style.display='block'; return; }
   listEl.style.display='block'; emptyEl.style.display='none';
-  document.getElementById('abs-rows').innerHTML = filtered.map(s=>`
-    <div class="abs-student-row" id="abs-row-${s.rollNo}" data-roll="${s.rollNo}" data-name="${s.fname} ${s.lname}" data-mobile="${s.mobile||''}"
-         style="display:grid;grid-template-columns:50px 90px 1fr 130px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
-      <div><input type="checkbox" id="abs-check-${s.rollNo}" onchange="toggleAbsReason('${s.rollNo}')" style="width:18px;height:18px;"></div>
-      <div style="font-size:12px;font-weight:600;color:var(--muted);">${s.rollNo}</div>
-      <div>${s.fname} ${s.lname}</div>
-      <div style="font-size:13px;color:var(--muted);">${s.mobile||'—'}</div>
-      <div><input type="text" id="abs-reason-${s.rollNo}" placeholder="Reason for absence" disabled style="width:100%;"></div>
-    </div>`).join('');
+
+  // Find which students are already in today's absent list
+  const alreadyAbsent = new Set(
+    absences.filter(a => a.date === date && a.course === course && a.batch === batch)
+            .map(a => a.rollNo)
+  );
+  const absentReasons = {};
+  absences.filter(a => a.date === date && a.course === course && a.batch === batch)
+          .forEach(a => { absentReasons[a.rollNo] = a.reason || ''; });
+
+  // Update subtitle and action bar based on role
+  const subtitle = document.getElementById('abs-list-subtitle');
+  const actionsEl = document.getElementById('abs-actions');
+  if (isTeacher) {
+    if (subtitle) subtitle.textContent = 'Read-only view — absences entered by office staff. Correct in Attendance Entry.';
+    if (actionsEl) actionsEl.style.display = 'none';
+  } else {
+    if (subtitle) subtitle.textContent = 'Tick students who are absent and add a reason';
+    if (actionsEl) actionsEl.style.display = '';
+  }
+
+  document.getElementById('abs-rows').innerHTML = filtered.map(s => {
+    const isAbsent = alreadyAbsent.has(s.rollNo);
+    const reason   = absentReasons[s.rollNo] || '';
+
+    if (isTeacher) {
+      // Read-only row for teachers
+      return `
+        <div style="display:grid;grid-template-columns:50px 90px 1fr 130px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);${isAbsent ? 'background:#fff5f5;' : ''}">
+          <div>${isAbsent ? '<span style="font-size:18px;">🔴</span>' : '<span style="font-size:18px;color:var(--muted);">—</span>'}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--muted);">${s.rollNo}</div>
+          <div>${s.fname} ${s.lname}</div>
+          <div style="font-size:13px;color:var(--muted);">${s.mobile||'—'}</div>
+          <div style="font-size:12px;color:${isAbsent ? 'var(--red)' : 'var(--muted)'};">${isAbsent ? (reason || 'No reason given') : 'Present'}</div>
+        </div>`;
+    }
+
+    // Office/Admin interactive row
+    return `
+      <div class="abs-student-row" id="abs-row-${s.rollNo}" data-roll="${s.rollNo}" data-name="${s.fname} ${s.lname}" data-mobile="${s.mobile||''}"
+           style="display:grid;grid-template-columns:50px 90px 1fr 130px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div><input type="checkbox" id="abs-check-${s.rollNo}" ${isAbsent ? 'checked' : ''} onchange="toggleAbsReason('${s.rollNo}')" style="width:18px;height:18px;"></div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);">${s.rollNo}</div>
+        <div>${s.fname} ${s.lname}</div>
+        <div style="font-size:13px;color:var(--muted);">${s.mobile||'—'}</div>
+        <div><input type="text" id="abs-reason-${s.rollNo}" value="${reason}" placeholder="Reason for absence" ${isAbsent ? '' : 'disabled'} style="width:100%;"></div>
+      </div>`;
+  }).join('');
 }
 
 function toggleAbsReason(rollNo) {
@@ -2951,7 +3133,7 @@ function loadStudentDashboard() {
 
   const isTeacher = currentUser && currentUser.role === 'teacher';
 
-  document.getElementById('sd-avatar').textContent=((s.fname||'?')[0]+((s.lname||'')[0]||'')).toUpperCase();
+  document.getElementById('sd-avatar').textContent=(s.fname[0]+s.lname[0]).toUpperCase();
   document.getElementById('sd-name').textContent=s.fname+' '+s.lname;
   document.getElementById('sd-course').textContent=s.course+' — '+s.batch.split('(')[0].trim();
   document.getElementById('sd-roll').textContent=s.rollNo;
@@ -3157,7 +3339,7 @@ function refreshDashboard() {
   const recentEl=document.getElementById('recent-admissions');
   recentEl.innerHTML=students.length ? [...students].reverse().slice(0,5).map(s=>`
     <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;">
-      <div style="width:32px;height:32px;border-radius:50%;background:var(--navy);color:var(--teal-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${(s.fname||'?')[0]}${(s.lname||'')[0]||''}</div>
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--navy);color:var(--teal-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${s.fname[0]}${s.lname[0]}</div>
       <div style="flex:1;"><div style="font-weight:500;font-size:13.5px;">${s.fname} ${s.lname}</div><div style="font-size:11px;color:var(--muted);">${s.course} — ${s.admDate}</div></div>
       <span class="chip chip-blue">${s.rollNo}</span>
     </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No admissions yet.</p>';
@@ -3184,43 +3366,48 @@ document.querySelectorAll('.nav-item').forEach(n => {
 // DUE DATE CALCULATION
 // ============================================================
 function getInstallmentDay(s) {
-  // Returns the day-of-month number stored for this student's monthly installment.
-  // customDueDate stores either a legacy full date (YYYY-MM-DD) or just a day number (1-28).
+  // Returns the day-of-month number for this student's monthly installment.
+  // customDueDate stores either a legacy full date (YYYY-MM-DD) or a day number (1-31).
   if (!s.customDueDate) return null;
   const val = String(s.customDueDate);
-  if (val.includes('-') && val.length === 10) return parseInt(val.split('-')[2]); // legacy full date
+  // Legacy full date format — extract day
+  if (val.includes('-') && val.length === 10) return parseInt(val.split('-')[2]);
+  // New format — just a day number
   const d = parseInt(val);
   return (d >= 1 && d <= 31) ? d : null;
 }
 
 function getStudentDueDate(s) {
-  // Returns the next due date string (YYYY-MM-DD) based on the installment day.
-  // If today is on or before this month's due date → returns this month's date.
-  // If today is past it → returns next month's date.
+  // Get the installment day for this student
   const day = getInstallmentDay(s);
   if (!day) return null;
 
   const today = new Date(); today.setHours(0,0,0,0);
-  const y = today.getFullYear();
-  const m = today.getMonth(); // 0-indexed
+  const year  = today.getFullYear();
+  const month = today.getMonth(); // 0-indexed
 
-  function makeDue(yr, mo, d) {
-    const lastDay = new Date(yr, mo + 1, 0).getDate();
+  // Build this month's due date — clamp to last day of month (e.g. day=31 in Feb → Feb 28)
+  function makeDue(y, m, d) {
+    const lastDay = new Date(y, m+1, 0).getDate();
     const safeDay = Math.min(d, lastDay);
-    return new Date(yr, mo, safeDay);
+    return new Date(y, m, safeDay);
   }
 
-  const thisDue = makeDue(y, m, day);
+  const thisDue = makeDue(year, month, day);
+
+  // If today is ON or BEFORE this month's due date → show this month's due date
+  // If today is PAST this month's due date → show next month's due date
   if (today <= thisDue) {
-    return thisDue.toISOString().slice(0, 10);
+    return thisDue.toISOString().slice(0,10);
   } else {
-    const nm = m === 11 ? 0 : m + 1;
-    const ny = m === 11 ? y + 1 : y;
-    return makeDue(ny, nm, day).toISOString().slice(0, 10);
+    const nextMonth = month === 11 ? 0 : month + 1;
+    const nextYear  = month === 11 ? year + 1 : year;
+    return makeDue(nextYear, nextMonth, day).toISOString().slice(0,10);
   }
 }
 
 function getInstallmentLabel(s) {
+  // Human-readable label e.g. "10th of every month"
   const day = getInstallmentDay(s);
   if (!day) return '—';
   const suffix = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th';
@@ -3229,39 +3416,43 @@ function getInstallmentLabel(s) {
 
 function getDueStatus(dueDateStr, s) {
   if (!dueDateStr) return 'unknown';
-  // If fully paid, don't show as due
+
+  // If course is already complete (fully paid), don't show as due
   if (s) {
-    const paid = payments.filter(p => p.rollNo === s.rollNo).reduce((a, p) => a + parseFloat(p.amount || 0), 0);
-    const net  = parseFloat(s.totalFees || 0) - parseFloat(s.concession || 0);
+    const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+    const net  = parseFloat(s.totalFees||0) - parseFloat(s.concession||0);
     if (net - paid <= 0) return 'paid';
   }
+
   const today = new Date(); today.setHours(0,0,0,0);
   const due   = new Date(dueDateStr); due.setHours(0,0,0,0);
-  const diff  = (due - today) / (1000 * 60 * 60 * 24);
-  if (diff < 0)   return 'overdue';
+  const diff  = (due - today) / (1000*60*60*24);
+  if (diff < 0)  return 'overdue';
   if (diff === 0) return 'today';
   if (diff <= 7)  return 'soon';
   return 'ok';
 }
 
 function buildDueTable(bodyId, totalId, canEdit) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  // Students with outstanding balance
   const dueStudents = students.filter(s => {
-    const paid = payments.filter(p => p.rollNo === s.rollNo).reduce((a, p) => a + parseFloat(p.amount || 0), 0);
-    const net  = parseFloat(s.totalFees || 0) - parseFloat(s.concession || 0);
+    const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+    const net = parseFloat(s.totalFees||0) - parseFloat(s.concession||0);
     return net - paid > 0;
   }).map(s => {
-    const paid    = payments.filter(p => p.rollNo === s.rollNo).reduce((a, p) => a + parseFloat(p.amount || 0), 0);
-    const net     = parseFloat(s.totalFees || 0) - parseFloat(s.concession || 0);
+    const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+    const net = parseFloat(s.totalFees||0) - parseFloat(s.concession||0);
     const balance = net - paid;
     const dueDate = getStudentDueDate(s);
-    const status  = getDueStatus(dueDate, s);
+    const status = getDueStatus(dueDate, s);
     const installLabel = getInstallmentLabel(s);
     return { s, balance, dueDate, status, installLabel };
   }).filter(x => x.status === 'overdue' || x.status === 'today' || x.status === 'soon');
 
-  dueStudents.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+  dueStudents.sort((a,b) => a.dueDate.localeCompare(b.dueDate));
 
-  const tbody   = document.getElementById(bodyId);
+  const tbody = document.getElementById(bodyId);
   const totalEl = document.getElementById(totalId);
 
   if (!dueStudents.length) {
@@ -3270,24 +3461,24 @@ function buildDueTable(bodyId, totalId, canEdit) {
     return;
   }
 
-  const totalDue = dueStudents.reduce((a, x) => a + x.balance, 0);
-  if (totalEl) totalEl.textContent = 'Total: ₹' + totalDue.toLocaleString('en-IN');
+  const totalDue = dueStudents.reduce((a,x)=>a+x.balance,0);
+  if (totalEl) totalEl.textContent = 'Total: ₹'+totalDue.toLocaleString('en-IN');
 
-  const statusBadge = st => {
-    if (st === 'overdue') return '<span class="due-overdue">Overdue</span>';
-    if (st === 'today')   return '<span class="due-today">Due Today</span>';
-    if (st === 'soon')    return '<span class="due-soon">Due Soon</span>';
+  const statusBadge = status => {
+    if (status==='overdue') return '<span class="due-overdue">Overdue</span>';
+    if (status==='today')   return '<span class="due-today">Due Today</span>';
+    if (status==='soon')    return '<span class="due-soon">Due Soon</span>';
     return '';
   };
 
-  tbody.innerHTML = dueStudents.map(({ s, balance, dueDate, status, installLabel }) => `
+  tbody.innerHTML = dueStudents.map(({s,balance,dueDate,status,installLabel}) => `
     <tr>
       <td><strong>${s.rollNo}</strong></td>
       <td>${s.fname} ${s.lname}</td>
       <td style="font-size:12px;">${s.course}</td>
       <td style="font-weight:700;color:var(--red);">₹${balance.toLocaleString('en-IN')}</td>
       <td>
-        <div style="font-weight:600;">${dueDate || '—'}</div>
+        <div id="duedate-display-${s.rollNo}" style="font-weight:600;">${dueDate||'—'}</div>
         <div style="font-size:11px;color:var(--muted);">${installLabel}</div>
       </td>
       <td>${statusBadge(status)}</td>
@@ -3296,25 +3487,24 @@ function buildDueTable(bodyId, totalId, canEdit) {
 }
 
 async function editDueDate(rollNo) {
-  const s = students.find(x => x.rollNo === rollNo);
+  const s = students.find(x=>x.rollNo===rollNo);
   if (!s) return;
   const currentDay = getInstallmentDay(s) || '';
-  const input = prompt(
-    `Change monthly due date for ${s.fname} ${s.lname} (${rollNo})\n` +
-    `Current: ${currentDay ? currentDay + 'th of every month' : 'Not set'}\n\n` +
-    `Enter day of month (1 to 28):`,
-    currentDay
+  const newDay = prompt(
+    `Change monthly installment day for ${s.fname} ${s.lname} (${rollNo}):\n` +
+    `Current: ${currentDay ? currentDay+'th of every month' : 'Not set'}\n\n` +
+    `Enter day of month (1-28):`, currentDay
   );
-  if (input === null) return; // cancelled
-  const day = parseInt(input);
-  if (isNaN(day) || day < 1 || day > 28) {
+  if (!newDay) return;
+  const dayNum = parseInt(newDay);
+  if (isNaN(dayNum) || dayNum < 1 || dayNum > 28) {
     alert('Please enter a number between 1 and 28.');
     return;
   }
-  s.customDueDate = String(day);
+  s.customDueDate = String(dayNum);
   await DB.set('students', students);
   refreshDashboard();
-  showAlert('global-alert', 'success', '✅ Due date updated to ' + day + 'th of every month for ' + s.fname + ' ' + s.lname + '.');
+  showAlert('global-alert','success','✅ Installment day updated to ' + dayNum + 'th of every month for ' + s.fname + ' ' + s.lname);
 }
 
 // ============================================================
@@ -3460,170 +3650,52 @@ async function pushAllToFirebase() {
   }
 }
 
-// Dynamically loads the SheetJS library (same CDN build used by
-// exportToExcel/exportFeeReportExcel elsewhere in this file) if it isn't
-// already on the page. Shared by any import/export flow that needs to
-// read or write real .xlsx workbooks.
-async function ensureXLSXLoaded() {
-  if (window.XLSX) return window.XLSX;
-  await new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    s.onload = resolve; s.onerror = reject;
-    document.head.appendChild(s);
-  });
-  return window.XLSX;
-}
-
-// Every student record elsewhere in this app (dashboard, attendance, fee
-// receipts, certificates...) expects an exact set of field names: fname,
-// lname, rollNo, mobile, email, course, batch, admDate, totalFees,
-// concession, mode, gender, dob, address, guardian, guardianMobile, qual,
-// remarks. An uploaded Excel sheet almost never uses those exact header
-// names ("First Name" vs "fname", "Roll No." vs "rollNo", etc.), so a raw
-// dump of spreadsheet rows breaks every feature that reads s.fname,
-// s.rollNo, and so on. This maps common header variants onto the schema
-// the app actually needs, and only then falls back to whatever the sheet
-// called something the map doesn't recognize.
-const STUDENT_HEADER_MAP = {
-  fname:'fname', firstname:'fname', 'first name':'fname',
-  lname:'lname', lastname:'lname', 'last name':'lname', surname:'lname',
-  rollno:'rollNo', 'roll no':'rollNo', 'roll no.':'rollNo', 'roll number':'rollNo', studentid:'rollNo', 'student id':'rollNo',
-  mobile:'mobile', phone:'mobile', 'phone number':'mobile', 'mobile number':'mobile', contact:'mobile',
-  email:'email', 'email id':'email', 'e-mail':'email',
-  address:'address',
-  course:'course', 'course name':'course',
-  batch:'batch',
-  coursetype:'courseType', 'course type':'courseType',
-  mode:'mode', 'mode of study':'mode',
-  admdate:'admDate', 'admission date':'admDate', 'adm date':'admDate', 'date of admission':'admDate', 'joining date':'admDate',
-  duration:'duration',
-  totalfees:'totalFees', 'total fees':'totalFees', fees:'totalFees', 'course fee':'totalFees', 'course fees':'totalFees',
-  concession:'concession', discount:'concession',
-  gender:'gender', sex:'gender',
-  dob:'dob', 'date of birth':'dob',
-  guardian:'guardian', 'guardian name':'guardian', 'parent name':'guardian', 'father name':'guardian',
-  guardianmobile:'guardianMobile', 'guardian mobile':'guardianMobile', 'parent mobile':'guardianMobile', 'guardian contact':'guardianMobile',
-  qual:'qual', qualification:'qual',
-  idtype:'idType', 'id type':'idType',
-  remarks:'remarks', notes:'remarks', status:'status'
-};
-
-// Normalizes one raw spreadsheet row into the app's student schema. Any
-// column the map doesn't recognize is kept as-is (no data is silently
-// dropped), and a combined "Name" / "Student Name" column is split into
-// fname/lname if separate first/last name columns weren't provided.
-function normalizeStudentRow(row) {
-  const out = {};
-  let combinedName = null;
-  for (const key of Object.keys(row)) {
-    const norm = key.trim().toLowerCase().replace(/\s+/g, ' ');
-    if (STUDENT_HEADER_MAP[norm]) {
-      out[STUDENT_HEADER_MAP[norm]] = String(row[key]).trim();
-    } else if (['name','student name','full name'].includes(norm)) {
-      combinedName = String(row[key]).trim();
-    } else {
-      out[key] = row[key]; // preserve unrecognized columns rather than lose data
-    }
-  }
-  if (combinedName && !out.fname) {
-    const parts = combinedName.split(/\s+/);
-    out.fname = parts[0] || '';
-    out.lname = parts.slice(1).join(' ') || '';
-  }
-  // Every place in this app that renders a student assumes these two
-  // strings exist, even if blank — never leave them undefined.
-  out.fname = out.fname || '';
-  out.lname = out.lname || '';
-  if (out.totalFees !== undefined) out.totalFees = parseFloat(out.totalFees) || 0;
-  if (out.concession !== undefined) out.concession = parseFloat(out.concession) || 0;
-  return out;
-}
-
 async function importFromExcel(event) {
   const file = event.target.files[0];
-  const statusEl = document.getElementById('excel-status');
   if (!file) return;
-
-  const fname = file.name.toLowerCase();
-  const isExcel = fname.endsWith('.xlsx') || fname.endsWith('.xls');
-
-  try {
-    let rows;
-
-    if (isExcel) {
-      // Real Excel workbooks are binary (zip) files — they must be read as
-      // an ArrayBuffer and parsed with SheetJS, never as plain text.
-      statusEl.innerHTML = '<div class="alert alert-info">⏳ Reading Excel file...</div>';
-      const XLSX = await ensureXLSXLoaded();
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-
-      // If the workbook has multiple sheets, prefer one whose name matches
-      // the kind of data we can recognize (Students, Payments, etc.);
-      // otherwise fall back to the first sheet.
-      const knownKeys = ['student', 'payment', 'attendance', 'marks', 'salary'];
-      let sheetName = wb.SheetNames.find(n => knownKeys.some(k => n.toLowerCase().includes(k)));
-      if (!sheetName) sheetName = wb.SheetNames[0];
-      const sheet = wb.Sheets[sheetName];
-
-      // defval:'' fills blank cells instead of omitting the key, so every
-      // row object has a consistent set of columns.
-      rows = XLSX.utils.sheet_to_json(sheet, { defval: '' , raw: false});
-    } else {
-      // Plain .csv — read as text and parse manually (existing behavior).
-      const text = await file.text();
-      const lines = text.split('\n').filter(l => l.trim());
-      if (lines.length < 2) { statusEl.innerHTML = '<div class="alert alert-error">❌ File appears empty.</div>'; return; }
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-      rows = lines.slice(1).map(line => {
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const text = e.target.result;
+      const lines = text.split('\n').filter(l=>l.trim());
+      if (lines.length < 2) { document.getElementById('excel-status').innerHTML='<div class="alert alert-error">❌ File appears empty.</div>'; return; }
+      const headers = lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+      const rows = lines.slice(1).map(line => {
         const vals = parseCSVLine(line);
         const obj = {};
-        headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
+        headers.forEach((h,i)=>{ obj[h]=vals[i]||''; });
         return obj;
       });
+      // Auto-detect sheet by headers
+      const fname = file.name.toLowerCase();
+      let imported = 0;
+      if (fname.includes('student')) {
+        students = rows.filter(r=>r.rollNo||r['Roll No']||r['rollNo']);
+        if (!students.length) students = rows;
+        await DB.set('students', students); imported = students.length;
+        document.getElementById('excel-status').innerHTML=`<div class="alert alert-success">✅ Imported ${imported} students.</div>`;
+      } else if (fname.includes('payment')) {
+        payments = rows; await DB.set('payments', payments); imported = payments.length;
+        document.getElementById('excel-status').innerHTML=`<div class="alert alert-success">✅ Imported ${imported} payments.</div>`;
+      } else if (fname.includes('attendance')) {
+        attendance = rows; await DB.set('attendance', attendance); imported = attendance.length;
+        document.getElementById('excel-status').innerHTML=`<div class="alert alert-success">✅ Imported ${imported} attendance records.</div>`;
+      } else if (fname.includes('marks')) {
+        marks = rows; await DB.set('marks', marks); imported = marks.length;
+        document.getElementById('excel-status').innerHTML=`<div class="alert alert-success">✅ Imported ${imported} marks records.</div>`;
+      } else if (fname.includes('salary')) {
+        salaries = rows; await DB.set('salaries', salaries); imported = salaries.length;
+        document.getElementById('excel-status').innerHTML=`<div class="alert alert-success">✅ Imported ${imported} salary records.</div>`;
+      } else {
+        document.getElementById('excel-status').innerHTML='<div class="alert alert-warn">⚠️ Could not detect data type from filename. Rename file to include: students, payments, attendance, marks, or salary.</div>';
+      }
+      refreshDashboard();
+    } catch(err) {
+      document.getElementById('excel-status').innerHTML=`<div class="alert alert-error">❌ Import failed: ${err.message}</div>`;
     }
-
-    if (!rows || !rows.length) {
-      statusEl.innerHTML = '<div class="alert alert-error">❌ No rows found in the file.</div>';
-      return;
-    }
-
-    // Auto-detect target collection by filename first, then by column headers
-    // (covers Excel files whose filename doesn't hint at the content).
-    const headerKeys = Object.keys(rows[0]).map(h => h.toLowerCase());
-    const looksLike = (kind) => fname.includes(kind) || headerKeys.some(h => h.includes(kind));
-
-    let imported = 0;
-    if (looksLike('student') || headerKeys.some(h => h.includes('rollno') || h.includes('roll no') || h.includes('first name') || h.includes('firstname'))) {
-      students = rows.map(normalizeStudentRow).filter(r => r.fname || r.rollNo);
-      if (!students.length) students = rows.map(normalizeStudentRow);
-      // Auto-generate a rollNo for any row the sheet didn't already have one for.
-      students.forEach((s, i) => { if (!s.rollNo) s.rollNo = 'ST' + String(i + 1).padStart(4, '0'); });
-      await DB.set('students', students); imported = students.length;
-      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} students.</div>`;
-    } else if (looksLike('payment')) {
-      payments = rows; await DB.set('payments', payments); imported = payments.length;
-      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} payments.</div>`;
-    } else if (looksLike('attendance')) {
-      attendance = rows; await DB.set('attendance', attendance); imported = attendance.length;
-      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} attendance records.</div>`;
-    } else if (looksLike('marks')) {
-      marks = rows; await DB.set('marks', marks); imported = marks.length;
-      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} marks records.</div>`;
-    } else if (looksLike('salary')) {
-      salaries = rows; await DB.set('salaries', salaries); imported = salaries.length;
-      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} salary records.</div>`;
-    } else {
-      statusEl.innerHTML = '<div class="alert alert-warn">⚠️ Could not detect data type. Rename the file (or its sheet tab) to include: students, payments, attendance, marks, or salary.</div>';
-    }
-    try { refreshDashboard(); } catch (refreshErr) { console.warn('Dashboard refresh after import had an issue (data was still saved):', refreshErr); }
-  } catch (err) {
-    console.error('Import failed:', err);
-    statusEl.innerHTML = `<div class="alert alert-error">❌ Import failed: ${err.message}</div>`;
-  } finally {
-    event.target.value = '';
-  }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 function parseCSVLine(line) {
