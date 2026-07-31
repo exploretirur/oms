@@ -204,6 +204,10 @@ tr:hover td { background: #f8fafd; }
 .chip-amber { background: #fef3c7; color: #b45309; }
 .chip-blue { background: #dbeafe; color: #1d4ed8; }
 .chip-purple { background: #ede9fe; color: #5b21b6; }
+/* PART 7: summary banner grid on Attendance page (Students / Already Marked Absent / Remaining) */
+.summary-banner-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+/* PART 3: red "OFFICE ABSENT" badge shown on office-marked rows in Attendance Entry */
+.office-absent-badge { display: inline-block; background: #fee2e2; color: #b91c1c; font-size: 10px; font-weight: 700; letter-spacing: 0.3px; padding: 2px 7px; border-radius: 10px; margin-top: 3px; }
 
 /* ATTENDANCE */
 .att-student-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
@@ -846,13 +850,24 @@ tr:hover td { background: #f8fafd; }
           </div>
         </div>
       </div>
+      <!-- PART 7: Summary banner — Students / Already Marked Absent / Remaining -->
+      <div id="att-summary-banner" style="display:none;gap:12px;margin-bottom:4px;" class="summary-banner-grid">
+        <div class="stat-card teal" style="padding:12px 16px;"><div class="stat-label">Students</div><div class="stat-value" id="att-sum-total" style="font-size:22px;">0</div></div>
+        <div class="stat-card amber" style="padding:12px 16px;"><div class="stat-label">Already Marked Absent</div><div class="stat-value" id="att-sum-absent" style="font-size:22px;">0</div></div>
+        <div class="stat-card green" style="padding:12px 16px;"><div class="stat-label">Remaining</div><div class="stat-value" id="att-sum-remaining" style="font-size:22px;">0</div></div>
+      </div>
+      <!-- Banner shown when office has pre-marked some students absent -->
+      <div id="att-abs-banner" style="display:none;background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:10px 16px;margin-bottom:4px;font-size:13px;color:#7a5800;">
+        🚫 <strong id="att-abs-banner-count"></strong> student(s) marked absent by office staff today — shown greyed below.
+        Click <strong>Edit</strong> next to a student to mark them present (this removes them from the office absent list).
+      </div>
       <div class="card" id="att-student-list" style="display:none;">
         <div class="card-header">
           <div class="card-title"><span class="icon">📋</span> Student List</div>
           <div style="font-size:12px;color:var(--muted);">Mark Present / Absent</div>
         </div>
-        <div style="display:grid;grid-template-columns:60px 1fr 100px 1fr 1fr;gap:8px;padding:8px 0;border-bottom:1.5px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">
-          <span>Roll</span><span>Name</span><span>Status</span><span>Topic Covered</span><span>Software Used</span>
+        <div style="display:grid;grid-template-columns:60px 1fr 110px 1fr 1fr 100px;gap:8px;padding:8px 0;border-bottom:1.5px solid var(--border);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">
+          <span>Roll</span><span>Name</span><span>Status</span><span>Topic</span><span>Software</span><span>Edit</span>
         </div>
         <div id="att-rows"></div>
         <div class="action-bar" style="margin-top:16px;" id="att-actions">
@@ -929,7 +944,7 @@ tr:hover td { background: #f8fafd; }
           <button class="btn btn-outline no-print" onclick="window.print()" style="padding:6px 14px;font-size:12px;">🖨️ Print</button>
         </div>
         <div class="table-wrap">
-          <table><thead><tr><th>Date</th><th>Roll No</th><th>Student</th><th>Course</th><th>Batch</th><th>Status</th><th>Topic</th><th>Software</th></tr></thead>
+          <table><thead><tr><th>Date</th><th>Roll No</th><th>Student</th><th>Course</th><th>Batch</th><th>Status</th><th>Reason</th><th>Marked By</th><th>Topic</th><th>Software</th></tr></thead>
           <tbody id="att-report-body"></tbody></table>
         </div>
       </div>
@@ -1794,20 +1809,24 @@ function startListeners() {
     if (document.getElementById('page-students').classList.contains('active')) renderStudentsTable();
     refreshDashboard();
   });
-  // Office/Admin only collections — Teacher's rules deny read anyway, so we
-  // simply don't attach these listeners for Teacher to avoid noisy denied-read errors.
+  // Office/Admin only collections (financial + certificate data).
   if (role === 'admin' || role === 'office') {
     listenCol('payments', data => { window.payments = data; refreshDashboard(); });
     listenCol('incomes', data => { window.incomes = data; if (document.getElementById('page-finance').classList.contains('active')) renderFinance(); });
     listenCol('expenses', data => { window.expenses = data; if (document.getElementById('page-finance').classList.contains('active')) renderFinance(); });
     listenCol('certificates', data => { window.certificates = data; if (document.getElementById('page-certificates').classList.contains('active')) renderCertificates(); });
   }
-  // Absences: all roles need this — teacher needs it to pre-mark attendance,
-  // office/admin need it to show/manage the absent list.
+  // 'absences' must be READABLE by every role (Teacher needs it to grey out
+  // office-marked students in Attendance Entry). Writes are still restricted
+  // to Office/Admin — that is enforced both by the UI (PERMISSIONS.canModify)
+  // and, critically, by your Firestore Security Rules (see note below).
   listenCol('absences', data => {
     window.absences = data;
     if (document.getElementById('page-absent-list').classList.contains('active')) renderAbsentHistory();
-    if (document.getElementById('page-attendance').classList.contains('active')) loadAttStudents();
+    if (document.getElementById('page-attendance') && document.getElementById('page-attendance').classList.contains('active')) {
+      const b=document.getElementById('att-batch'), c=document.getElementById('att-course');
+      if (b && c && b.value && c.value) loadAttStudents();
+    }
   });
   listenCol('attendance', data => {
     window.attendance = data;
@@ -2792,28 +2811,171 @@ function printReceipt(rcptNo) {
 // ============================================================
 // ATTENDANCE
 // ============================================================
-function loadAttStudents() {
-  const batch = document.getElementById('att-batch').value;
+// Fetch latest absences from Firestore so teacher always sees what office just entered
+async function refreshAbsencesFromServer() {
+  try {
+    const fresh = await fbGetAll('absences');
+    if (Array.isArray(fresh) && fresh.length >= 0) window.absences = fresh;
+  } catch(e) { console.warn('Could not refresh absences:', e); }
+}
+
+async function loadAttStudents() {
+  const batch  = document.getElementById('att-batch').value;
   const course = document.getElementById('att-course').value;
-  if (!batch||!course) return;
-  const filtered = students.filter(s=>s.batch===batch&&s.course===course&&(s.status||'Active')==='Active');
-  const listEl = document.getElementById('att-student-list');
+  const date   = document.getElementById('att-date').value;
+  if (!batch || !course) return;
+
+  // Always fetch fresh absences from server so teacher sees latest office data
+  await refreshAbsencesFromServer();
+
+  const filtered = students.filter(s =>
+    s.batch === batch && s.course === course && (s.status||'Active') === 'Active'
+  );
+  const listEl  = document.getElementById('att-student-list');
   const emptyEl = document.getElementById('att-empty');
-  if (!filtered.length) { listEl.style.display='none'; emptyEl.style.display='block'; return; }
-  listEl.style.display='block'; emptyEl.style.display='none';
-  document.getElementById('att-rows').innerHTML = filtered.map(s=>`
-    <div class="att-student-row" id="att-row-${s.rollNo}" data-roll="${s.rollNo}" data-name="${s.fname} ${s.lname}">
-      <div style="width:60px;font-size:12px;font-weight:600;color:var(--muted);">${s.rollNo}</div>
-      <div class="att-name">${s.fname} ${s.lname}</div>
-      <div class="att-status">
-        <label class="att-radio"><input type="radio" name="att-${s.rollNo}" value="Present" checked onchange="toggleAttFields('${s.rollNo}','Present')"> P</label>
-        <label class="att-radio" style="color:var(--red);"><input type="radio" name="att-${s.rollNo}" value="Absent" onchange="toggleAttFields('${s.rollNo}','Absent')"> A</label>
+  if (!filtered.length) {
+    listEl.style.display = 'none'; emptyEl.style.display = 'block'; return;
+  }
+  listEl.style.display = 'block'; emptyEl.style.display = 'none';
+
+  // Build map of students office has marked absent for this exact date/course/batch
+  const norm = v => String(v||'').trim();
+  const absentMap = {}; // rollNo → reason
+  absences.forEach(a => {
+    if (norm(a.date)===norm(date) && norm(a.course)===norm(course) && norm(a.batch)===norm(batch)) {
+      absentMap[norm(a.rollNo)] = a.reason || '';
+    }
+  });
+  const absentCount = Object.keys(absentMap).length;
+
+  // PART 7: Summary banner — Students / Already Marked Absent / Remaining
+  const sumBanner = document.getElementById('att-summary-banner');
+  sumBanner.style.display = 'grid';
+  document.getElementById('att-sum-total').textContent    = filtered.length;
+  document.getElementById('att-sum-absent').textContent   = absentCount;
+  document.getElementById('att-sum-remaining').textContent = filtered.length - absentCount;
+
+  // Show or hide the banner
+  const banner      = document.getElementById('att-abs-banner');
+  const bannerCount = document.getElementById('att-abs-banner-count');
+  if (absentCount > 0) {
+    banner.style.display = 'block';
+    bannerCount.textContent = absentCount;
+  } else {
+    banner.style.display = 'none';
+  }
+
+  document.getElementById('att-rows').innerHTML = filtered.map(s => {
+    const roll      = norm(s.rollNo);
+    const isAbsent  = roll in absentMap;
+    const reason    = absentMap[roll] || '';
+    // Escape the reason for safe use inside an HTML attribute
+    const reasonAttr = reason.replace(/"/g,'&quot;');
+
+    if (isAbsent) {
+      // INACTIVE row — grey background, Absent pre-selected, all inputs disabled
+      // (PART 3: DISPLAY). Only the Edit / Mark Present button is active
+      // (pointer-events restored on it). data-office-absent + data-office-reason
+      // are read later by submitAttendance() to auto-save Office absence info (PART 5).
+      return `
+      <div class="att-student-row" id="att-row-${s.rollNo}"
+           data-roll="${s.rollNo}" data-name="${s.fname} ${s.lname}"
+           data-office-absent="true" data-office-reason="${reasonAttr}"
+           style="display:grid;grid-template-columns:60px 1fr 110px 1fr 1fr 100px;
+                  gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);
+                  background:#eceff1;pointer-events:none;">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);">${s.rollNo}</div>
+        <div>
+          <div style="font-size:13px;color:var(--muted);">${s.fname} ${s.lname}</div>
+          <span class="office-absent-badge">🔴 OFFICE ABSENT</span>
+          <div style="font-size:11px;color:#7a5800;margin-top:2px;">Reason: ${reason || '—'}</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;">
+            <input type="radio" name="att-${s.rollNo}" value="Present" disabled> P
+          </label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;color:var(--red);">
+            <input type="radio" name="att-${s.rollNo}" value="Absent" checked disabled> A
+          </label>
+        </div>
+        <div><input type="text" id="topic-${s.rollNo}" placeholder="Topic covered" style="width:100%;" disabled></div>
+        <div><input type="text" id="software-${s.rollNo}" placeholder="Software used" style="width:100%;" disabled></div>
+        <div style="pointer-events:all;">
+          <button class="btn btn-outline" onclick="markPresentOverride('${s.rollNo}')"
+            style="padding:4px 10px;font-size:11px;color:var(--green);border-color:var(--green);">
+            ✏️ Mark Present
+          </button>
+        </div>
+      </div>`;
+    }
+
+    // Normal active row
+    return `
+    <div class="att-student-row" id="att-row-${s.rollNo}"
+         data-roll="${s.rollNo}" data-name="${s.fname} ${s.lname}" data-office-absent="false"
+         style="display:grid;grid-template-columns:60px 1fr 110px 1fr 1fr 100px;
+                gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);">${s.rollNo}</div>
+      <div style="font-size:13px;">${s.fname} ${s.lname}</div>
+      <div style="display:flex;gap:8px;">
+        <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;">
+          <input type="radio" name="att-${s.rollNo}" value="Present" checked
+            onchange="toggleAttFields('${s.rollNo}','Present')"> P
+        </label>
+        <label style="display:flex;align-items:center;gap:3px;font-size:12px;color:var(--red);cursor:pointer;">
+          <input type="radio" name="att-${s.rollNo}" value="Absent"
+            onchange="toggleAttFields('${s.rollNo}','Absent')"> A
+        </label>
       </div>
-      <div class="att-fields">
-        <input type="text" id="topic-${s.rollNo}" placeholder="Topic covered" style="flex:1;">
-        <input type="text" id="software-${s.rollNo}" placeholder="Software used" style="flex:1;">
-      </div>
-    </div>`).join('');
+      <div><input type="text" id="topic-${s.rollNo}" placeholder="Topic covered" style="width:100%;"></div>
+      <div><input type="text" id="software-${s.rollNo}" placeholder="Software used" style="width:100%;"></div>
+      <div style="font-size:12px;color:var(--muted);">—</div>
+    </div>`;
+  }).join('');
+}
+
+// Teacher clicks "Mark Present" on an office-absent student.
+// PART 4: shows a confirmation that echoes the Office-recorded reason, and
+// if confirmed, deletes the record from the absences collection in Firebase
+// and writes an audit-log entry (Office → Absent, Teacher → Present).
+async function markPresentOverride(rollNo) {
+  const date   = document.getElementById('att-date').value;
+  const course = document.getElementById('att-course').value;
+  const batch  = document.getElementById('att-batch').value;
+  const s      = students.find(x => String(x.rollNo||'').trim() === String(rollNo||'').trim());
+  const name   = s ? s.fname + ' ' + s.lname : rollNo;
+  const row    = document.getElementById('att-row-'+rollNo);
+  const reason = row ? (row.dataset.officeReason || 'Not specified') : 'Not specified';
+
+  const confirmMsg = 'This student was marked absent by Office.\n\n' +
+                      'Reason: ' + (reason || 'Not specified') + '\n\n' +
+                      'Do you want to change this student to Present?';
+  if (!confirm(confirmMsg)) return;
+
+  // Delete from Firestore
+  const absId  = date + '_' + rollNo + '_' + (course||'').replace(/\s+/g,'_');
+  const absId2 = date + '_' + rollNo; // fallback format
+  const ok = await fbDeleteDoc('absences', absId);
+  if (!ok) await fbDeleteDoc('absences', absId2);
+
+  // Update local absences array
+  absences = absences.filter(a =>
+    !(String(a.rollNo||'').trim() === String(rollNo||'').trim() &&
+      String(a.date||'').trim()   === String(date||'').trim()   &&
+      String(a.course||'').trim() === String(course||'').trim() &&
+      String(a.batch||'').trim()  === String(batch||'').trim())
+  );
+
+  // PART 8: Audit log — Office → Absent, Teacher → Present
+  writeAuditLog('status-change', 'absences', absId, {
+    oldStatus: 'Office → Absent', newStatus: 'Teacher → Present',
+    changedBy: currentUser.email, rollNo, date, course, batch, reason
+  }).catch(()=>{});
+
+  showAlert('att-alert','success','✅ ' + name + ' marked Present and removed from office absent list.');
+
+  // Reload the student list to reflect the change
+  await loadAttStudents();
 }
 
 function toggleAttFields(rollNo, status) {
@@ -2824,10 +2986,12 @@ function toggleAttFields(rollNo, status) {
 }
 
 function markAllPresent() {
-  document.querySelectorAll('[id^="att-row-"]').forEach(row=>{
-    const roll=row.dataset.roll;
-    const radio=document.querySelector(`input[name="att-${roll}"][value="Present"]`);
-    if (radio) { radio.checked=true; toggleAttFields(roll,'Present'); }
+  document.querySelectorAll('[id^="att-row-"]').forEach(row => {
+    // Skip rows that are greyed out (office-marked absent — pointer-events:none)
+    if (row.style.pointerEvents === 'none') return;
+    const roll  = row.dataset.roll;
+    const radio = document.querySelector(`input[name="att-${roll}"][value="Present"]`);
+    if (radio) { radio.checked = true; toggleAttFields(roll, 'Present'); }
   });
 }
 
@@ -2838,23 +3002,54 @@ async function submitAttendance() {
   const rows=document.querySelectorAll('[id^="att-row-"]');
   if (!rows.length) { showAlert('att-alert','error','No students loaded.'); return; }
 
+  // Prevent duplicate attendance entries — block re-submitting a session
+  // that has already been saved (Admin may still edit via Master/Manage tools).
+  const alreadySubmitted = attendance.some(a => a.date===date && a.course===course && a.batch===batch);
+  if (alreadySubmitted && !isAdmin()) {
+    showAlert('att-alert','error','❌ Attendance for this Date / Course / Batch has already been submitted. Contact your Admin to make changes.');
+    return;
+  }
+
   const records = [];
   rows.forEach(row=>{
     const roll=row.dataset.roll, name=row.dataset.name;
     const status=document.querySelector(`input[name="att-${roll}"]:checked`).value;
-    records.push({ roll, name, status, topic:document.getElementById('topic-'+roll).value.trim(), software:document.getElementById('software-'+roll).value.trim() });
+    const isOfficeAbsent = row.dataset.officeAbsent === 'true';
+    records.push({
+      roll, name, status,
+      topic: document.getElementById('topic-'+roll).value.trim(),
+      software: document.getElementById('software-'+roll).value.trim(),
+      // PART 5: Office-absent rows auto-carry their reason + "Office" attribution;
+      // no teacher action required for these.
+      isOfficeAbsent,
+      reason: isOfficeAbsent ? (row.dataset.officeReason || 'Not specified') : ''
+    });
   });
 
   const btn=document.getElementById('att-submit-btn');
   btn.disabled=true; btn.innerHTML='<span class="loader"></span> Submitting...';
 
-  const attData = records.map(r=>({ id: date+'_'+r.roll, date, rollNo:r.roll, studentName:r.name, course, batch, status:r.status, topic:r.topic, software:r.software, recordedBy:currentUser.email, recordedAt:new Date().toISOString() }));
+  const attData = records.map(r=>({
+    id: date+'_'+r.roll, date, rollNo:r.roll, studentName:r.name, course, batch, status:r.status,
+    topic:r.topic, software:r.software,
+    reason: r.isOfficeAbsent ? r.reason : '',
+    absentBy: r.isOfficeAbsent ? 'Office' : (r.status==='Absent' ? 'Teacher' : ''),
+    recordedBy:currentUser.email, recordedAt:new Date().toISOString()
+  }));
   attendance=[...attendance,...attData];
   await DB.set('attendance',attendance);
 
+  // PART 8: audit-log entries for every status recorded this submission
+  attData.forEach(r => {
+    writeAuditLog('attendance-submit', 'attendance', r.id, {
+      oldStatus: r.absentBy==='Office' ? 'Office → Absent' : '—',
+      newStatus: r.status, changedBy: currentUser.email, date, course, batch
+    }).catch(()=>{});
+  });
+
   btn.disabled=false; btn.innerHTML='💾 Submit Attendance';
   showAlert('att-alert','success',`✅ Attendance for ${records.length} students saved. Present: ${records.filter(r=>r.status==='Present').length}, Absent: ${records.filter(r=>r.status==='Absent').length}`);
-  setTimeout(()=>{ document.getElementById('att-batch').selectedIndex=0; document.getElementById('att-course').selectedIndex=0; document.getElementById('att-student-list').style.display='none'; document.getElementById('att-empty').style.display='none'; },2000);
+  setTimeout(()=>{ document.getElementById('att-batch').selectedIndex=0; document.getElementById('att-course').selectedIndex=0; document.getElementById('att-student-list').style.display='none'; document.getElementById('att-empty').style.display='none'; document.getElementById('att-summary-banner').style.display='none'; },2000);
 }
 
 // ============================================================
@@ -2896,6 +3091,15 @@ async function submitAbsentList() {
   const rows = document.querySelectorAll('[id^="abs-row-"]');
   if (!rows.length) { showAlert('abs-alert','error','No students loaded.'); return; }
 
+  // PART 9: Office can edit the absent list only BEFORE the teacher has
+  // submitted attendance for this exact Date / Course / Batch. Admin can
+  // always edit, per role permissions.
+  const teacherAlreadySubmitted = attendance.some(a => a.date===date && a.course===course && a.batch===batch);
+  if (teacherAlreadySubmitted && !isAdmin()) {
+    showAlert('abs-alert','error','❌ Teacher has already submitted attendance for this Date / Course / Batch. The absent list can no longer be edited (Admin only).');
+    return;
+  }
+
   const absentees = [];
   rows.forEach(row => {
     const roll = row.dataset.roll;
@@ -2913,10 +3117,14 @@ async function submitAbsentList() {
   const btn = document.getElementById('abs-submit-btn');
   btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Saving...';
 
+  // PART 1: markedBy/markedTime record who marked the absence and at what
+  // clock time (in addition to the existing recordedBy/recordedAt audit fields).
+  const nowTimeLabel = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   const absData = absentees.map(a => ({
     id: date + '_' + a.roll + '_' + course.replace(/\s+/g,'_'),
     date, rollNo: a.roll, studentName: a.name, mobile: a.mobile,
     course, batch, reason: a.reason || 'Not specified',
+    markedBy: 'Office', markedTime: nowTimeLabel,
     recordedBy: currentUser.email, recordedAt: new Date().toISOString()
   }));
   absences = [...absences.filter(a => !absData.some(n => n.id === a.id)), ...absData];
@@ -2961,11 +3169,15 @@ function generateAttReport() {
   f.sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('att-report-output').style.display='block';
   const tbody=document.getElementById('att-report-body');
-  if (!f.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">No records for the selected filters</td></tr>'; return; }
+  if (!f.length) { tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px;">No records for the selected filters</td></tr>'; return; }
+  // PART 6: Reason + Marked By columns — "Office" (pre-marked, greyed in Attendance
+  // Entry) vs "Teacher" (marked live during attendance entry) vs "—" for Present.
   tbody.innerHTML=f.map(a=>`<tr>
     <td>${a.date}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.course}</td>
     <td style="font-size:12px;">${(a.batch||'').split('(')[0].trim()}</td>
     <td><span class="chip ${a.status==='Present'?'chip-green':'chip-red'}">${a.status}</span></td>
+    <td>${a.reason ? a.reason : '—'}</td>
+    <td>${a.absentBy ? `<span class="chip ${a.absentBy==='Office'?'chip-amber':'chip-blue'}">${a.absentBy}</span>` : '—'}</td>
     <td>${a.topic||'—'}</td><td>${a.software||'—'}</td>
   </tr>`).join('');
 }
