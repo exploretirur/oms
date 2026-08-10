@@ -924,7 +924,7 @@ tr:hover td { background: #f8fafd; }
           <button class="btn btn-outline no-print" onclick="window.print()" style="padding:6px 14px;font-size:12px;">🖨️ Print</button>
         </div>
         <div class="table-wrap">
-          <table><thead><tr><th>Date</th><th>Roll No</th><th>Student</th><th>Course</th><th>Batch</th><th>Status</th><th>Topic</th><th>Software</th></tr></thead>
+          <table><thead><tr><th>Date</th><th>Roll No</th><th>Student</th><th>Course</th><th>Batch</th><th>Status</th><th>Topic</th><th>Software</th><th class="no-print">Action</th></tr></thead>
           <tbody id="att-report-body"></tbody></table>
         </div>
       </div>
@@ -3121,12 +3121,29 @@ function loadAttStudents() {
   const date   = document.getElementById('att-date').value;
   if (!batch || !course) return;
 
+  document.getElementById('att-alert').innerHTML='';
+
+  // Has the teacher already submitted attendance for this exact date + batch + course?
+  const alreadyEntered = (window.attendance||[]).some(a =>
+    String(a.date||'').trim()   === String(date||'').trim()   &&
+    String(a.course||'').trim() === String(course||'').trim() &&
+    String(a.batch||'').trim()  === String(batch||'').trim()
+  );
+
   const filtered = students.filter(s =>
     s.batch === batch && s.course === course && (s.status||'Active') === 'Active'
   );
   const listEl  = document.getElementById('att-student-list');
   const emptyEl = document.getElementById('att-empty');
   if (!filtered.length) { listEl.style.display='none'; emptyEl.style.display='block'; return; }
+
+  if (alreadyEntered) {
+    listEl.style.display='none'; emptyEl.style.display='none';
+    showAlert('att-alert','warn',
+      `⚠️ Attendance already entered for this batch and date by the teacher. Go to <b>Attendance Report</b> to view or edit the saved entries.`);
+    return;
+  }
+
   listEl.style.display='block'; emptyEl.style.display='none';
 
   // Find students office has marked absent for today's date + this course + batch
@@ -3319,13 +3336,65 @@ function generateAttReport() {
   f.sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('att-report-output').style.display='block';
   const tbody=document.getElementById('att-report-body');
-  if (!f.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">No records for the selected filters</td></tr>'; return; }
+  if (!f.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px;">No records for the selected filters</td></tr>'; return; }
   tbody.innerHTML=f.map(a=>`<tr>
     <td>${a.date}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.course}</td>
     <td style="font-size:12px;">${(a.batch||'').split('(')[0].trim()}</td>
     <td><span class="chip ${a.status==='Present'?'chip-green':'chip-red'}">${a.status}</span></td>
     <td>${a.topic||'—'}</td><td>${a.software||'—'}</td>
+    <td class="no-print">${canModify() ? `<button class="btn btn-outline" onclick="openEditAttendance('${a.id}')" style="padding:4px 10px;font-size:12px;color:var(--amber);border-color:var(--amber);">✏️ Edit</button>` : '—'}</td>
   </tr>`).join('');
+}
+
+// ============================================================
+// EDIT ATTENDANCE ENTRY (Admin only, via Attendance Report)
+// ============================================================
+function openEditAttendance(id) {
+  if (!canModify()) { showAlert('global-alert','error','❌ Only Admin can edit attendance records.'); return; }
+  const a = attendance.find(r => r.id === id);
+  if (!a) { showAlert('global-alert','error','❌ Attendance record not found.'); return; }
+
+  const fields = `
+    <div class="form-group full"><label>Student</label><input type="text" value="${a.studentName} (${a.rollNo})" disabled></div>
+    <div class="form-group"><label>Date</label><input type="text" value="${a.date}" disabled></div>
+    <div class="form-group"><label>Batch</label><input type="text" value="${(a.batch||'').split('(')[0].trim()}" disabled></div>
+    <div class="form-group"><label>Status <span class="required">*</span></label>
+      <select id="ea-status" onchange="toggleEditAttFields()">
+        <option value="Present" ${a.status==='Present'?'selected':''}>Present</option>
+        <option value="Absent" ${a.status==='Absent'?'selected':''}>Absent</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Topic Covered</label><input id="ea-topic" type="text" value="${a.topic||''}" placeholder="Topic covered" ${a.status==='Absent'?'disabled':''}></div>
+    <div class="form-group"><label>Software Used</label><input id="ea-software" type="text" value="${a.software||''}" placeholder="Software used" ${a.status==='Absent'?'disabled':''}></div>`;
+
+  showInlineModal('Edit Attendance — ' + a.studentName, fields, `saveAttendanceEdit('${a.id}')`);
+}
+
+function toggleEditAttFields() {
+  const status = document.getElementById('ea-status').value;
+  const t = document.getElementById('ea-topic'), sw = document.getElementById('ea-software');
+  if (status === 'Absent') { t.disabled = true; sw.disabled = true; t.value=''; sw.value=''; }
+  else { t.disabled = false; sw.disabled = false; }
+}
+
+async function saveAttendanceEdit(id) {
+  if (!canModify()) { showAlert('global-alert','error','❌ Only Admin can edit attendance records.'); return; }
+  const idx = attendance.findIndex(r => r.id === id);
+  if (idx === -1) return;
+
+  const status = document.getElementById('ea-status').value;
+  attendance[idx] = {
+    ...attendance[idx],
+    status,
+    topic: status==='Absent' ? '' : document.getElementById('ea-topic').value.trim(),
+    software: status==='Absent' ? '' : document.getElementById('ea-software').value.trim(),
+    editedBy: currentUser.email,
+    editedAt: new Date().toISOString()
+  };
+  await DB.set('attendance', attendance);
+  closeModal('inline-modal');
+  generateAttReport();
+  showAlert('global-alert','success', `✅ Attendance updated — marked ${status}.`);
 }
 
 // ============================================================
