@@ -3342,17 +3342,25 @@ function generateAttReport() {
     <td style="font-size:12px;">${(a.batch||'').split('(')[0].trim()}</td>
     <td><span class="chip ${a.status==='Present'?'chip-green':'chip-red'}">${a.status}</span></td>
     <td>${a.topic||'—'}</td><td>${a.software||'—'}</td>
-    <td class="no-print">${canModify() ? `<button class="btn btn-outline" onclick="openEditAttendance('${a.id}')" style="padding:4px 10px;font-size:12px;color:var(--amber);border-color:var(--amber);">✏️ Edit</button>` : '—'}</td>
+    <td class="no-print">${canEditAttendanceRecord(a) ? `<button class="btn btn-outline" onclick="openEditAttendance('${a.id}')" style="padding:4px 10px;font-size:12px;color:var(--amber);border-color:var(--amber);">✏️ Edit</button>` : '—'}</td>
   </tr>`).join('');
 }
 
 // ============================================================
-// EDIT ATTENDANCE ENTRY (Admin only, via Attendance Report)
+// EDIT ATTENDANCE ENTRY (via Attendance Report)
+// Admin can edit any record. Teacher can edit only today's records
+// (self-correcting a status they just entered), not historical ones.
 // ============================================================
+function canEditAttendanceRecord(a) {
+  if (canModify()) return true; // Admin
+  if (currentUser && currentUser.role === 'teacher') return a.date === todayStr();
+  return false;
+}
+
 function openEditAttendance(id) {
-  if (!canModify()) { showAlert('global-alert','error','❌ Only Admin can edit attendance records.'); return; }
   const a = attendance.find(r => r.id === id);
   if (!a) { showAlert('global-alert','error','❌ Attendance record not found.'); return; }
+  if (!canEditAttendanceRecord(a)) { showAlert('global-alert','error','❌ You can only edit today\'s attendance entries.'); return; }
 
   const fields = `
     <div class="form-group full"><label>Student</label><input type="text" value="${a.studentName} (${a.rollNo})" disabled></div>
@@ -3378,9 +3386,9 @@ function toggleEditAttFields() {
 }
 
 async function saveAttendanceEdit(id) {
-  if (!canModify()) { showAlert('global-alert','error','❌ Only Admin can edit attendance records.'); return; }
   const idx = attendance.findIndex(r => r.id === id);
   if (idx === -1) return;
+  if (!canEditAttendanceRecord(attendance[idx])) { showAlert('global-alert','error','❌ You can only edit today\'s attendance entries.'); return; }
 
   const status = document.getElementById('ea-status').value;
   attendance[idx] = {
