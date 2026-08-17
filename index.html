@@ -866,7 +866,7 @@ tr:hover td { background: #f8fafd; }
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">🚫</span> Select Class</div></div>
         <div class="form-grid-3">
-          <div class="form-group"><label>Date</label><input id="abs-date" type="date"></div>
+          <div class="form-group"><label>Date</label><input id="abs-date" type="date" onchange="renderAbsentHistory();loadAbsentStudents()"></div>
           <div class="form-group"><label>Batch <span class="required">*</span></label>
             <select id="abs-batch" onchange="loadAbsentStudents()">
               <option value="">Select batch</option>
