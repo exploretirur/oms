@@ -1974,6 +1974,13 @@ async function fbUpdateDoc(col, docId, data) {
   try { await updateDoc(doc(firestoreDB, col, String(docId)), data); return true; }
   catch(e) { console.error('fbUpdateDoc', col, e); showAlert('global-alert','error', friendlyFirestoreError(e)); return false; }
 }
+// Same as fbUpdateDoc but never shows an alert — for best-effort background
+// writes (like recording lastLogin) where failing silently is correct,
+// e.g. if a role's Security Rules don't permit that particular field write.
+async function fbUpdateDocSilent(col, docId, data) {
+  try { await updateDoc(doc(firestoreDB, col, String(docId)), data); return true; }
+  catch(e) { console.warn('fbUpdateDocSilent (non-blocking)', col, e.code || e.message); return false; }
+}
 async function fbDeleteDoc(col, docId) {
   try { await deleteDoc(doc(firestoreDB, col, String(docId))); return true; }
   catch(e) { console.error('fbDeleteDoc', col, e); showAlert('global-alert','error', friendlyFirestoreError(e)); return false; }
@@ -2135,27 +2142,40 @@ window.fbGetOne = fbGetOne;
 // signed-in user's role, matching the Security Rules deployed server-side.
 function startListeners() {
   const role = currentUser.role;
+  const isStudentRole = role === 'student';
 
+  // Students only ever get THEIR OWN record here (never the whole
+  // collection) — this must match a Security Rule that checks
+  // resource.data.rollNo against the student's own profile.
   listenCol('students', data => {
     window.students = data;
     if (document.getElementById('page-students').classList.contains('active')) renderStudentsTable();
     refreshDashboard();
-  });
-  // Office/Admin only collections — Teacher's rules deny read anyway, so we
-  // simply don't attach these listeners for Teacher to avoid noisy denied-read errors.
+    if (document.getElementById('page-my-dashboard') && document.getElementById('page-my-dashboard').classList.contains('active')) loadMyDashboard();
+    if (document.getElementById('page-my-profile') && document.getElementById('page-my-profile').classList.contains('active')) loadMyProfile();
+  }, isStudentRole ? [where('rollNo', '==', currentUser.rollNo)] : []);
+
+  // Office/Admin only collections — Teacher's/Student's rules deny read
+  // anyway, so we simply don't attach these listeners to avoid noisy
+  // denied-read errors.
   if (role === 'admin' || role === 'office') {
     listenCol('payments', data => { window.payments = data; refreshDashboard(); });
     listenCol('incomes', data => { window.incomes = data; if (document.getElementById('page-finance').classList.contains('active')) renderFinance(); });
     listenCol('expenses', data => { window.expenses = data; if (document.getElementById('page-finance').classList.contains('active')) renderFinance(); });
     listenCol('certificates', data => { window.certificates = data; if (document.getElementById('page-certificates').classList.contains('active')) renderCertificates(); });
   }
-  // ALL roles need holidays — the Calendar page is visible to admin, office and teacher
-  listenCol('holidays', data => {
-    window.holidays = data;
-    if (document.getElementById('page-calendar').classList.contains('active')) renderCalendar();
-  });
-  // ALL roles need notifications & resources — staff manage them on Study
-  // Materials, students see them read-only on their Dashboard / Profile.
+  // Staff-only — the Calendar page (and its holidays) isn't part of the
+  // student portal, so students never request this collection.
+  if (!isStudentRole) {
+    listenCol('holidays', data => {
+      window.holidays = data;
+      if (document.getElementById('page-calendar').classList.contains('active')) renderCalendar();
+    });
+  }
+  // ALL roles (incl. students) need notifications & resources — staff
+  // manage them on Study Materials, students see them read-only on their
+  // Dashboard / Profile. These are shared/broadcast content, not scoped
+  // per-student, so no query constraint is needed here.
   listenCol('notifications', data => {
     window.notifications = data;
     if (document.getElementById('page-resources') && document.getElementById('page-resources').classList.contains('active')) renderResourcesPage();
@@ -2166,27 +2186,35 @@ function startListeners() {
     if (document.getElementById('page-resources') && document.getElementById('page-resources').classList.contains('active')) renderResourcesPage();
     if (document.getElementById('page-my-profile') && document.getElementById('page-my-profile').classList.contains('active')) loadMyProfile();
   });
-  // ALL roles need absences — teacher uses it to see pre-marked absent students in Attendance Entry
-  listenCol('absences', data => {
-    window.absences = data;
-    if (document.getElementById('page-absent-list').classList.contains('active')) renderAbsentHistory();
-    if (document.getElementById('page-attendance').classList.contains('active')) loadAttStudents();
-  });
+  // Staff-only — absences is a pre-marking tool for Office/Teacher, not
+  // part of the student portal.
+  if (!isStudentRole) {
+    listenCol('absences', data => {
+      window.absences = data;
+      if (document.getElementById('page-absent-list').classList.contains('active')) renderAbsentHistory();
+      if (document.getElementById('page-attendance').classList.contains('active')) loadAttStudents();
+    });
+  }
+  // Students only ever get THEIR OWN attendance rows.
   listenCol('attendance', data => {
     window.attendance = data;
     if (document.getElementById('page-attendance-report').classList.contains('active')) generateAttReport();
     refreshDashboard();
     if (document.getElementById('page-my-dashboard') && document.getElementById('page-my-dashboard').classList.contains('active')) loadMyDashboard();
-  });
+  }, isStudentRole ? [where('rollNo', '==', currentUser.rollNo)] : []);
+  // Students only ever get THEIR OWN marks.
   listenCol('marks', data => {
     window.marks = data;
     if (document.getElementById('page-my-profile') && document.getElementById('page-my-profile').classList.contains('active')) loadMyProfile();
-  });
+  }, isStudentRole ? [where('rollNo', '==', currentUser.rollNo)] : []);
   if (role === 'admin') {
     listenCol('salaries', data => { window.salaries = data; });
   }
-  listenCol('master_courses', data => { if (data.length) { window.masterData.courses = data; populateCourseBatchSelects(); } });
-  listenCol('master_batches', data => { if (data.length) { window.masterData.batches = data; populateCourseBatchSelects(); } });
+  // Staff-only — course/batch dropdowns aren't part of the student portal.
+  if (!isStudentRole) {
+    listenCol('master_courses', data => { if (data.length) { window.masterData.courses = data; populateCourseBatchSelects(); } });
+    listenCol('master_batches', data => { if (data.length) { window.masterData.batches = data; populateCourseBatchSelects(); } });
+  }
   if (role === 'admin') {
     listenCol('master_staff', data => { window.masterData.staff = data; });
     // Admin only — full user directory for User Management
@@ -2315,7 +2343,7 @@ onAuthStateChanged(auth, async (user) => {
     currentUser = { uid: user.uid, email: user.email, ...profile };
 
     // Update lastLogin (best-effort, non-blocking)
-    fbUpdateDoc('users', user.uid, { lastLogin: serverTimestamp() }).catch(()=>{});
+    fbUpdateDocSilent('users', user.uid, { lastLogin: serverTimestamp() });
 
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-shell').classList.add('visible');
