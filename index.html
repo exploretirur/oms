@@ -127,6 +127,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: va
 .role-badge.admin { background: #ede9fe; color: #5b21b6; }
 .role-badge.office { background: #dbeafe; color: #1d4ed8; }
 .role-badge.teacher { background: #d1fae5; color: #065f46; }
+.role-badge.student { background: #fce7f3; color: #9d174d; }
 .readonly-banner {
   background: #eff6ff; border-bottom: 1px solid #bfdbfe;
   padding: 7px 32px; font-size: 12px; color: #1e40af;
@@ -393,6 +394,29 @@ tr:hover td { background: #f8fafd; }
 .dash-chart-bar { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
 .dash-bar-fill { height:24px; background:var(--teal); border-radius:4px; display:flex; align-items:center; padding-left:8px; font-size:11px; color:#fff; font-weight:600; min-width:32px; transition:width 0.5s; }
 .dash-bar-label { font-size:12px; color:var(--muted); min-width:120px; }
+
+/* ===== STUDENT PORTAL ===== */
+.student-profile-header { display: flex; gap: 20px; align-items: flex-start; }
+.student-avatar-lg { width: 72px; height: 72px; border-radius: 50%; background: var(--navy); display: flex; align-items: center; justify-content: center; font-size: 26px; color: var(--teal-light); font-weight: 700; flex-shrink: 0; }
+.notif-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.notif-item:last-child { border-bottom: none; }
+.notif-icon { width: 34px; height: 34px; border-radius: 8px; background: rgba(0,176,155,0.12); color: var(--teal); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.notif-title { font-size: 13.5px; font-weight: 600; }
+.notif-msg { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.notif-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.resource-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-top: 8px; }
+.resource-card { border: 1.5px solid var(--border); border-radius: 12px; padding: 14px; transition: all 0.15s; }
+.resource-card:hover { border-color: var(--teal); box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
+.resource-icon { font-size: 22px; margin-bottom: 8px; }
+.resource-title { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; }
+.resource-meta { font-size: 11.5px; color: var(--muted); margin-bottom: 10px; }
+.donut-wrap { display: flex; align-items: center; gap: 20px; }
+.donut { width: 120px; height: 120px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.donut-center { width: 78px; height: 78px; border-radius: 50%; background: var(--card); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.donut-center .val { font-size: 18px; font-weight: 700; }
+.donut-center .lbl { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.donut-legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; }
+.donut-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -436,6 +460,7 @@ tr:hover td { background: #f8fafd; }
     </div>
   </div>
 
+  <div id="staff-nav-groups">
   <div class="sidebar-section">Front Office</div>
   <div class="nav-item active" id="nav-dashboard" onclick="navTo('dashboard',this)">
     <span class="icon">📊</span> Dashboard
@@ -480,6 +505,9 @@ tr:hover td { background: #f8fafd; }
   <div class="nav-item" id="nav-marks" onclick="navTo('marks',this)">
     <span class="icon">📋</span> Marks Entry
   </div>
+  <div class="nav-item" id="nav-resources" onclick="navTo('resources',this)">
+    <span class="icon">📚</span> Study Materials
+  </div>
 
   <div class="sidebar-section" id="admin-section">Admin</div>
   <div class="nav-item" id="nav-master" onclick="navTo('master',this)">
@@ -496,6 +524,18 @@ tr:hover td { background: #f8fafd; }
   </div>
   <div class="nav-item" id="nav-settings" onclick="navTo('settings',this)">
     <span class="icon">⚙️</span> Configuration
+  </div>
+  </div>
+
+  <!-- Student-only nav (shown instead of the staff nav when role === 'student') -->
+  <div id="student-nav-groups" style="display:none;">
+    <div class="sidebar-section">My Explore Learning</div>
+    <div class="nav-item" id="nav-my-dashboard" onclick="navTo('my-dashboard',this)">
+      <span class="icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" id="nav-my-profile" onclick="navTo('my-profile',this)">
+      <span class="icon">🧑‍🎓</span> Profile
+    </div>
   </div>
 
   <div class="sidebar-logout" onclick="doLogout()">
@@ -644,6 +684,7 @@ tr:hover td { background: #f8fafd; }
 
     <!-- ===== STUDENTS ===== -->
     <div id="page-students" class="page">
+      <div id="students-alert"></div>
       <div class="card">
         <div class="card-header">
           <div class="card-title"><span class="icon">👥</span> All Students</div>
@@ -661,9 +702,10 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Roll No</th><th>Name</th><th>Course</th><th>Type</th><th>Batch</th><th>Mode</th><th>Mobile</th><th>Fees Status</th><th>Actions</th></tr></thead>
-            <tbody id="students-table-body"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px;">No students admitted yet</td></tr></tbody>
+            <thead><tr><th>Roll No</th><th>Name</th><th>Course</th><th>Type</th><th>Batch</th><th>Mode</th><th>Mobile</th><th>Fees Status</th><th>Login</th><th>Actions</th></tr></thead>
+            <tbody id="students-table-body"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px;">No students admitted yet</td></tr></tbody>
           </table>
+
         </div>
       </div>
     </div>
@@ -1128,6 +1170,84 @@ tr:hover td { background: #f8fafd; }
       </div>
     </div>
 
+    <!-- ===== MY DASHBOARD (Student self-service) ===== -->
+    <div id="page-my-dashboard" class="page">
+      <div id="my-dashboard-alert"></div>
+      <div class="card">
+        <div class="student-profile-header">
+          <div class="student-avatar-lg" id="md-avatar">?</div>
+          <div style="flex:1;">
+            <div style="font-size:20px;font-weight:700;" id="md-name"></div>
+            <div style="color:var(--muted);font-size:14px;margin-top:2px;" id="md-course"></div>
+            <div style="display:flex;gap:24px;margin-top:12px;flex-wrap:wrap;">
+              <div><div class="stat-label">Roll No</div><div style="font-weight:600;" id="md-roll"></div></div>
+              <div><div class="stat-label">Batch</div><div style="font-weight:600;" id="md-batch"></div></div>
+              <div><div class="stat-label">Admitted</div><div style="font-weight:600;" id="md-admitted"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><span class="icon">📚</span> Course Covered</div></div>
+          <div id="md-course-chart"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><span class="icon">🗓️</span> Attendance Overview</div></div>
+          <div class="donut-wrap">
+            <div class="donut" id="md-att-donut"></div>
+            <div>
+              <div class="donut-legend-item"><span class="donut-legend-dot" style="background:var(--teal);"></span> Present: <strong style="margin-left:4px;" id="md-att-present">0</strong></div>
+              <div class="donut-legend-item"><span class="donut-legend-dot" style="background:var(--red);"></span> Leave / Absent: <strong style="margin-left:4px;" id="md-att-leave">0</strong></div>
+              <div class="donut-legend-item"><span class="donut-legend-dot" style="background:#e2e8f0;"></span> Attendance: <strong style="margin-left:4px;" id="md-att-pct">0%</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">🔔</span> Notifications</div></div>
+        <div id="md-notif-list"><p style="color:var(--muted);font-size:13px;">No notifications yet.</p></div>
+      </div>
+    </div>
+
+    <!-- ===== MY PROFILE (Student self-service) ===== -->
+    <div id="page-my-profile" class="page">
+      <div class="card">
+        <div class="student-profile-header">
+          <div class="student-avatar-lg" id="mp-avatar">?</div>
+          <div style="flex:1;">
+            <div style="font-size:20px;font-weight:700;" id="mp-name"></div>
+            <div style="color:var(--muted);font-size:14px;margin-top:2px;" id="mp-course"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px;">
+              <div><div class="stat-label">Roll No</div><div style="font-weight:600;" id="mp-roll"></div></div>
+              <div><div class="stat-label">Batch</div><div style="font-weight:600;" id="mp-batch"></div></div>
+              <div><div class="stat-label">Mobile</div><div style="font-weight:600;" id="mp-mobile"></div></div>
+              <div><div class="stat-label">Email</div><div style="font-weight:600;" id="mp-email"></div></div>
+              <div><div class="stat-label">Date of Birth</div><div style="font-weight:600;" id="mp-dob"></div></div>
+              <div><div class="stat-label">Admitted</div><div style="font-weight:600;" id="mp-admitted"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">🏆</span> Marks Gained</div></div>
+        <div class="table-wrap"><table><thead><tr><th>Subject</th><th>Exam</th><th>Theory</th><th>Practical</th><th>Total</th><th>%</th><th>Grade</th></tr></thead><tbody id="mp-marks-log"></tbody></table></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">📘</span> E-Books</div></div>
+        <div id="mp-ebook-list" class="resource-grid"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">🎬</span> Recorded Videos</div></div>
+        <div id="mp-video-list" class="resource-grid"></div>
+      </div>
+    </div>
+
     <!-- ===== USER MANAGEMENT (Admin only) ===== -->
     <div id="page-users" class="page">
       <div id="users-alert"></div>
@@ -1204,6 +1324,74 @@ tr:hover td { background: #f8fafd; }
         <div class="card" style="text-align:center;padding:40px;">
           <div style="font-size:40px;margin-bottom:12px;">📖</div>
           <p style="color:var(--muted);" id="marks-empty-msg">No subjects defined for this course. Add subjects in Master Data → Courses.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== STUDY MATERIALS (Admin / Office / Teacher) ===== -->
+    <div id="page-resources" class="page">
+      <div id="resources-alert"></div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">📣</span> Notifications</div>
+          <button class="btn btn-teal" onclick="openNotificationModal()" style="padding:6px 14px;font-size:13px;">+ New Notification</button>
+        </div>
+        <div id="staff-notif-list"><p style="color:var(--muted);font-size:13px;">No notifications yet.</p></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">📚</span> E-Books &amp; Recorded Videos</div>
+          <button class="btn btn-teal" onclick="openResourceModal()" style="padding:6px 14px;font-size:13px;">+ Add Material</button>
+        </div>
+        <div class="form-group" style="max-width:260px;margin-bottom:14px;">
+          <label>Filter by Course</label>
+          <select id="res-filter-course" onchange="renderResourcesPage()"><option value="">All Courses</option></select>
+        </div>
+        <div id="staff-resource-list" class="resource-grid"></div>
+      </div>
+    </div>
+
+    <!-- Notification Modal -->
+    <div class="modal-backdrop" id="notification-modal">
+      <div class="modal" style="max-width:460px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <h3>New Notification</h3>
+          <button class="btn btn-outline" onclick="closeModal('notification-modal')" style="padding:4px 12px;font-size:16px;">✕</button>
+        </div>
+        <div id="notification-modal-alert"></div>
+        <div class="form-grid">
+          <div class="form-group full"><label>Title <span class="required">*</span></label><input id="nf-title" type="text" placeholder="e.g. Exam Schedule Released"></div>
+          <div class="form-group full"><label>Message <span class="required">*</span></label><textarea id="nf-message" placeholder="Notification details..."></textarea></div>
+          <div class="form-group full"><label>Audience</label>
+            <select id="nf-audience"><option value="all">All Students</option></select>
+          </div>
+        </div>
+        <div class="action-bar">
+          <button class="btn btn-outline" onclick="closeModal('notification-modal')">Cancel</button>
+          <button class="btn btn-teal" onclick="saveNotification()">📣 Send Notification</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Study Material Modal -->
+    <div class="modal-backdrop" id="resource-modal">
+      <div class="modal" style="max-width:460px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <h3>Add Study Material</h3>
+          <button class="btn btn-outline" onclick="closeModal('resource-modal')" style="padding:4px 12px;font-size:16px;">✕</button>
+        </div>
+        <div id="resource-modal-alert"></div>
+        <div class="form-grid">
+          <div class="form-group full"><label>Title <span class="required">*</span></label><input id="rf-title" type="text" placeholder="e.g. Tally GST — Chapter 3 Notes"></div>
+          <div class="form-group"><label>Type <span class="required">*</span></label>
+            <select id="rf-type"><option value="ebook">📘 E-Book</option><option value="video">🎬 Recorded Video</option></select>
+          </div>
+          <div class="form-group"><label>Course <span class="required">*</span></label><select id="rf-course"><option value="">Select course</option></select></div>
+          <div class="form-group full"><label>Link (URL) <span class="required">*</span></label><input id="rf-url" type="url" placeholder="https://..."></div>
+        </div>
+        <div class="action-bar">
+          <button class="btn btn-outline" onclick="closeModal('resource-modal')">Cancel</button>
+          <button class="btn btn-teal" onclick="saveResource()">💾 Save Material</button>
         </div>
       </div>
     </div>
@@ -1604,10 +1792,16 @@ tr:hover td { background: #f8fafd; }
           <option value="office">Office Staff</option>
           <option value="teacher">Teacher</option>
           <option value="admin">Admin</option>
+          <option value="student">Student</option>
         </select>
       </div>
       <div class="form-group"><label>Subject / Department</label><input id="uf-dept" type="text" placeholder="e.g. Tally, Python"></div>
       <div class="form-group"><label>Mobile</label><input id="uf-mobile" type="tel" placeholder="Mobile number"></div>
+      <div class="form-group full" id="uf-rollno-wrap" style="display:none;">
+        <label>Student Roll No <span class="required">*</span></label>
+        <input id="uf-rollno" type="text" placeholder="e.g. ST0001 — must match an existing Student Record">
+        <p style="font-size:11.5px;color:var(--muted);margin-top:4px;">Tip: for students, the login is normally created automatically at Admission (email = username, mobile = password). Use this only to set up or repair a login manually.</p>
+      </div>
       <div class="form-group full" id="uf-courses-wrap" style="display:none;">
         <label>Courses Assigned (Teacher)</label>
         <div id="uf-courses-check" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px;">
@@ -1855,6 +2049,8 @@ window.expenses = [];
 window.certificates = [];
 window.absences = [];
 window.holidays = []; // {id, date:'YYYY-MM-DD', name, addedBy, addedAt}
+window.notifications = []; // {id, title, message, audience:'all'|courseName, date, createdBy, createdAt}
+window.resources = [];     // {id, title, type:'ebook'|'video', course, url, addedBy, addedAt}
 window.masterData = {
   courses: [
     {id:'c1',name:'Tally with GST',duration:3,fee:3500},
@@ -1924,7 +2120,7 @@ DB.set = async (k, v) => {
     marks:'marks', salaries:'salaries', incomes:'incomes',
     expenses:'expenses', certificates:'certificates', absences:'absences',
     master_courses:'master_courses', master_batches:'master_batches', master_staff:'master_staff',
-    holidays:'holidays'
+    holidays:'holidays', notifications:'notifications', resources:'resources'
   };
   if (colMap[k]) await DB.saveArray(colMap[k], v);
 };
@@ -1958,6 +2154,18 @@ function startListeners() {
     window.holidays = data;
     if (document.getElementById('page-calendar').classList.contains('active')) renderCalendar();
   });
+  // ALL roles need notifications & resources — staff manage them on Study
+  // Materials, students see them read-only on their Dashboard / Profile.
+  listenCol('notifications', data => {
+    window.notifications = data;
+    if (document.getElementById('page-resources') && document.getElementById('page-resources').classList.contains('active')) renderResourcesPage();
+    if (document.getElementById('page-my-dashboard') && document.getElementById('page-my-dashboard').classList.contains('active')) loadMyDashboard();
+  });
+  listenCol('resources', data => {
+    window.resources = data;
+    if (document.getElementById('page-resources') && document.getElementById('page-resources').classList.contains('active')) renderResourcesPage();
+    if (document.getElementById('page-my-profile') && document.getElementById('page-my-profile').classList.contains('active')) loadMyProfile();
+  });
   // ALL roles need absences — teacher uses it to see pre-marked absent students in Attendance Entry
   listenCol('absences', data => {
     window.absences = data;
@@ -1968,8 +2176,12 @@ function startListeners() {
     window.attendance = data;
     if (document.getElementById('page-attendance-report').classList.contains('active')) generateAttReport();
     refreshDashboard();
+    if (document.getElementById('page-my-dashboard') && document.getElementById('page-my-dashboard').classList.contains('active')) loadMyDashboard();
   });
-  listenCol('marks', data => { window.marks = data; });
+  listenCol('marks', data => {
+    window.marks = data;
+    if (document.getElementById('page-my-profile') && document.getElementById('page-my-profile').classList.contains('active')) loadMyProfile();
+  });
   if (role === 'admin') {
     listenCol('salaries', data => { window.salaries = data; });
   }
@@ -1995,9 +2207,13 @@ let currentUser = null;  // { uid, email, name, role, active, ... } merged from 
 
 // Fetch (or re-fetch) the signed-in user's profile document from Firestore.
 // Document ID = Firebase Auth UID, per the required schema.
+// NOTE: unlike fbGetOne (used elsewhere), this intentionally lets errors
+// propagate — login needs to tell "profile document is missing" apart from
+// "Firestore denied the read" (e.g. a Security Rules problem), which look
+// identical if swallowed into a plain null.
 async function loadUserProfile(uid) {
-  const profile = await fbGetOne('users', uid);
-  return profile;
+  const snap = await getDoc(doc(firestoreDB, 'users', uid));
+  return snap.exists() ? { ...snap.data(), id: snap.id } : null;
 }
 
 async function getUsers() {
@@ -2051,11 +2267,18 @@ function resetAppState() {
   stopAllListeners();
   _cachedUsers = null;
   currentUser = null;
-  window.students=[]; window.payments=[]; window.attendance=[]; window.marks=[]; window.salaries=[]; window.incomes=[]; window.expenses=[]; window.certificates=[]; window.absences=[];
+  window.students=[]; window.payments=[]; window.attendance=[]; window.marks=[]; window.salaries=[]; window.incomes=[]; window.expenses=[]; window.certificates=[]; window.absences=[]; window.holidays=[]; window.notifications=[]; window.resources=[];
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('login-password').value = '';
-  document.getElementById('login-error').style.display = 'none';
+  // A sign-out triggered *because* login failed (bad profile, permission
+  // error, etc.) sets _preserveLoginError first so the message that was
+  // just shown to explain WHY doesn't get wiped out by this reset — a
+  // plain logout (the normal case) still clears everything as before.
+  if (!window._preserveLoginError) {
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-error').style.display = 'none';
+  }
+  window._preserveLoginError = false;
   const btn = document.getElementById('login-btn');
   if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
 }
@@ -2077,12 +2300,14 @@ onAuthStateChanged(auth, async (user) => {
     if (!profile) {
       errEl.textContent = '❌ Your account has no profile set up. Contact your Admin.';
       errEl.style.display = 'block';
+      window._preserveLoginError = true;
       await signOut(auth);
       return;
     }
     if (profile.active === false) {
       errEl.textContent = '❌ This account has been deactivated. Contact your Admin.';
       errEl.style.display = 'block';
+      window._preserveLoginError = true;
       await signOut(auth);
       return;
     }
@@ -2096,19 +2321,31 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('app-shell').classList.add('visible');
     applyRoleUI();
     startListeners();
-    populateCourseBatchSelects();
-    refreshDashboard();
-    const todayEl = id => { const el = document.getElementById(id); if (el) el.value = todayStr(); };
-    todayEl('att-date'); todayEl('fee-date'); todayEl('adm-date');
-    todayEl('inc-date'); todayEl('exp-date'); todayEl('cert-givendate');
-    const arFrom = document.getElementById('ar-from'); if (arFrom) arFrom.value = new Date(new Date().setDate(1)).toISOString().slice(0,10);
-    const arTo = document.getElementById('ar-to'); if (arTo) arTo.value = todayStr();
+
+    if (currentUser.role === 'student') {
+      // Students get a dedicated home page instead of the staff Dashboard.
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('page-my-dashboard').classList.add('active');
+      document.getElementById('nav-my-dashboard').classList.add('active');
+      document.getElementById('page-title').textContent = 'My Dashboard';
+      loadMyDashboard();
+    } else {
+      populateCourseBatchSelects();
+      refreshDashboard();
+      const todayEl = id => { const el = document.getElementById(id); if (el) el.value = todayStr(); };
+      todayEl('att-date'); todayEl('fee-date'); todayEl('adm-date');
+      todayEl('inc-date'); todayEl('exp-date'); todayEl('cert-givendate');
+      const arFrom = document.getElementById('ar-from'); if (arFrom) arFrom.value = new Date(new Date().setDate(1)).toISOString().slice(0,10);
+      const arTo = document.getElementById('ar-to'); if (arTo) arTo.value = todayStr();
+    }
     document.querySelector('.sidebar').classList.remove('open');
     document.getElementById('sidebar-overlay').classList.remove('open');
   } catch (err) {
     console.error('Profile load failed:', err);
     errEl.textContent = friendlyFirestoreError(err);
     errEl.style.display = 'block';
+    window._preserveLoginError = true;
     await signOut(auth);
   }
 });
@@ -2138,9 +2375,10 @@ window.fbSignOut = signOut;
 // canEnter = can submit new records (admission, payments, attendance)
 // canModify = can edit or delete existing records (admin only)
 const PERMISSIONS = {
-  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar'], canEnter: true, canModify: true },
-  office:  { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','absent-list','student-dashboard','calendar'],                                                                               canEnter: true, canModify: false },
-  teacher: { pages: ['dashboard','attendance','absent-list','attendance-report','student-dashboard','marks','calendar'],                                                                              canEnter: true, canModify: false }
+  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources'], canEnter: true, canModify: true },
+  office:  { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','absent-list','student-dashboard','calendar','resources'],                                                                               canEnter: true, canModify: false },
+  teacher: { pages: ['dashboard','attendance','absent-list','attendance-report','student-dashboard','marks','calendar','resources'],                                                                              canEnter: true, canModify: false },
+  student: { pages: ['my-dashboard','my-profile'], canEnter: false, canModify: false }
 };
 
 function canAccess(page) {
@@ -2168,8 +2406,15 @@ function applyRoleUI() {
   document.getElementById('sb-uname').textContent = currentUser.name;
   document.getElementById('sb-urole').textContent = role.toUpperCase();
 
+  // Students get an entirely separate, simplified sidebar/nav — swap the
+  // groups and skip the staff-only lock/visibility logic below.
+  document.getElementById('staff-nav-groups').style.display = role === 'student' ? 'none' : '';
+  document.getElementById('student-nav-groups').style.display = role === 'student' ? '' : 'none';
+  document.getElementById('readonly-banner').classList.remove('visible');
+  if (role === 'student') return;
+
   // Nav items — lock inaccessible pages
-  const allPages = ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar'];
+  const allPages = ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources'];
   allPages.forEach(p => {
     const nav = document.getElementById('nav-' + p);
     if (!nav) return;
@@ -2226,7 +2471,8 @@ function navTo(page, el) {
     'attendance-report':'Attendance Report', 'student-dashboard':'Student Dashboard',
     marks:'Marks Entry', master:'Master Data', salary:'Staff Salary',
     users:'User Management', 'import-students':'Import Students from Excel',
-    settings:'Configuration', calendar:'Calendar'
+    settings:'Configuration', calendar:'Calendar', resources:'Study Materials',
+    'my-dashboard':'My Dashboard', 'my-profile':'My Profile'
   };
   document.getElementById('page-title').textContent = titles[page] || page;
   if (['admission','students','attendance','absent-list','attendance-report','marks','calendar'].includes(page)) populateCourseBatchSelects();
@@ -2242,6 +2488,9 @@ function navTo(page, el) {
   if (page === 'absent-list') { document.getElementById('abs-date').value = todayStr(); renderAbsentHistory(); }
   if (page === 'import-students') resetImport();
   if (page === 'calendar') renderCalendar();
+  if (page === 'resources') renderResourcesPage();
+  if (page === 'my-dashboard') loadMyDashboard();
+  if (page === 'my-profile') loadMyProfile();
 }
 
 function showPage(page) {
@@ -2577,7 +2826,9 @@ async function renderUsersPage() {
   const users = await getUsers();
   const container = document.getElementById('users-list');
   const roleOrder = ['admin','office','teacher'];
-  const sorted = [...users].sort((a,b)=>roleOrder.indexOf(a.role)-roleOrder.indexOf(b.role));
+  // Student logins are managed from Student Records (Create Login), not
+  // this staff-focused directory — keep this list to just the three roles.
+  const sorted = [...users].filter(u => u.role !== 'student').sort((a,b)=>roleOrder.indexOf(a.role)-roleOrder.indexOf(b.role));
   let html = '';
   let lastRole = '';
   sorted.forEach((u) => {
@@ -2615,6 +2866,7 @@ function openAddUserModal() {
   document.getElementById('uf-role').value = 'office';
   document.getElementById('uf-dept').value = '';
   document.getElementById('uf-mobile').value = '';
+  document.getElementById('uf-rollno').value = '';
   document.getElementById('uf-edit-index').value = '';
   document.getElementById('uf-edit-uid').value = '';
   document.getElementById('user-form-alert').innerHTML = '';
@@ -2625,6 +2877,7 @@ function openAddUserModal() {
   document.getElementById('uf-save-btn').textContent = '💾 Save User';
   document.querySelectorAll('#uf-courses-check input').forEach(cb => cb.checked = false);
   document.getElementById('uf-courses-wrap').style.display = 'none';
+  document.getElementById('uf-rollno-wrap').style.display = 'none';
   document.getElementById('user-modal').classList.add('open');
 }
 
@@ -2639,6 +2892,7 @@ async function openEditUserModal(docId) {
   document.getElementById('uf-role').value = u.role;
   document.getElementById('uf-dept').value = u.dept || '';
   document.getElementById('uf-mobile').value = u.mobile || '';
+  document.getElementById('uf-rollno').value = u.rollNo || '';
   document.getElementById('uf-edit-index').value = docId;
   document.getElementById('uf-edit-uid').value = u.uid || u.id;
   document.getElementById('user-form-alert').innerHTML = '';
@@ -2654,12 +2908,14 @@ async function openEditUserModal(docId) {
     cb.checked = (u.courses||[]).includes(cb.value);
   });
   document.getElementById('uf-courses-wrap').style.display = u.role === 'teacher' ? '' : 'none';
+  document.getElementById('uf-rollno-wrap').style.display = u.role === 'student' ? '' : 'none';
   document.getElementById('user-modal').classList.add('open');
 }
 
 function toggleTeacherFields() {
   const role = document.getElementById('uf-role').value;
   document.getElementById('uf-courses-wrap').style.display = role === 'teacher' ? '' : 'none';
+  document.getElementById('uf-rollno-wrap').style.display = role === 'student' ? '' : 'none';
 }
 
 // Creating a brand-new staff login needs two things: (1) a Firebase Auth
@@ -2674,6 +2930,7 @@ async function saveUser() {
   const role = document.getElementById('uf-role').value;
   const dept = document.getElementById('uf-dept').value.trim();
   const mobile = document.getElementById('uf-mobile').value.trim();
+  const rollNo = document.getElementById('uf-rollno').value.trim();
   const editDocId = document.getElementById('uf-edit-index').value;
   const editUid = document.getElementById('uf-edit-uid').value;
   const alertBox = document.getElementById('user-form-alert');
@@ -2687,6 +2944,12 @@ async function saveUser() {
     alertBox.innerHTML = '<div class="alert alert-error">Please enter a valid email address.</div>';
     return;
   }
+  let linkedStudent = null;
+  if (role === 'student') {
+    if (!rollNo) { alertBox.innerHTML = '<div class="alert alert-error">Roll No is required for a student login.</div>'; return; }
+    linkedStudent = (window.students||[]).find(s => s.rollNo.toLowerCase() === rollNo.toLowerCase());
+    if (!linkedStudent) { alertBox.innerHTML = '<div class="alert alert-error">No student found with that Roll No. Check Student Records.</div>'; return; }
+  }
 
   const courses = role === 'teacher'
     ? [...document.querySelectorAll('#uf-courses-check input:checked')].map(cb => cb.value)
@@ -2697,7 +2960,7 @@ async function saveUser() {
   if (editDocId) {
     // ---- EDIT existing user: only the Firestore profile fields change ----
     saveBtn.textContent = 'Saving…';
-    const updateData = { name, role, dept, mobile, courses };
+    const updateData = { name, role, dept, mobile, courses, rollNo: role === 'student' ? rollNo : null };
     const ok = await DB.updateDoc('users', editDocId, updateData);
     saveBtn.disabled = false; saveBtn.textContent = '💾 Save Changes';
     if (ok) {
@@ -2734,6 +2997,9 @@ async function saveUser() {
     // new Auth UID (this is the schema the rest of the app expects).
     const ok = await DB.setDoc('users', newUid, {
       name, email, role, dept, mobile, courses,
+      rollNo: role === 'student' ? rollNo : null,
+      course: linkedStudent ? linkedStudent.course : null,
+      batch: linkedStudent ? linkedStudent.batch : null,
       active: true,
       createdAt: window.serverTimestamp(),
       createdBy: currentUser ? currentUser.uid : null
@@ -2742,7 +3008,13 @@ async function saveUser() {
     saveBtn.disabled = false; saveBtn.textContent = '💾 Save User';
 
     if (ok) {
-      showAlert('users-alert','success','✅ ' + (role === 'teacher' ? 'Teacher' : 'User') + ' account created for ' + email + '. Share the temporary password with them and ask them to change it after first login.');
+      // Keep the linked student record's login flag in sync so Student
+      // Records shows the right status without needing 'users' read access.
+      if (linkedStudent) {
+        const idx = students.findIndex(s => s.rollNo === linkedStudent.rollNo);
+        if (idx > -1) { students[idx] = { ...students[idx], hasLogin:true, loginUid:newUid, email }; await DB.set('students', students); }
+      }
+      showAlert('users-alert','success','✅ ' + (role === 'teacher' ? 'Teacher' : role === 'student' ? 'Student' : 'User') + ' account created for ' + email + '. Share the temporary password with them and ask them to change it after first login.');
       closeModal('user-modal');
       renderUsersPage();
     } else {
@@ -2834,15 +3106,87 @@ async function submitAdmission() {
   btn.disabled = true; txt.innerHTML = '<span class="loader"></span> Saving...';
 
   const roll = 'ST' + String(students.length + 1).padStart(4,'0');
-  students.push({ ...fields, rollNo: roll, status:'Active', createdAt: new Date().toISOString(), addedBy: currentUser.email });
+  const newStudent = { ...fields, rollNo: roll, status:'Active', hasLogin:false, createdAt: new Date().toISOString(), addedBy: currentUser.email };
+  students.push(newStudent);
   await DB.set('students', students);
 
   btn.disabled = false; txt.innerHTML = '💾 Save Student';
 
-  const msg = '✅ Admitted! Roll No: <strong>' + roll + '</strong>' + (firebaseInitialized ? ' — Saved to Firebase!' : ' (Local — connect Firebase in Settings for cloud sync)');
+  let msg = '✅ Admitted! Roll No: <strong>' + roll + '</strong>' + (firebaseInitialized ? ' — Saved to Firebase!' : ' (Local — connect Firebase in Settings for cloud sync)');
+
+  // Auto-create the student's portal login: username = email, password =
+  // mobile number, exactly as entered on this form. Requires an email —
+  // if none was given, the login can be created later from Student Records.
+  if (fields.email) {
+    const loginResult = await createStudentLogin(newStudent);
+    if (loginResult.success) {
+      msg += `<br>🎓 Student login created — <strong>Username:</strong> ${fields.email} &nbsp; <strong>Password:</strong> ${fields.mobile}. Please share these with the student.`;
+    } else {
+      msg += `<br>⚠️ Student record saved, but the portal login could not be created (${loginResult.error}). You can retry from Student Records.`;
+    }
+  } else {
+    msg += '<br>ℹ️ No email was entered, so no portal login was created. Add an email and use "Create Login" in Student Records when ready.';
+  }
+
   showAlert('admission-alert','success',msg);
   clearAdmissionForm();
 }
+
+// Creates the Firebase Auth account (username = email, password = mobile
+// number) plus the matching Firestore 'users' profile document (role:
+// 'student'), using the same isolated secondaryAuth session the app already
+// uses for staff account creation so the person submitting stays signed in.
+// On success, flags hasLogin on the local student record and persists it.
+// NOTE: creating a 'users' document requires Firestore Security Rules that
+// permit the signed-in role (office/admin) to write role:'student' profiles.
+async function createStudentLogin(student) {
+  const email = (student.email || '').trim().toLowerCase();
+  const password = (student.mobile || '').trim();
+  if (!email) return { success:false, error:'no email on file' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { success:false, error:'invalid email address' };
+  if (!password || password.length < 6) return { success:false, error:'mobile number is too short to use as a password' };
+
+  try {
+    const cred = await window.createUserWithEmailAndPassword(window.secondaryAuth, email, password);
+    const newUid = cred.user.uid;
+    window.fbSignOut(window.secondaryAuth).catch(() => {});
+
+    const ok = await DB.setDoc('users', newUid, {
+      name: student.fname + ' ' + student.lname,
+      email, role: 'student', rollNo: student.rollNo,
+      course: student.course, batch: student.batch, mobile: student.mobile,
+      active: true,
+      createdAt: window.serverTimestamp(),
+      createdBy: currentUser ? currentUser.uid : null
+    });
+    if (!ok) return { success:false, error:'profile save failed' };
+
+    const idx = students.findIndex(s => s.rollNo === student.rollNo);
+    if (idx > -1) { students[idx] = { ...students[idx], hasLogin:true, loginUid:newUid }; await DB.set('students', students); }
+    return { success:true, uid:newUid };
+  } catch (err) {
+    console.error('Create student login failed:', err);
+    return { success:false, error: (window.friendlyAuthError ? window.friendlyAuthError(err) : (err.message||'unknown error')) };
+  }
+}
+window.createStudentLogin = createStudentLogin;
+
+// Manually (re)create a login for an existing student — e.g. one admitted
+// before this feature existed, or whose auto-creation failed at admission.
+async function createLoginForExistingStudent(rollNo) {
+  const s = students.find(st => st.rollNo === rollNo);
+  if (!s) return;
+  if (!s.email) { alert('This student has no email on file. Edit the student record to add one first.'); return; }
+  if (!confirm(`Create a portal login for ${s.fname} ${s.lname}?\n\nUsername: ${s.email}\nPassword: ${s.mobile}`)) return;
+  const result = await createStudentLogin(s);
+  if (result.success) {
+    showAlert('students-alert','success',`✅ Login created for ${s.fname} ${s.lname}. Username: ${s.email}, Password: ${s.mobile}.`);
+  } else {
+    showAlert('students-alert','error', `❌ Could not create login: ${result.error}`);
+  }
+  renderStudentsTable();
+}
+window.createLoginForExistingStudent = createLoginForExistingStudent;
 
 function clearAdmissionForm() {
   ['adm-fname','adm-lname','adm-dob','adm-email','adm-address','adm-mobile','adm-totalfees','adm-guardian','adm-gmobile','adm-qual','adm-remarks','adm-duedate'].forEach(id => document.getElementById(id).value='');
@@ -2858,7 +3202,7 @@ function renderStudentsTable(filtered) {
   const list = filtered !== undefined ? filtered : students;
   const tbody = document.getElementById('students-table-body');
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px;">No students found</td></tr>'; return;
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px;">No students found</td></tr>'; return;
   }
   tbody.innerHTML = list.map(s => {
     const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
@@ -2868,6 +3212,11 @@ function renderStudentsTable(filtered) {
                    paid>0 ? '<span class="chip chip-amber">Partial</span>' :
                    '<span class="chip chip-red">Pending</span>';
     const editBtn = canModify() ? `<button class="btn btn-outline" onclick="openEditStudent('${s.rollNo}')" style="padding:4px 10px;font-size:12px;color:var(--amber);border-color:var(--amber);">✏️ Edit</button>` : '';
+    const loginCell = s.hasLogin
+      ? '<span class="chip chip-green">Active</span>'
+      : (s.email
+          ? `<button class="btn btn-outline" onclick="createLoginForExistingStudent('${s.rollNo}')" style="padding:4px 10px;font-size:11px;">+ Create Login</button>`
+          : '<span class="chip chip-red" title="No email on file">No Email</span>');
     return `<tr>
       <td><strong>${s.rollNo}</strong></td>
       <td>${s.fname} ${s.lname}</td>
@@ -2877,6 +3226,7 @@ function renderStudentsTable(filtered) {
       <td><span class="chip ${s.mode==='Online'?'chip-green':'chip-blue'}">${s.mode||'Offline'}</span></td>
       <td>${s.mobile}</td>
       <td>${status}</td>
+      <td>${loginCell}</td>
       <td style="display:flex;gap:6px;">
         <button class="btn btn-outline" onclick="viewStudent('${s.rollNo}')" style="padding:4px 10px;font-size:12px;">View</button>
         ${editBtn}
@@ -4253,6 +4603,231 @@ function parseCSVLine(line) {
   result.push(current.trim());
   return result;
 }
+
+// ============================================================
+// STUDY MATERIALS — Notifications + E-Books/Videos (staff-managed,
+// read by students on their Dashboard / Profile)
+// ============================================================
+function renderResourcesPage() {
+  // Populate course selects used on this page
+  const courseOpts = '<option value="">Select course</option>' + masterData.courses.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  const filterOpts = '<option value="">All Courses</option>' + masterData.courses.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  const audienceOpts = '<option value="all">All Students</option>' + masterData.courses.map(c=>`<option value="${c.name}">${c.name} students only</option>`).join('');
+  const rfCourse = document.getElementById('rf-course'); if (rfCourse && !rfCourse.dataset.filled) { rfCourse.innerHTML = courseOpts; rfCourse.dataset.filled='1'; }
+  const resFilter = document.getElementById('res-filter-course'); if (resFilter && !resFilter.dataset.filled) { resFilter.innerHTML = filterOpts; resFilter.dataset.filled='1'; }
+  const nfAudience = document.getElementById('nf-audience'); if (nfAudience) nfAudience.innerHTML = audienceOpts;
+
+  // ---- Notifications list ----
+  const notifList = document.getElementById('staff-notif-list');
+  const notifs = [...(window.notifications||[])].sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+  notifList.innerHTML = notifs.length ? notifs.map(n => `
+    <div class="notif-item">
+      <div class="notif-icon">🔔</div>
+      <div style="flex:1;">
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-msg">${n.message}</div>
+        <div class="notif-meta">${n.audience==='all'?'All Students':n.audience} · ${n.date||''} · by ${n.createdBy||''}</div>
+      </div>
+      ${isAdmin() || (currentUser && currentUser.role==='office') ? `<button class="btn btn-outline" onclick="deleteNotification('${n.id}')" style="padding:4px 10px;font-size:11px;height:fit-content;">🗑️</button>` : ''}
+    </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No notifications yet.</p>';
+
+  // ---- Study materials grid ----
+  const courseFilter = document.getElementById('res-filter-course') ? document.getElementById('res-filter-course').value : '';
+  const list = (window.resources||[]).filter(r => !courseFilter || r.course === courseFilter);
+  const resGrid = document.getElementById('staff-resource-list');
+  resGrid.innerHTML = list.length ? list.map(r => `
+    <div class="resource-card">
+      <div class="resource-icon">${r.type==='video'?'🎬':'📘'}</div>
+      <div class="resource-title">${r.title}</div>
+      <div class="resource-meta">${r.course} · ${r.type==='video'?'Recorded Video':'E-Book'}</div>
+      <div style="display:flex;gap:8px;">
+        <a href="${r.url}" target="_blank" rel="noopener" class="btn btn-outline" style="padding:5px 12px;font-size:12px;text-decoration:none;">Open ↗</a>
+        <button class="btn btn-outline" onclick="deleteResource('${r.id}')" style="padding:5px 10px;font-size:12px;">🗑️</button>
+      </div>
+    </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No study materials added yet.</p>';
+}
+window.renderResourcesPage = renderResourcesPage;
+
+function openNotificationModal() {
+  document.getElementById('notification-modal-alert').innerHTML = '';
+  document.getElementById('nf-title').value = '';
+  document.getElementById('nf-message').value = '';
+  document.getElementById('notification-modal').classList.add('open');
+}
+window.openNotificationModal = openNotificationModal;
+
+async function saveNotification() {
+  const title = document.getElementById('nf-title').value.trim();
+  const message = document.getElementById('nf-message').value.trim();
+  const audience = document.getElementById('nf-audience').value;
+  if (!title || !message) { showAlert('notification-modal-alert','error','❌ Title and message are required.'); return; }
+  const rec = { id:'NOTIF'+Date.now(), title, message, audience, date: todayStr(), createdBy: currentUser.name, createdAt: new Date().toISOString() };
+  notifications = [...notifications, rec];
+  await DB.set('notifications', notifications);
+  closeModal('notification-modal');
+  renderResourcesPage();
+}
+window.saveNotification = saveNotification;
+
+async function deleteNotification(id) {
+  if (!confirm('Delete this notification?')) return;
+  notifications = notifications.filter(n => n.id !== id);
+  await DB.set('notifications', notifications);
+  renderResourcesPage();
+}
+window.deleteNotification = deleteNotification;
+
+function openResourceModal() {
+  document.getElementById('resource-modal-alert').innerHTML = '';
+  document.getElementById('rf-title').value = '';
+  document.getElementById('rf-url').value = '';
+  document.getElementById('rf-type').selectedIndex = 0;
+  document.getElementById('rf-course').selectedIndex = 0;
+  document.getElementById('resource-modal').classList.add('open');
+}
+window.openResourceModal = openResourceModal;
+
+async function saveResource() {
+  const title = document.getElementById('rf-title').value.trim();
+  const type = document.getElementById('rf-type').value;
+  const course = document.getElementById('rf-course').value;
+  const url = document.getElementById('rf-url').value.trim();
+  if (!title || !course || !url) { showAlert('resource-modal-alert','error','❌ Title, course and link are required.'); return; }
+  if (!/^https?:\/\//i.test(url)) { showAlert('resource-modal-alert','error','❌ Link must start with http:// or https://'); return; }
+  const rec = { id:'RES'+Date.now(), title, type, course, url, addedBy: currentUser.name, addedAt: new Date().toISOString() };
+  resources = [...resources, rec];
+  await DB.set('resources', resources);
+  closeModal('resource-modal');
+  renderResourcesPage();
+}
+window.saveResource = saveResource;
+
+async function deleteResource(id) {
+  if (!confirm('Delete this study material?')) return;
+  resources = resources.filter(r => r.id !== id);
+  await DB.set('resources', resources);
+  renderResourcesPage();
+}
+window.deleteResource = deleteResource;
+
+// ============================================================
+// STUDENT PORTAL — self-service Dashboard & Profile
+// ============================================================
+
+// Small helper: builds a CSS conic-gradient donut given a present percentage
+function buildDonutGradient(pct) {
+  const p = Math.max(0, Math.min(100, pct));
+  return `conic-gradient(var(--teal) 0% ${p}%, var(--red) ${p}% 100%)`;
+}
+
+function findMyStudentRecord() {
+  if (!currentUser) return null;
+  return (window.students||[]).find(s => s.rollNo === currentUser.rollNo) || null;
+}
+
+function loadMyDashboard() {
+  const s = findMyStudentRecord();
+  const alertBox = document.getElementById('my-dashboard-alert');
+  if (!s) {
+    alertBox.innerHTML = '<div class="alert alert-error">We couldn\'t find your student record. Please contact the office.</div>';
+    return;
+  }
+  alertBox.innerHTML = '';
+
+  document.getElementById('md-avatar').textContent = ((s.fname||'?')[0] + ((s.lname||'')[0]||'')).toUpperCase();
+  document.getElementById('md-name').textContent = s.fname + ' ' + s.lname;
+  document.getElementById('md-course').textContent = s.course + ' — ' + (s.batch||'').split('(')[0].trim();
+  document.getElementById('md-roll').textContent = s.rollNo;
+  document.getElementById('md-batch').textContent = (s.batch||'').split('(')[0].trim();
+  document.getElementById('md-admitted').textContent = s.admDate || '—';
+
+  const attLog = (window.attendance||[]).filter(a => a.rollNo === s.rollNo);
+  const present = attLog.filter(a => a.status === 'Present').length;
+  const leave = attLog.length - present;
+  const pct = attLog.length ? Math.round(present / attLog.length * 100) : 0;
+
+  document.getElementById('md-att-present').textContent = present;
+  document.getElementById('md-att-leave').textContent = leave;
+  document.getElementById('md-att-pct').textContent = pct + '%';
+  document.getElementById('md-att-donut').innerHTML = `<div style="width:100%;height:100%;border-radius:50%;background:${buildDonutGradient(pct)};display:flex;align-items:center;justify-content:center;"><div class="donut-center"><div class="val">${pct}%</div><div class="lbl">Present</div></div></div>`;
+
+  // Course covered — topics taught in this student's course/batch, by
+  // days taken (bar chart, reusing the app's existing chart style)
+  const topicMap = {};
+  attLog.forEach(a => {
+    const topic = (a.topic||'').trim();
+    if (!topic || a.status !== 'Present') return;
+    if (!topicMap[topic]) topicMap[topic] = new Set();
+    topicMap[topic].add(a.date);
+  });
+  const topics = Object.keys(topicMap).map(t => ({ topic: t, days: topicMap[t].size })).sort((a,b) => b.days - a.days);
+  const maxDays = Math.max(...topics.map(t=>t.days), 1);
+  document.getElementById('md-course-chart').innerHTML = topics.length ? topics.map(t => `
+    <div class="dash-chart-bar">
+      <div class="dash-bar-label">${t.topic.length>20 ? t.topic.slice(0,19)+'…' : t.topic}</div>
+      <div class="dash-bar-fill" style="width:${Math.round(t.days/maxDays*160)}px;">${t.days}</div>
+    </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No topics recorded yet. Check back after your classes begin.</p>';
+
+  // Notifications feed — audience 'all' or matching this student's course
+  const feed = (window.notifications||[]).filter(n => n.audience === 'all' || n.audience === s.course)
+    .sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||'')).slice(0, 10);
+  document.getElementById('md-notif-list').innerHTML = feed.length ? feed.map(n => `
+    <div class="notif-item">
+      <div class="notif-icon">🔔</div>
+      <div>
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-msg">${n.message}</div>
+        <div class="notif-meta">${n.date||''}</div>
+      </div>
+    </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No notifications yet.</p>';
+}
+window.loadMyDashboard = loadMyDashboard;
+
+function loadMyProfile() {
+  const s = findMyStudentRecord();
+  if (!s) return;
+
+  document.getElementById('mp-avatar').textContent = ((s.fname||'?')[0] + ((s.lname||'')[0]||'')).toUpperCase();
+  document.getElementById('mp-name').textContent = s.fname + ' ' + s.lname;
+  document.getElementById('mp-course').textContent = s.course + ' — ' + (s.batch||'').split('(')[0].trim();
+  document.getElementById('mp-roll').textContent = s.rollNo;
+  document.getElementById('mp-batch').textContent = (s.batch||'').split('(')[0].trim();
+  document.getElementById('mp-mobile').textContent = s.mobile || '—';
+  document.getElementById('mp-email').textContent = s.email || '—';
+  document.getElementById('mp-dob').textContent = s.dob || '—';
+  document.getElementById('mp-admitted').textContent = s.admDate || '—';
+
+  // Marks
+  const studentMarks = (window.marks||[]).filter(m => m.rollNo === s.rollNo);
+  document.getElementById('mp-marks-log').innerHTML = studentMarks.length ? [...studentMarks].reverse().map(m => {
+    const pct = m.maxMarks>0 ? Math.round(m.obtainedMarks/m.maxMarks*100) : 0;
+    const gradeColor = m.grade==='F'?'chip-red':m.grade==='O'||m.grade==='A+'?'chip-green':m.grade==='A'||m.grade==='B+'?'chip-blue':'chip-amber';
+    return `<tr>
+      <td><strong>${m.subject}</strong></td>
+      <td style="font-size:12px;color:var(--muted);">${m.examName||m.exam||'—'}</td>
+      <td>${m.theoryObt!==undefined ? m.theoryObt+'/'+m.theoryMax : (m.obtainedMarks||'—')}</td>
+      <td>${m.practicalObt!==undefined ? m.practicalObt+'/'+m.practicalMax : '—'}</td>
+      <td><strong>${m.total!==undefined ? m.total+'/'+(parseFloat(m.theoryMax||0)+parseFloat(m.practicalMax||0)) : (m.obtainedMarks||'—')}</strong></td>
+      <td><strong>${pct}%</strong></td>
+      <td><span class="chip ${gradeColor}">${m.grade||'—'}</span></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">No marks recorded yet</td></tr>';
+
+  // E-books & videos for this student's course
+  const myResources = (window.resources||[]).filter(r => r.course === s.course);
+  const ebooks = myResources.filter(r => r.type === 'ebook');
+  const videos = myResources.filter(r => r.type === 'video');
+  const cardHtml = r => `
+    <div class="resource-card">
+      <div class="resource-icon">${r.type==='video'?'🎬':'📘'}</div>
+      <div class="resource-title">${r.title}</div>
+      <div class="resource-meta">${r.course}</div>
+      <a href="${r.url}" target="_blank" rel="noopener" class="btn btn-teal" style="padding:5px 14px;font-size:12px;text-decoration:none;">${r.type==='video'?'▶ Watch':'📖 Open'}</a>
+    </div>`;
+  document.getElementById('mp-ebook-list').innerHTML = ebooks.length ? ebooks.map(cardHtml).join('') : '<p style="color:var(--muted);font-size:13px;">No e-books available for your course yet.</p>';
+  document.getElementById('mp-video-list').innerHTML = videos.length ? videos.map(cardHtml).join('') : '<p style="color:var(--muted);font-size:13px;">No recorded videos available for your course yet.</p>';
+}
+window.loadMyProfile = loadMyProfile;
 
 // ============================================================
 // MASTER DATA
