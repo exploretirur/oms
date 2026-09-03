@@ -494,6 +494,7 @@ tr:hover td { background: #f8fafd; }
       <div class="urole" id="sb-urole">—</div>
     </div>
   </div>
+  <div class="nav-item" onclick="openChangePasswordModal()" style="margin:0 12px 10px;">🔑 Change Password</div>
 
   <div id="staff-nav-groups">
   <div class="sidebar-section">Front Office</div>
@@ -781,7 +782,7 @@ tr:hover td { background: #f8fafd; }
           <div class="form-grid">
             <div class="form-group" style="position:relative;">
               <label>Student Roll No / Name <span class="required">*</span></label>
-              <input id="fee-search" type="text" placeholder="Type roll no or name..." autocomplete="off" oninput="onFeeSearchInput()" onfocus="onFeeSearchInput()" onblur="setTimeout(()=>{const d=document.getElementById('fee-search-dropdown'); if(d) d.style.display='none';},150)">
+              <input id="fee-search" type="text" placeholder="Type roll no or name..." autocomplete="off" data-no-enter-submit="true" oninput="onFeeSearchInput()" onfocus="onFeeSearchInput()" onblur="setTimeout(()=>{const d=document.getElementById('fee-search-dropdown'); if(d) d.style.display='none';},150)">
               <div id="fee-search-dropdown" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
             <div class="form-group"><label>Payment Date <span class="required">*</span></label><input id="fee-date" type="date"></div>
@@ -951,7 +952,7 @@ tr:hover td { background: #f8fafd; }
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">📜</span> Issue / Update Certificate</div></div>
         <div class="form-grid">
-          <div class="form-group"><label>Student Roll No / Name <span class="required">*</span></label><input id="cert-search" type="text" placeholder="Type roll no or name..." oninput="searchStudentForCert()"></div>
+          <div class="form-group"><label>Student Roll No / Name <span class="required">*</span></label><input id="cert-search" type="text" placeholder="Type roll no or name..." data-no-enter-submit="true" oninput="searchStudentForCert()"></div>
           <div class="form-group"><label>Course</label><input id="cert-course" type="text" readonly style="background:#f8fafd;"></div>
           <div class="form-group"><label>Certificate Number</label><input id="cert-number" type="text" placeholder="e.g. CERT-2026-001"></div>
           <div class="form-group"><label>Given Date</label><input id="cert-givendate" type="date"></div>
@@ -1847,7 +1848,7 @@ tr:hover td { background: #f8fafd; }
         <div class="pl-search-wrap">
           <div class="form-group full" style="margin-bottom:0;">
             <label>Search by Name or Roll Number</label>
-            <input id="pl-search" type="text" placeholder="Type student name or roll no…" oninput="searchStudentForPlacement()" autocomplete="off">
+            <input id="pl-search" type="text" placeholder="Type student name or roll no…" oninput="searchStudentForPlacement()" data-no-enter-submit="true" autocomplete="off">
           </div>
           <div class="pl-suggest-box" id="pl-suggest-box"></div>
         </div>
@@ -2143,6 +2144,27 @@ tr:hover td { background: #f8fafd; }
   </div>
 </div>
 
+<!-- MODAL: change password (every account — replace a temporary/admin-set password) -->
+<div class="modal-backdrop" id="change-password-modal">
+  <div class="modal" style="max-width:420px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3>🔑 Change Password</h3>
+      <button class="btn btn-outline" onclick="closeModal('change-password-modal')" style="padding:4px 12px;">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Set a new password for your own account. If Admin gave you a temporary password, this is the place to replace it with one only you know.</p>
+    <div id="cp-alert"></div>
+    <div class="form-grid" style="grid-template-columns:1fr;">
+      <div class="form-group"><label>Current Password <span class="required">*</span></label><input id="cp-current" type="password" placeholder="Your current / temporary password" autocomplete="current-password"></div>
+      <div class="form-group"><label>New Password <span class="required">*</span></label><input id="cp-new" type="password" placeholder="Min 6 characters" autocomplete="new-password"></div>
+      <div class="form-group"><label>Confirm New Password <span class="required">*</span></label><input id="cp-confirm" type="password" placeholder="Re-enter new password" autocomplete="new-password"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-outline" onclick="closeModal('change-password-modal')">Cancel</button>
+      <button class="btn btn-teal" onclick="submitChangePassword()" id="cp-save-btn">💾 Update Password</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 // ============================================================
 // FIREBASE v9 MODULAR SDK — Authentication + Firestore (Production)
@@ -2153,7 +2175,8 @@ tr:hover td { background: #f8fafd; }
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
-  setPersistence, browserLocalPersistence, createUserWithEmailAndPassword
+  setPersistence, browserLocalPersistence, createUserWithEmailAndPassword,
+  updatePassword, reauthenticateWithCredential, EmailAuthProvider
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
   getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc,
@@ -2212,6 +2235,7 @@ function friendlyAuthError(err) {
     'auth/internal-error': 'Something went wrong. Please try again.',
     'auth/email-already-in-use': 'An account with this email already exists.',
     'auth/weak-password': 'Temporary password must be at least 6 characters.',
+    'auth/requires-recent-login': 'For security, please sign in again before changing your password.',
     'auth/operation-not-allowed': 'Email/Password sign-in is not enabled for this project. Enable it in Firebase Console → Authentication → Sign-in method.'
   };
   return map[code] || ('Sign-in failed: ' + (err.message || 'Unknown error.'));
@@ -2685,6 +2709,9 @@ window.firestoreDB = firestoreDB;
 window.cloudFns = cloudFns;
 window.secondaryAuth = secondaryAuth;
 window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+window.updatePassword = updatePassword;
+window.reauthenticateWithCredential = reauthenticateWithCredential;
+window.EmailAuthProvider = EmailAuthProvider;
 window.serverTimestamp = serverTimestamp;
 window.friendlyAuthError = friendlyAuthError;
 window.fbSignOut = signOut;
@@ -2801,6 +2828,96 @@ function applyRoleUI() {
     banner.classList.remove('visible');
   }
 }
+
+// ============================================================
+// KEYBOARD UX — Tab already moves focus between fields natively (no code
+// needed). This adds Enter-to-submit: since forms in this app are plain
+// <div> grids (not <form> elements), pressing Enter in a field previously
+// did nothing. Now it clicks the same "primary" button (💾 Save / Add /
+// Submit — always styled btn-teal/btn-primary, never the Cancel/Delete
+// buttons) that the nearest Save action-bar exposes, in every card, modal,
+// and page across the app — without needing a hand-written list of every
+// form's fields and button.
+// ============================================================
+function findEnterSubmitButton(target) {
+  // 1) Prefer an action-bar that lives inside the SAME card as the field —
+  //    handles pages with several independent forms (e.g. Add Income / Add
+  //    Expense side by side) so Enter only ever fires the right one.
+  let scope = target.closest('.card');
+  let bar = scope ? scope.querySelector('.action-bar') : null;
+  // 2) Otherwise fall back to the enclosing modal or page and use the last
+  //    action-bar there (covers forms whose action-bar sits outside/below
+  //    several cards, e.g. Admission, Salary).
+  if (!bar) {
+    scope = target.closest('.modal') || target.closest('.page');
+    if (scope) {
+      const bars = scope.querySelectorAll('.action-bar');
+      if (bars.length) bar = bars[bars.length - 1];
+    }
+  }
+  if (!bar) return null;
+  return Array.from(bar.querySelectorAll('button')).find(b =>
+    !b.disabled && b.offsetParent !== null &&
+    /\bbtn-teal\b|\bbtn-primary\b/.test(b.className) &&
+    !/\bbtn-outline\b|\bbtn-danger\b/.test(b.className)
+  ) || null;
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter') return;
+  const t = e.target;
+  if (!t || (t.tagName !== 'INPUT' && t.tagName !== 'SELECT')) return;
+  if (t.type === 'file' || t.type === 'checkbox' || t.type === 'radio') return;
+  if (t.dataset && t.dataset.noEnterSubmit === 'true') return;
+  const btn = findEnterSubmitButton(t);
+  if (btn) { e.preventDefault(); btn.click(); }
+});
+
+// ============================================================
+// CHANGE PASSWORD — available to every account (Admin, Manager, HR
+// Manager, Office, Teacher, Student) so anyone can replace a temporary
+// password Admin set for them with one only they know. Requires typing
+// the current password first (Firebase re-authenticates before allowing
+// updatePassword — this also doubles as a "confirm it's really you" step).
+// ============================================================
+function openChangePasswordModal() {
+  document.getElementById('cp-current').value = '';
+  document.getElementById('cp-new').value = '';
+  document.getElementById('cp-confirm').value = '';
+  document.getElementById('cp-alert').innerHTML = '';
+  document.getElementById('change-password-modal').classList.add('open');
+}
+window.openChangePasswordModal = openChangePasswordModal;
+
+async function submitChangePassword() {
+  const current = document.getElementById('cp-current').value;
+  const next = document.getElementById('cp-new').value;
+  const confirm = document.getElementById('cp-confirm').value;
+  const alertBox = document.getElementById('cp-alert');
+  alertBox.innerHTML = '';
+
+  if (!current) { alertBox.innerHTML = '<div class="alert alert-error">Enter your current password.</div>'; return; }
+  if (!next || next.length < 6) { alertBox.innerHTML = '<div class="alert alert-error">New password must be at least 6 characters.</div>'; return; }
+  if (next !== confirm) { alertBox.innerHTML = '<div class="alert alert-error">New password and confirmation don\'t match.</div>'; return; }
+  if (next === current) { alertBox.innerHTML = '<div class="alert alert-error">New password must be different from the current one.</div>'; return; }
+
+  const btn = document.getElementById('cp-save-btn');
+  btn.disabled = true; btn.textContent = '⏳ Updating…';
+  try {
+    const user = window.auth.currentUser;
+    if (!user) throw new Error('Not signed in.');
+    const cred = window.EmailAuthProvider.credential(user.email, current);
+    await window.reauthenticateWithCredential(user, cred);
+    await window.updatePassword(user, next);
+    closeModal('change-password-modal');
+    showAlert('global-alert', 'success', '✅ Password updated. Use your new password next time you sign in.');
+  } catch (err) {
+    console.error('Change password failed:', err);
+    alertBox.innerHTML = '<div class="alert alert-error">❌ ' + window.friendlyAuthError(err) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Update Password';
+  }
+}
+window.submitChangePassword = submitChangePassword;
 
 // ============================================================
 // NAVIGATION
