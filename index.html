@@ -125,6 +125,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: va
   font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 0.3px;
 }
 .role-badge.admin { background: #ede9fe; color: #5b21b6; }
+.role-badge.manager { background: #fef3c7; color: #92400e; }
+.role-badge.hrmanager { background: #cffafe; color: #0e7490; }
 .role-badge.office { background: #dbeafe; color: #1d4ed8; }
 .role-badge.teacher { background: #d1fae5; color: #065f46; }
 .role-badge.student { background: #fce7f3; color: #9d174d; }
@@ -179,6 +181,23 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(0,176,155,0.1); }
 input:disabled, select:disabled, textarea:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
 textarea { min-height: 80px; resize: vertical; }
+
+/* AUTOCOMPLETE DROPDOWN */
+.autocomplete-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15,31,61,0.12); max-height: 260px; overflow-y: auto;
+  z-index: 60;
+}
+.autocomplete-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 14px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover { background: var(--surface); }
+.autocomplete-item .ac-name { font-weight: 600; color: var(--text); }
+.autocomplete-item .ac-meta { font-size: 11.5px; color: var(--muted); }
+.autocomplete-empty { padding: 10px 14px; font-size: 12.5px; color: var(--muted); }
 
 /* BUTTONS */
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
@@ -242,6 +261,7 @@ tr:hover td { background: #f8fafd; }
 .chip-amber { background: #fef3c7; color: #b45309; }
 .chip-blue { background: #dbeafe; color: #1d4ed8; }
 .chip-purple { background: #ede9fe; color: #5b21b6; }
+.chip-teal { background: #ccfbf1; color: #0f766e; }
 
 /* ATTENDANCE */
 .att-student-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
@@ -294,6 +314,8 @@ tr:hover td { background: #f8fafd; }
 .ua-admin { background: #ede9fe; color: #5b21b6; }
 .ua-office { background: #dbeafe; color: #1d4ed8; }
 .ua-teacher { background: #d1fae5; color: #065f46; }
+.ua-manager { background: #fef3c7; color: #b45309; }
+.ua-hrmanager { background: #cffafe; color: #0e7490; }
 
 /* PRINT */
 @media print {
@@ -417,6 +439,19 @@ tr:hover td { background: #f8fafd; }
 .donut-center .lbl { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
 .donut-legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; }
 .donut-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+/* PLACEMENT REPORT */
+.pl-search-wrap { position: relative; }
+.pl-suggest-box {
+  display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 40;
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  margin-top: 4px; max-height: 260px; overflow-y: auto; box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+.pl-suggest-item { padding: 10px 14px; font-size: 13.5px; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+.pl-suggest-item:last-child { border-bottom: none; }
+.pl-suggest-item:hover { background: var(--surface); }
+.pl-info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px 20px; font-size: 13.5px; line-height: 1.8; }
+@media (max-width: 700px) { .pl-info-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -525,6 +560,14 @@ tr:hover td { background: #f8fafd; }
   <div class="nav-item" id="nav-settings" onclick="navTo('settings',this)">
     <span class="icon">⚙️</span> Configuration
   </div>
+
+  <div class="sidebar-section" id="hr-section">Human Resources</div>
+  <div class="nav-item" id="nav-placement" onclick="navTo('placement',this)">
+    <span class="icon">🧑‍💼</span> Job Placement Report
+  </div>
+  <div class="nav-item" id="nav-staff-attendance" onclick="navTo('staff-attendance',this)">
+    <span class="icon">🗓️</span> Staff Attendance
+  </div>
   </div>
 
   <!-- Student-only nav (shown instead of the staff nav when role === 'student') -->
@@ -560,7 +603,7 @@ tr:hover td { background: #f8fafd; }
   </div>
   <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
   <div id="readonly-banner" class="readonly-banner">
-    ✏️ You can enter new data freely. <strong>Editing or deleting existing records</strong> is restricted to Admin only.
+    ✏️ You can enter new data freely. <strong>Editing or deleting existing records</strong> is restricted to Admin/Manager only.
   </div>
 
   <div class="content">
@@ -640,12 +683,25 @@ tr:hover td { background: #f8fafd; }
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">👤</span> Personal Information</div></div>
         <div class="form-grid">
+          <div class="form-group">
+            <label>Student Roll No <span class="required">*</span></label>
+            <div style="display:flex;gap:8px;">
+              <input id="adm-rollno" type="text" placeholder="Enter roll no e.g. ST0001" style="flex:1;">
+              <button type="button" class="btn btn-outline" onclick="suggestAdmissionRollNo()" style="white-space:nowrap;padding:0 12px;">Suggest</button>
+            </div>
+            <p style="font-size:11px;color:var(--muted);margin-top:4px;">Type the roll number yourself, or tap "Suggest" to auto-fill the next number from the pattern set in Settings.</p>
+          </div>
           <div class="form-group"><label>First Name <span class="required">*</span></label><input id="adm-fname" type="text" placeholder="First name"></div>
           <div class="form-group"><label>Last Name <span class="required">*</span></label><input id="adm-lname" type="text" placeholder="Last name"></div>
           <div class="form-group"><label>Date of Birth <span class="required">*</span></label><input id="adm-dob" type="date"></div>
           <div class="form-group"><label>Gender <span class="required">*</span></label><select id="adm-gender"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select></div>
           <div class="form-group"><label>Mobile <span class="required">*</span></label><input id="adm-mobile" type="tel" placeholder="10-digit number"></div>
           <div class="form-group"><label>Email</label><input id="adm-email" type="email" placeholder="student@email.com"></div>
+          <div class="form-group">
+            <label>Student Photo</label>
+            <input id="adm-photo" type="file" accept="image/*" onchange="previewAdmissionPhoto(event)">
+            <div id="adm-photo-preview" style="margin-top:8px;"></div>
+          </div>
           <div class="form-group full"><label>Address <span class="required">*</span></label><textarea id="adm-address" placeholder="Full address"></textarea></div>
         </div>
       </div>
@@ -673,6 +729,7 @@ tr:hover td { background: #f8fafd; }
           <div class="form-group"><label>Guardian Mobile</label><input id="adm-gmobile" type="tel" placeholder="Guardian mobile"></div>
           <div class="form-group"><label>Qualification</label><input id="adm-qual" type="text" placeholder="Student qualification"></div>
           <div class="form-group"><label>ID Proof</label><select id="adm-idtype"><option value="">Select</option><option>Aadhaar Card</option><option>Driving Licence</option><option>Voter ID</option><option>Passport</option></select></div>
+          <div class="form-group"><label>ID Proof Number</label><input id="adm-idnumber" type="text" placeholder="Enter the selected ID's number"></div>
           <div class="form-group full"><label>Remarks</label><textarea id="adm-remarks" placeholder="Additional remarks..." style="min-height:60px;"></textarea></div>
         </div>
       </div>
@@ -702,8 +759,8 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Roll No</th><th>Name</th><th>Course</th><th>Type</th><th>Batch</th><th>Mode</th><th>Mobile</th><th>Fees Status</th><th>Login</th><th>Actions</th></tr></thead>
-            <tbody id="students-table-body"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px;">No students admitted yet</td></tr></tbody>
+            <thead><tr><th>Sl.No</th><th>Roll No</th><th>Name</th><th>Course</th><th>Type</th><th>Batch</th><th>Mode</th><th>Mobile</th><th>Fees Status</th><th>Login</th><th>Actions</th></tr></thead>
+            <tbody id="students-table-body"><tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px;">No students admitted yet</td></tr></tbody>
           </table>
 
         </div>
@@ -722,7 +779,11 @@ tr:hover td { background: #f8fafd; }
         <div class="card">
           <div class="card-header"><div class="card-title"><span class="icon">💳</span> Fee Collection</div></div>
           <div class="form-grid">
-            <div class="form-group"><label>Student Roll No / Name <span class="required">*</span></label><input id="fee-search" type="text" placeholder="Type roll no or name..." oninput="searchStudentForFee()"></div>
+            <div class="form-group" style="position:relative;">
+              <label>Student Roll No / Name <span class="required">*</span></label>
+              <input id="fee-search" type="text" placeholder="Type roll no or name..." autocomplete="off" oninput="onFeeSearchInput()" onfocus="onFeeSearchInput()" onblur="setTimeout(()=>{const d=document.getElementById('fee-search-dropdown'); if(d) d.style.display='none';},150)">
+              <div id="fee-search-dropdown" class="autocomplete-dropdown" style="display:none;"></div>
+            </div>
             <div class="form-group"><label>Payment Date <span class="required">*</span></label><input id="fee-date" type="date"></div>
           </div>
           <div id="fee-student-info" style="display:none;background:#f8fafd;border-radius:10px;padding:16px;margin-top:12px;">
@@ -743,6 +804,7 @@ tr:hover td { background: #f8fafd; }
               <div class="form-group"><label>Remarks</label><input id="fee-remarks" type="text" placeholder="Optional"></div>
             </div>
             <div class="action-bar" id="fee-actions">
+              <button class="btn btn-outline" onclick="clearFeeForm()">Clear</button>
               <button class="btn btn-teal" onclick="collectFee()" id="fee-collect-btn">💾 Record Payment</button>
               <button class="btn btn-outline" onclick="goToReceipt()">🖨️ Receipt</button>
             </div>
@@ -754,8 +816,8 @@ tr:hover td { background: #f8fafd; }
           <div class="card-header"><div class="card-title"><span class="icon">📋</span> Payment History</div></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Receipt No</th><th>Date</th><th>Student</th><th>Course</th><th>Amount</th><th>Mode</th><th>Action</th></tr></thead>
-              <tbody id="payments-table-body"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">No payments recorded yet</td></tr></tbody>
+              <thead><tr><th>Sl.No</th><th>Receipt No</th><th>Date</th><th>Student</th><th>Course</th><th>Amount</th><th>Mode</th><th>Action</th></tr></thead>
+              <tbody id="payments-table-body"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">No payments recorded yet</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -844,7 +906,10 @@ tr:hover td { background: #f8fafd; }
             <div class="form-group"><label>Amount (₹) <span class="required">*</span></label><input id="inc-amount" type="number" placeholder="0"></div>
             <div class="form-group full"><label>Remarks</label><input id="inc-remarks" type="text" placeholder="Optional"></div>
           </div>
-          <div class="action-bar"><button class="btn btn-teal" onclick="addIncome()">💾 Add Income</button></div>
+          <div class="action-bar">
+            <button class="btn btn-outline" onclick="clearIncomeForm()">Clear</button>
+            <button class="btn btn-teal" onclick="addIncome()">💾 Add Income</button>
+          </div>
         </div>
         <div class="card">
           <div class="card-header"><div class="card-title"><span class="icon">➖</span> Add Daily Expense</div></div>
@@ -858,7 +923,10 @@ tr:hover td { background: #f8fafd; }
             <div class="form-group"><label>Paid To</label><input id="exp-paidto" type="text" placeholder="Vendor / Person"></div>
             <div class="form-group full"><label>Remarks</label><input id="exp-remarks" type="text" placeholder="Optional"></div>
           </div>
-          <div class="action-bar"><button class="btn btn-teal" onclick="addExpense()">💾 Add Expense</button></div>
+          <div class="action-bar">
+            <button class="btn btn-outline" onclick="clearExpenseForm()">Clear</button>
+            <button class="btn btn-teal" onclick="addExpense()">💾 Add Expense</button>
+          </div>
         </div>
       </div>
       <div class="card">
@@ -893,13 +961,16 @@ tr:hover td { background: #f8fafd; }
           </div>
         </div>
         <input type="hidden" id="cert-roll">
-        <div class="action-bar"><button class="btn btn-teal" onclick="saveCertificate()">💾 Save Certificate Record</button></div>
+        <div class="action-bar">
+          <button class="btn btn-outline" onclick="clearCertificateForm()">Clear</button>
+          <button class="btn btn-teal" onclick="saveCertificate()">💾 Save Certificate Record</button>
+        </div>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">📋</span> Certificate Records</div></div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Roll No</th><th>Student</th><th>Course</th><th>Cert No</th><th>Given Date</th><th>Given By</th><th>Status</th><th>Edit</th></tr></thead>
-          <tbody id="cert-table-body"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">No certificate records yet</td></tr></tbody>
+          <thead><tr><th>Sl.No</th><th>Roll No</th><th>Student</th><th>Course</th><th>Cert No</th><th>Given Date</th><th>Given By</th><th>Status</th><th>Edit</th></tr></thead>
+          <tbody id="cert-table-body"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px;">No certificate records yet</td></tr></tbody>
         </table></div>
       </div>
     </div>
@@ -1034,6 +1105,7 @@ tr:hover td { background: #f8fafd; }
         <div id="att-rows"></div>
         <div class="action-bar" style="margin-top:16px;" id="att-actions">
           <button class="btn btn-outline" onclick="markAllPresent()">✓ All Present</button>
+          <button class="btn btn-outline" onclick="clearAttendanceMarks()">↺ Clear Marks</button>
           <button class="btn btn-teal" onclick="submitAttendance()" id="att-submit-btn">💾 Submit Attendance</button>
         </div>
       </div>
@@ -1046,9 +1118,8 @@ tr:hover td { background: #f8fafd; }
     <div id="page-absent-list" class="page">
       <div id="abs-alert"></div>
       <div class="card">
-        <div class="card-header"><div class="card-title"><span class="icon">🚫</span> Select Class</div></div>
         <div class="form-grid-3">
-          <div class="form-group"><label>Date</label><input id="abs-date" type="date"></div>
+          <div class="form-group"><label>Date</label><input id="abs-date" type="date" onchange="renderAbsentHistory()"></div>
           <div class="form-group"><label>Batch <span class="required">*</span></label>
             <select id="abs-batch" onchange="loadAbsentStudents()">
               <option value="">Select batch</option>
@@ -1067,7 +1138,7 @@ tr:hover td { background: #f8fafd; }
           <div style="font-size:12px;color:var(--muted);">Tick students who are absent and add a reason</div>
         </div>
         <div style="display:grid;grid-template-columns:50px 90px 1fr 130px 1fr;gap:8px;padding:8px 0;border-bottom:1.5px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">
-          <span>Absent</span><span>ID No.</span><span>Name</span><span>Mobile</span><span>Reason</span>
+          <span>Absent</span><span>ID No.</span><span>Name</span><span>Mobile</span><span id="abs-reason-header">Reason</span>
         </div>
         <div id="abs-rows"></div>
         <div class="action-bar" style="margin-top:16px;" id="abs-actions">
@@ -1078,11 +1149,17 @@ tr:hover td { background: #f8fafd; }
         <div class="card" style="text-align:center;padding:40px;"><div style="font-size:40px;margin-bottom:12px;">🎓</div><p style="color:var(--muted);">No students for this batch and course.</p></div>
       </div>
       <div class="card" id="abs-history-card">
-        <div class="card-header"><div class="card-title"><span class="icon">📜</span> Recent Absences</div></div>
+        <div class="card-header">
+          <div class="card-title"><span class="icon">📜</span> Recent Absences</div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);font-weight:500;cursor:pointer;">
+            <input type="checkbox" id="abs-only-selected-date" onchange="renderAbsentHistory()" style="width:15px;height:15px;">
+            Show only selected date
+          </label>
+        </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Date</th><th>ID No.</th><th>Name</th><th>Mobile</th><th>Course</th><th>Batch</th><th>Reason</th><th>Recorded By</th></tr></thead>
-            <tbody id="abs-history-body"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">No absences recorded yet</td></tr></tbody>
+            <thead><tr><th>Sl.No</th><th>Date</th><th>ID No.</th><th>Name</th><th>Mobile</th><th>Course</th><th>Batch</th><th>Reason</th><th>Recorded By</th></tr></thead>
+            <tbody id="abs-history-body"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px;">No absences recorded yet</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1097,6 +1174,7 @@ tr:hover td { background: #f8fafd; }
           <div class="form-group"><label>Batch</label><select id="ar-batch"><option value="">All Batches</option></select></div>
           <div class="form-group"><label>From Date</label><input id="ar-from" type="date"></div>
           <div class="form-group"><label>To Date</label><input id="ar-to" type="date"></div>
+          <div class="form-group"><label>Status</label><select id="ar-status"><option value="">All (Present + Absent)</option><option value="Present">Present Only</option><option value="Absent">Absent Only</option></select></div>
         </div>
         <div class="action-bar"><button class="btn btn-primary" onclick="generateAttReport()">Generate Report</button></div>
       </div>
@@ -1105,8 +1183,9 @@ tr:hover td { background: #f8fafd; }
           <div class="card-title"><span class="icon">📊</span> Attendance Report</div>
           <button class="btn btn-outline no-print" onclick="window.print()" style="padding:6px 14px;font-size:12px;">🖨️ Print</button>
         </div>
+        <div id="att-report-summary" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;"></div>
         <div class="table-wrap">
-          <table><thead><tr><th>Date</th><th>Roll No</th><th>Student</th><th>Course</th><th>Batch</th><th>Status</th><th>Topic</th><th>Software</th><th class="no-print">Action</th></tr></thead>
+          <table><thead><tr><th>Sl.No</th><th>Date</th><th>Roll No</th><th>Student</th><th>Course</th><th>Batch</th><th>Status</th><th>Topic</th><th>Software</th><th class="no-print">Action</th></tr></thead>
           <tbody id="att-report-body"></tbody></table>
         </div>
       </div>
@@ -1316,6 +1395,7 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div class="action-bar" style="margin-top:16px;">
           <button class="btn btn-outline" onclick="mkAutoGradeAll()">🎯 Auto Grade All</button>
+          <button class="btn btn-outline" onclick="clearMarksForm()">Clear</button>
           <button class="btn btn-teal" onclick="mkSubmitMarks()" id="marks-submit-btn">💾 Save Marks</button>
         </div>
       </div>
@@ -1590,6 +1670,7 @@ tr:hover td { background: #f8fafd; }
 
         <div class="action-bar">
           <button class="btn btn-outline" onclick="viewSalaryHistory()">📋 View History</button>
+          <button class="btn btn-outline" onclick="clearSalaryForm()">Clear</button>
           <button class="btn btn-teal" onclick="saveSalary()" id="sal-save-btn">💾 Save Salary Record</button>
         </div>
       </div>
@@ -1758,6 +1839,141 @@ tr:hover td { background: #f8fafd; }
       </div>
     </div>
 
+    <!-- ===== JOB PLACEMENT REPORT ===== -->
+    <div id="page-placement" class="page">
+      <div id="pl-alert"></div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">🔎</span> Find Student</div></div>
+        <div class="pl-search-wrap">
+          <div class="form-group full" style="margin-bottom:0;">
+            <label>Search by Name or Roll Number</label>
+            <input id="pl-search" type="text" placeholder="Type student name or roll no…" oninput="searchStudentForPlacement()" autocomplete="off">
+          </div>
+          <div class="pl-suggest-box" id="pl-suggest-box"></div>
+        </div>
+      </div>
+
+      <div class="card" id="pl-details-card" style="display:none;">
+        <div class="card-header"><div class="card-title"><span class="icon">🧾</span> Student Details</div></div>
+        <div id="pl-student-details" class="pl-info-grid"></div>
+
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+          <div class="card-title" style="margin-bottom:12px;"><span class="icon">📋</span> Exam Marks Details</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Subject</th><th>Exam</th><th>Theory</th><th>Practical</th><th>Total</th><th>Grade</th></tr></thead>
+            <tbody id="pl-marks-body"></tbody>
+          </table></div>
+        </div>
+
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+          <div class="card-title" style="margin-bottom:12px;"><span class="icon">🏢</span> Placement Details</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Company Name</label><input id="pl-company" type="text" placeholder="Company name"></div>
+            <div class="form-group"><label>Designation</label><input id="pl-designation" type="text" placeholder="Job title / role"></div>
+            <div class="form-group full"><label>Company Address / Area</label><input id="pl-address" type="text" placeholder="City / area, address"></div>
+            <div class="form-group"><label>Interview Date</label><input id="pl-interview-date" type="date"></div>
+            <div class="form-group"><label>Status</label>
+              <select id="pl-status" onchange="togglePlacementJoinDate()">
+                <option value="Pending">Pending</option>
+                <option value="Joined">Joined</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
+            <div class="form-group" id="pl-joindate-wrap" style="display:none;"><label>Date of Join (Company)</label><input id="pl-joindate" type="date"></div>
+          </div>
+          <div class="action-bar">
+            <button class="btn btn-outline" onclick="clearPlacementForm()">↩ Clear</button>
+            <button class="btn btn-teal" onclick="savePlacement()">💾 Save Placement Record</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">✅</span> Placed Students</div></div>
+        <div class="form-grid" style="margin-bottom:10px;">
+          <div class="form-group"><label>Filter by Month</label><input type="month" id="pl-filter-month" onchange="renderPlacementList()"></div>
+          <div class="form-group"><label>Filter by Area</label><input type="text" id="pl-filter-area" placeholder="e.g. Bangalore" oninput="renderPlacementList()"></div>
+          <div class="form-group"><label>&nbsp;</label><button class="btn btn-outline" onclick="clearPlacementFilters()">✕ Clear Filters</button></div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Roll</th><th>Student</th><th>Course</th><th>Company</th><th>Designation</th><th>Area</th><th>Interview Date</th><th>Status</th><th>Join Date</th><th>Action</th></tr></thead>
+          <tbody id="placement-table-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ===== STAFF ATTENDANCE ===== -->
+    <div id="page-staff-attendance" class="page">
+      <div id="sa-alert"></div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">🗓️</span> <span id="sa-month-label">Staff Attendance</span></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-outline" onclick="saChangeMonth(-1)" style="padding:6px 12px;font-size:13px;">‹ Prev</button>
+            <button class="btn btn-outline" onclick="saGoToday()" style="padding:6px 12px;font-size:13px;">Today</button>
+            <button class="btn btn-outline" onclick="saChangeMonth(1)" style="padding:6px 12px;font-size:13px;">Next ›</button>
+          </div>
+        </div>
+        <div class="cal-legend">
+          <span class="cal-legend-item"><span class="cal-dot cal-dot-green"></span> Working Day</span>
+          <span class="cal-legend-item"><span class="cal-dot cal-dot-red"></span> Sunday</span>
+          <span class="cal-legend-item"><span class="cal-dot cal-dot-orange"></span> Holiday</span>
+        </div>
+        <div class="cal-weekdays">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div class="cal-grid" id="sa-grid"></div>
+      </div>
+
+      <div class="card" id="sa-detail-card" style="display:none;">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">👤</span> <span id="sa-detail-date">Selected Date</span></div>
+          <span id="sa-detail-badge"></span>
+        </div>
+        <div id="sa-holiday-row" style="display:none;margin-bottom:16px;padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;font-size:13.5px;color:#9a3412;align-items:center;justify-content:space-between;">
+          <span id="sa-holiday-text"></span>
+          <button class="btn btn-outline" id="sa-remove-holiday-btn" onclick="saRemoveHoliday()" style="padding:4px 12px;font-size:12px;">Remove</button>
+        </div>
+        <div id="sa-mark-holiday-wrap" style="margin-bottom:16px;">
+          <button class="btn btn-outline" onclick="openHolidayModal()" style="padding:6px 14px;font-size:13px;">🟠 Mark This Date as Holiday</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Staff</th><th>Designation</th><th>Mark Attendance</th><th>Reason (if Absent)</th></tr></thead>
+          <tbody id="sa-staff-body"></tbody>
+        </table></div>
+
+        <div id="sa-staff-stat-card" style="display:none;margin-top:18px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;">
+          <div style="font-weight:700;font-size:14.5px;margin-bottom:12px;" id="sa-staff-stat-title">Staff — Month Overview</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;">
+            <div style="background:#fff;border-radius:10px;padding:12px 14px;text-align:center;">
+              <div style="font-size:22px;font-weight:800;color:var(--green);" id="sa-stat-working">0</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">Working Days (This Month)</div>
+            </div>
+            <div style="background:#fff;border-radius:10px;padding:12px 14px;text-align:center;">
+              <div style="font-size:22px;font-weight:800;color:var(--green);" id="sa-stat-present">0</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">Present Days</div>
+            </div>
+            <div style="background:#fff;border-radius:10px;padding:12px 14px;text-align:center;">
+              <div style="font-size:22px;font-weight:800;color:var(--red);" id="sa-stat-leave">0</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">Leave (Absent) Days</div>
+            </div>
+            <div style="background:#fff;border-radius:10px;padding:12px 14px;text-align:center;">
+              <div style="font-size:22px;font-weight:800;" id="sa-stat-pct">0%</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">Attendance %</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">📊</span> Monthly Attendance Summary</div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Staff</th><th>Designation</th><th>Total Working Days</th><th>Present Days</th><th>Leave (Absent) Days</th><th>Attendance %</th></tr></thead>
+          <tbody id="sa-summary-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </main>
 
@@ -1791,6 +2007,8 @@ tr:hover td { background: #f8fafd; }
         <select id="uf-role" onchange="toggleTeacherFields()">
           <option value="office">Office Staff</option>
           <option value="teacher">Teacher</option>
+          <option value="manager">Manager</option>
+          <option value="hrmanager">HR Manager</option>
           <option value="admin">Admin</option>
           <option value="student">Student</option>
         </select>
@@ -1866,7 +2084,7 @@ tr:hover td { background: #f8fafd; }
       </div>
       <div class="form-group"><label>Total Fees (₹)</label><input id="es-totalfees" type="number"></div>
       <div class="form-group"><label>Concession (₹)</label><input id="es-concession" type="number"></div>
-      <div class="form-group"><label>Status</label><select id="es-status"><option>Active</option><option>Completed</option><option>Dropped</option></select></div>
+      <div class="form-group"><label>Status</label><select id="es-status"><option>Active</option><option>Inactive</option><option>Completed</option><option>Dropped</option></select></div>
       <div class="form-group"><label>Remarks</label><input id="es-remarks" type="text"></div>
     </div>
     <input type="hidden" id="es-roll">
@@ -1874,6 +2092,40 @@ tr:hover td { background: #f8fafd; }
       <button class="btn btn-danger" onclick="deleteStudent()" style="margin-right:auto;">🗑️ Delete</button>
       <button class="btn btn-outline" onclick="closeModal('edit-student-modal')">Cancel</button>
       <button class="btn btn-teal" onclick="saveStudentEdit()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: activate/deactivate student with reason -->
+<div class="modal-backdrop" id="status-modal">
+  <div class="modal" style="max-width:460px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 id="status-modal-title">Change Student Status</h3>
+      <button class="btn btn-outline" onclick="closeModal('status-modal')" style="padding:4px 12px;">✕</button>
+    </div>
+    <div id="status-modal-alert"></div>
+    <div class="form-group full">
+      <label id="status-reason-label">Reason</label>
+      <textarea id="status-reason" placeholder="e.g. Student discontinued the course / on long leave" style="min-height:80px;"></textarea>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-outline" onclick="closeModal('status-modal')">Cancel</button>
+      <button class="btn btn-teal" onclick="confirmStatusChange()" id="status-confirm-btn">💾 Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: generic Yes / No confirmation for any critical action -->
+<div class="modal-backdrop" id="confirm-modal">
+  <div class="modal" style="max-width:420px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 id="confirm-modal-title">Please Confirm</h3>
+      <button class="btn btn-outline" onclick="closeConfirmModal(false)" style="padding:4px 12px;">✕</button>
+    </div>
+    <p id="confirm-modal-message" style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:22px;white-space:pre-line;"></p>
+    <div class="action-bar">
+      <button class="btn btn-outline" onclick="closeConfirmModal(false)">No, Cancel</button>
+      <button class="btn btn-teal" id="confirm-modal-yes-btn" onclick="closeConfirmModal(true)">Yes, Proceed</button>
     </div>
   </div>
 </div>
@@ -2058,6 +2310,8 @@ window.absences = [];
 window.holidays = []; // {id, date:'YYYY-MM-DD', name, addedBy, addedAt}
 window.notifications = []; // {id, title, message, audience:'all'|courseName, date, createdBy, createdAt}
 window.resources = [];     // {id, title, type:'ebook'|'video', course, url, addedBy, addedAt}
+window.placements = [];    // {id, rollNo, studentName, course, company, designation, address, interviewDate, status:'Pending'|'Joined'|'Rejected', joinDate, enteredBy, enteredAt}
+window.staffAttendance = []; // {id, date:'YYYY-MM-DD', staffId, staffName, status:'Present'|'Absent', reason, markedBy, markedAt}
 window.masterData = {
   courses: [
     {id:'c1',name:'Tally with GST',duration:3,fee:3500},
@@ -2127,7 +2381,8 @@ DB.set = async (k, v) => {
     marks:'marks', salaries:'salaries', incomes:'incomes',
     expenses:'expenses', certificates:'certificates', absences:'absences',
     master_courses:'master_courses', master_batches:'master_batches', master_staff:'master_staff',
-    holidays:'holidays', notifications:'notifications', resources:'resources'
+    holidays:'holidays', notifications:'notifications', resources:'resources',
+    placements:'placements', staffAttendance:'staffAttendance'
   };
   if (colMap[k]) await DB.saveArray(colMap[k], v);
 };
@@ -2158,7 +2413,7 @@ function startListeners() {
   // Office/Admin only collections — Teacher's/Student's rules deny read
   // anyway, so we simply don't attach these listeners to avoid noisy
   // denied-read errors.
-  if (role === 'admin' || role === 'office') {
+  if (role === 'admin' || role === 'office' || role === 'manager' || role === 'hrmanager') {
     listenCol('payments', data => { window.payments = data; refreshDashboard(); });
     listenCol('incomes', data => { window.incomes = data; if (document.getElementById('page-finance').classList.contains('active')) renderFinance(); });
     listenCol('expenses', data => { window.expenses = data; if (document.getElementById('page-finance').classList.contains('active')) renderFinance(); });
@@ -2207,7 +2462,7 @@ function startListeners() {
     window.marks = data;
     if (document.getElementById('page-my-profile') && document.getElementById('page-my-profile').classList.contains('active')) loadMyProfile();
   }, isStudentRole ? [where('rollNo', '==', currentUser.rollNo)] : []);
-  if (role === 'admin') {
+  if (role === 'admin' || role === 'manager' || role === 'hrmanager') {
     listenCol('salaries', data => { window.salaries = data; });
   }
   // Staff-only — course/batch dropdowns aren't part of the student portal.
@@ -2215,13 +2470,33 @@ function startListeners() {
     listenCol('master_courses', data => { if (data.length) { window.masterData.courses = data; populateCourseBatchSelects(); } });
     listenCol('master_batches', data => { if (data.length) { window.masterData.batches = data; populateCourseBatchSelects(); } });
   }
-  if (role === 'admin') {
-    listenCol('master_staff', data => { window.masterData.staff = data; });
-    // Admin only — full user directory for User Management
+  if (role === 'admin' || role === 'manager' || role === 'hrmanager') {
+    // Master Data → Staff List is the single source of truth for staff
+    // details app-wide (Salary already used it; Staff Attendance now uses
+    // it too, instead of the login/user directory).
+    listenCol('master_staff', data => {
+      window.masterData.staff = data;
+      if (document.getElementById('page-staff-attendance') && document.getElementById('page-staff-attendance').classList.contains('active')) { renderSaCalendar(); renderSaSummary(); if (saState.selectedDate) renderSaStaffTable(saState.selectedDate); }
+    });
+    // Admin/Manager/HR Manager only — full user directory for User Management.
     listenCol('users', data => {
       if (data.length) {
         _cachedUsers = data;
         if (document.getElementById('page-users') && document.getElementById('page-users').classList.contains('active')) renderUsersPage();
+      }
+    });
+    // Job Placement Report data
+    listenCol('placements', data => {
+      window.placements = data;
+      if (document.getElementById('page-placement') && document.getElementById('page-placement').classList.contains('active')) renderPlacementList();
+    });
+    // Staff Attendance calendar data
+    listenCol('staffAttendance', data => {
+      window.staffAttendance = data;
+      if (document.getElementById('page-staff-attendance') && document.getElementById('page-staff-attendance').classList.contains('active')) {
+        renderSaCalendar();
+        renderSaSummary();
+        if (saState.selectedDate) renderSaStaffTable(saState.selectedDate);
       }
     });
   }
@@ -2295,7 +2570,7 @@ function resetAppState() {
   stopAllListeners();
   _cachedUsers = null;
   currentUser = null;
-  window.students=[]; window.payments=[]; window.attendance=[]; window.marks=[]; window.salaries=[]; window.incomes=[]; window.expenses=[]; window.certificates=[]; window.absences=[]; window.holidays=[]; window.notifications=[]; window.resources=[];
+  window.students=[]; window.payments=[]; window.attendance=[]; window.marks=[]; window.salaries=[]; window.incomes=[]; window.expenses=[]; window.certificates=[]; window.absences=[]; window.holidays=[]; window.notifications=[]; window.resources=[]; window.placements=[]; window.staffAttendance=[];
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('login-screen').style.display = 'flex';
   // A sign-out triggered *because* login failed (bad profile, permission
@@ -2334,6 +2609,14 @@ onAuthStateChanged(auth, async (user) => {
     }
     if (profile.active === false) {
       errEl.textContent = '❌ This account has been deactivated. Contact your Admin.';
+      errEl.style.display = 'block';
+      window._preserveLoginError = true;
+      await signOut(auth);
+      return;
+    }
+
+    if (!PERMISSIONS[profile.role]) {
+      errEl.textContent = '❌ Your account role ("' + (profile.role || 'not set') + '") is not recognized. Contact your Admin to fix it in User Management.';
       errEl.style.display = 'block';
       window._preserveLoginError = true;
       await signOut(auth);
@@ -2401,9 +2684,16 @@ window.fbSignOut = signOut;
 
 // Role permissions
 // canEnter = can submit new records (admission, payments, attendance)
-// canModify = can edit or delete existing records (admin only)
+// canModify = can edit or delete existing records (admin/manager)
 const PERMISSIONS = {
-  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources'], canEnter: true, canModify: true },
+  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance'], canEnter: true, canModify: true },
+  // Manager: sees and can enter/edit/delete everything an Admin can, EXCEPT
+  // the Student Admission and Fee Collection processes, which are view-only
+  // (enforced via canManageAdmissions() / canManageFees() below, not here).
+  manager: { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance'], canEnter: true, canModify: true },
+  // HR Manager: full access, identical to Admin — plus the HR-specific
+  // Job Placement Report and Staff Attendance sections.
+  hrmanager: { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance'], canEnter: true, canModify: true },
   office:  { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','absent-list','student-dashboard','calendar','resources'],                                                                               canEnter: true, canModify: false },
   teacher: { pages: ['dashboard','attendance','absent-list','attendance-report','student-dashboard','marks','calendar','resources'],                                                                              canEnter: true, canModify: false },
   student: { pages: ['my-dashboard','my-profile'], canEnter: false, canModify: false }
@@ -2414,10 +2704,29 @@ function canAccess(page) {
   return PERMISSIONS[currentUser.role].pages.includes(page);
 }
 function isAdmin() { return currentUser && currentUser.role === 'admin'; }
+// isAdminLevel: Admin and Manager share full back-office visibility
+// (Users, Master Data, Salary, Import, full dashboard stats) — Manager is
+// only restricted from the Admission / Fees entry processes specifically.
+function isAdminLevel() { return currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'hrmanager'); }
+// HR Manager has the exact same full access as Admin (per its design), so
+// every "admin-equivalent" check below includes it alongside 'admin'.
+function isHR() { return currentUser && currentUser.role === 'hrmanager'; }
 // canEdit kept as alias so existing call-sites still work — means "can enter new data"
 function canEdit() { return currentUser && PERMISSIONS[currentUser.role].canEnter; }
-// canModify = edit / delete existing records (admin only)
+// canModify = edit / delete existing records (admin / manager)
 function canModify() { return currentUser && PERMISSIONS[currentUser.role].canModify; }
+// Student records specifically: Admin AND Office Staff can edit, delete, and
+// activate/deactivate students, even though canModify() (used for Settings,
+// Salary, Master Data, Users, Attendance edits, etc.) covers Admin/Manager.
+// Manager is intentionally left out here — Student Admission stays view-only.
+function canModifyStudents() { return currentUser && (currentUser.role === 'admin' || currentUser.role === 'office' || currentUser.role === 'hrmanager'); }
+// Gates the actual admission-entry and fee-collection actions. Same roles as
+// canModifyStudents() today, but named separately since it governs entering
+// NEW admission/fee records, not editing existing student data — Manager is
+// view-only for both processes per the account's design. HR Manager has
+// full Admin-equivalent access, so it's included here too.
+function canManageAdmissions() { return currentUser && (currentUser.role === 'admin' || currentUser.role === 'office' || currentUser.role === 'hrmanager'); }
+function canManageFees() { return currentUser && (currentUser.role === 'admin' || currentUser.role === 'office' || currentUser.role === 'hrmanager'); }
 
 function applyRoleUI() {
   const role = currentUser.role;
@@ -2442,7 +2751,7 @@ function applyRoleUI() {
   if (role === 'student') return;
 
   // Nav items — lock inaccessible pages
-  const allPages = ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources'];
+  const allPages = ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance'];
   allPages.forEach(p => {
     const nav = document.getElementById('nav-' + p);
     if (!nav) return;
@@ -2459,15 +2768,17 @@ function applyRoleUI() {
     }
   });
 
-  // Admin-only section visibility
-  document.getElementById('admin-section').style.display = isAdmin() ? '' : 'none';
-  document.getElementById('nav-users').style.display = isAdmin() ? '' : 'none';
-  if (document.getElementById('nav-import-students')) document.getElementById('nav-import-students').style.display = isAdmin() ? '' : 'none';
-  document.getElementById('nav-master').style.display = isAdmin() ? '' : 'none';
-  document.getElementById('nav-salary').style.display = isAdmin() ? '' : 'none';
-  // Dashboard split: admin vs restricted
-  document.getElementById('admin-stats-row').style.display = isAdmin() ? '' : 'none';
-  document.getElementById('restricted-stats-row').style.display = isAdmin() ? 'none' : '';
+  // Admin-only section visibility (Admin + Manager share full back-office access)
+  document.getElementById('admin-section').style.display = isAdminLevel() ? '' : 'none';
+  // HR section (Job Placement Report + Staff Attendance) — Admin, Manager, HR Manager
+  document.getElementById('hr-section').style.display = (perm.pages.includes('placement') || perm.pages.includes('staff-attendance')) ? '' : 'none';
+  document.getElementById('nav-users').style.display = isAdminLevel() ? '' : 'none';
+  if (document.getElementById('nav-import-students')) document.getElementById('nav-import-students').style.display = isAdminLevel() ? '' : 'none';
+  document.getElementById('nav-master').style.display = isAdminLevel() ? '' : 'none';
+  document.getElementById('nav-salary').style.display = isAdminLevel() ? '' : 'none';
+  // Dashboard split: admin/manager vs restricted
+  document.getElementById('admin-stats-row').style.display = isAdminLevel() ? '' : 'none';
+  document.getElementById('restricted-stats-row').style.display = isAdminLevel() ? 'none' : '';
 
   // Show edit-restriction notice for non-admin users
   const banner = document.getElementById('readonly-banner');
@@ -2500,7 +2811,8 @@ function navTo(page, el) {
     marks:'Marks Entry', master:'Master Data', salary:'Staff Salary',
     users:'User Management', 'import-students':'Import Students from Excel',
     settings:'Configuration', calendar:'Calendar', resources:'Study Materials',
-    'my-dashboard':'My Dashboard', 'my-profile':'My Profile'
+    'my-dashboard':'My Dashboard', 'my-profile':'My Profile',
+    placement:'Job Placement Report', 'staff-attendance':'Staff Attendance'
   };
   document.getElementById('page-title').textContent = titles[page] || page;
   if (['admission','students','attendance','absent-list','attendance-report','marks','calendar'].includes(page)) populateCourseBatchSelects();
@@ -2513,7 +2825,47 @@ function navTo(page, el) {
   if (page === 'users') renderUsersPage();
   if (page === 'master') renderMasterData();
   if (page === 'salary') initSalaryPage();
-  if (page === 'absent-list') { document.getElementById('abs-date').value = todayStr(); renderAbsentHistory(); }
+  if (page === 'placement') { clearPlacementForm(); renderPlacementList(); }
+  if (page === 'staff-attendance') renderStaffAttendancePage();
+  if (page === 'admission') {
+    const btn = document.getElementById('adm-submit-btn');
+    const readOnly = !canManageAdmissions();
+    if (btn) { btn.disabled = readOnly; btn.style.opacity = readOnly ? '0.5' : ''; btn.style.cursor = readOnly ? 'not-allowed' : ''; }
+    let notice = document.getElementById('adm-viewonly-notice');
+    if (readOnly && !notice) {
+      notice = document.createElement('div');
+      notice.id = 'adm-viewonly-notice';
+      notice.className = 'alert alert-info';
+      notice.textContent = 'ℹ️ Your account has view-only access to Student Admission.';
+      document.getElementById('admission-alert').parentNode.insertBefore(notice, document.getElementById('admission-alert').nextSibling);
+    } else if (!readOnly && notice) {
+      notice.remove();
+    }
+  }
+  if (page === 'fees') {
+    const btn = document.getElementById('fee-collect-btn');
+    const readOnly = !canManageFees();
+    if (btn) { btn.disabled = readOnly; btn.style.opacity = readOnly ? '0.5' : ''; btn.style.cursor = readOnly ? 'not-allowed' : ''; }
+    let notice = document.getElementById('fee-viewonly-notice');
+    if (readOnly && !notice) {
+      notice = document.createElement('div');
+      notice.id = 'fee-viewonly-notice';
+      notice.className = 'alert alert-info';
+      notice.textContent = 'ℹ️ Your account has view-only access to the Fee process.';
+      document.getElementById('fees-alert').parentNode.insertBefore(notice, document.getElementById('fees-alert').nextSibling);
+    } else if (!readOnly && notice) {
+      notice.remove();
+    }
+  }
+  if (page === 'absent-list') {
+    document.getElementById('abs-date').value = todayStr();
+    const reasonRequired = currentUser && (currentUser.role === 'admin' || currentUser.role === 'office');
+    const reasonHeader = document.getElementById('abs-reason-header');
+    if (reasonHeader) reasonHeader.innerHTML = reasonRequired ? 'Reason <span class="required">*</span>' : 'Reason';
+    const onlySelChk = document.getElementById('abs-only-selected-date');
+    if (onlySelChk) onlySelChk.checked = false;
+    renderAbsentHistory();
+  }
   if (page === 'import-students') resetImport();
   if (page === 'calendar') renderCalendar();
   if (page === 'resources') renderResourcesPage();
@@ -2565,7 +2917,7 @@ let cfg = _readCfgFromStorage();
 // SETTINGS
 // ============================================================
 function saveSettings() {
-  if (!canModify()) { showAlert('global-alert','error','❌ Only Admin can change system settings.'); return; }
+  if (!canModify()) { showAlert('global-alert','error','❌ Only Admin/Manager can change system settings.'); return; }
   cfg = {
     ...DB.cfg(),
     instName:    document.getElementById('gs-inst-name').value.trim()    || 'Explore Learning',
@@ -2576,7 +2928,7 @@ function saveSettings() {
 }
 
 function saveIdPattern() {
-  if (!canModify()) { showAlert('global-alert','error','❌ Only Admin can change settings.'); return; }
+  if (!canModify()) { showAlert('global-alert','error','❌ Only Admin/Manager can change settings.'); return; }
   const prefix = (document.getElementById('cfg-id-prefix').value || '').trim().toUpperCase();
   const start  = parseInt(document.getElementById('cfg-id-start').value) || 1;
   if (!prefix) { showAlert('global-alert','error','❌ Please enter a prefix (e.g. EL26).'); return; }
@@ -2853,15 +3205,15 @@ async function confirmImport() {
 async function renderUsersPage() {
   const users = await getUsers();
   const container = document.getElementById('users-list');
-  const roleOrder = ['admin','office','teacher'];
+  const roleOrder = ['admin','hrmanager','manager','office','teacher'];
   // Student logins are managed from Student Records (Create Login), not
-  // this staff-focused directory — keep this list to just the three roles.
+  // this staff-focused directory — keep this list to just the staff roles.
   const sorted = [...users].filter(u => u.role !== 'student').sort((a,b)=>roleOrder.indexOf(a.role)-roleOrder.indexOf(b.role));
   let html = '';
   let lastRole = '';
   sorted.forEach((u) => {
     if (u.role !== lastRole) {
-      const roleLabels = {admin:'👑 Administrators',office:'🏢 Office Staff',teacher:'👩‍🏫 Teachers'};
+      const roleLabels = {admin:'👑 Administrators',hrmanager:'🧑‍💼 HR Managers',manager:'🗂️ Managers',office:'🏢 Office Staff',teacher:'👩‍🏫 Teachers'};
       html += '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:14px 0 6px;border-top:' + (lastRole?'1px solid var(--border)':'none') + '">' + (roleLabels[u.role]||u.role) + '</div>';
       lastRole = u.role;
     }
@@ -2878,7 +3230,7 @@ async function renderUsersPage() {
       + '<div style="font-size:12px;color:var(--muted);margin-top:2px;">'+(u.dept||'—')+(u.mobile?' · '+u.mobile:'')+'</div>'
       + (courseTags ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">'+courseTags+'</div>' : '')
       + '</div>'
-      + '<span class="chip chip-'+(u.role==='admin'?'purple':u.role==='office'?'blue':'green')+'">'+(u.role.charAt(0).toUpperCase()+u.role.slice(1))+'</span>'
+      + '<span class="chip chip-'+(u.role==='admin'?'purple':u.role==='hrmanager'?'teal':u.role==='manager'?'amber':u.role==='office'?'blue':'green')+'">'+(u.role==='hrmanager'?'HR Manager':(u.role.charAt(0).toUpperCase()+u.role.slice(1)))+'</span>'
       + '<button class="btn btn-outline" onclick="openEditUserModal(\''+u.id+'\')" style="padding:5px 12px;font-size:12px;">Edit</button>'
       + (currentUser && u.uid !== currentUser.uid ? '<button class="btn btn-outline" onclick="removeUser(\''+u.id+'\')" style="padding:5px 12px;font-size:12px;color:var(--red);border-color:var(--red);">Remove</button>' : '')
       + '</div>';
@@ -2983,6 +3335,17 @@ async function saveUser() {
     ? [...document.querySelectorAll('#uf-courses-check input:checked')].map(cb => cb.value)
     : [];
 
+  const isEdit = !!editDocId;
+  confirmAction(
+    isEdit
+      ? `Save changes to ${name}'s account?`
+      : `Create a new ${role} account for ${name} (${email})? A temporary password will be set and should be shared with them.`,
+    () => saveUserConfirmed({ name, email, password, role, dept, mobile, rollNo, editDocId, linkedStudent, courses, alertBox, saveBtn }),
+    { title: isEdit ? 'Save User Changes' : 'Create New User', confirmLabel: isEdit ? 'Yes, Save Changes' : 'Yes, Create Account' }
+  );
+}
+
+async function saveUserConfirmed({ name, email, password, role, dept, mobile, rollNo, editDocId, linkedStudent, courses, alertBox, saveBtn }) {
   saveBtn.disabled = true;
 
   if (editDocId) {
@@ -3072,7 +3435,14 @@ async function removeUser(docId) {
   const u = users.find(x => x.id === docId);
   if (!u) return;
   if (currentUser && u.uid === currentUser.uid) { alert('You cannot deactivate your own account.'); return; }
-  if (!confirm('Deactivate "' + u.name + '"? They will no longer be able to sign in. (Their historical records are kept.)')) return;
+  confirmAction(
+    'Deactivate "' + u.name + '"? They will no longer be able to sign in. (Their historical records are kept.)',
+    () => removeUserConfirmed(docId, u),
+    { title: 'Deactivate User', confirmLabel: 'Yes, Deactivate', danger: true }
+  );
+}
+
+async function removeUserConfirmed(docId, u) {
   try {
     await DB.updateDoc('users', docId, { active: false });
 
@@ -3101,13 +3471,16 @@ async function removeUser(docId) {
 // ADMISSION
 // ============================================================
 async function submitAdmission() {
+  if (!canManageAdmissions()) { showAlert('admission-alert','error','❌ Your account has view-only access to Student Admission.'); return; }
   const fields = {
+    rollNo: document.getElementById('adm-rollno').value.trim(),
     fname: document.getElementById('adm-fname').value.trim(),
     lname: document.getElementById('adm-lname').value.trim(),
     dob: document.getElementById('adm-dob').value,
     gender: document.getElementById('adm-gender').value,
     mobile: document.getElementById('adm-mobile').value.trim(),
     email: document.getElementById('adm-email').value.trim(),
+    photo: admPhotoData || '',
     address: document.getElementById('adm-address').value.trim(),
     course: document.getElementById('adm-course').value,
     batch: document.getElementById('adm-batch').value,
@@ -3122,19 +3495,31 @@ async function submitAdmission() {
     guardianMobile: document.getElementById('adm-gmobile').value.trim(),
     qual: document.getElementById('adm-qual').value.trim(),
     idType: document.getElementById('adm-idtype').value,
+    idNumber: document.getElementById('adm-idnumber').value.trim(),
     remarks: document.getElementById('adm-remarks').value.trim()
   };
-  if (!fields.fname || !fields.lname || !fields.mobile || !fields.course || !fields.batch) {
-    showAlert('admission-alert','error','❌ Fill all required fields (name, mobile, course, batch).'); return;
+  if (!fields.rollNo || !fields.fname || !fields.lname || !fields.mobile || !fields.course || !fields.batch) {
+    showAlert('admission-alert','error','❌ Fill all required fields (roll no, name, mobile, course, batch).'); return;
   }
   if (!/^\d{10}$/.test(fields.mobile)) { showAlert('admission-alert','error','❌ Mobile must be 10 digits.'); return; }
+  if (students.some(s => (s.rollNo||'').toLowerCase() === fields.rollNo.toLowerCase())) {
+    showAlert('admission-alert','error','❌ Roll No "' + fields.rollNo + '" is already used by another student. Please enter a different roll no.'); return;
+  }
 
+  confirmAction(
+    `Save admission for ${fields.fname} ${fields.lname} (Roll No: ${fields.rollNo}, Course: ${fields.course})? Please double-check the details before confirming.`,
+    () => finalizeAdmission(fields),
+    { title: 'Confirm Admission', confirmLabel: 'Yes, Save Student' }
+  );
+}
+
+async function finalizeAdmission(fields) {
   const btn = document.getElementById('adm-submit-btn');
   const txt = document.getElementById('adm-btn-text');
   btn.disabled = true; txt.innerHTML = '<span class="loader"></span> Saving...';
 
-  const roll = 'ST' + String(students.length + 1).padStart(4,'0');
-  const newStudent = { ...fields, rollNo: roll, status:'Active', hasLogin:false, createdAt: new Date().toISOString(), addedBy: currentUser.email };
+  const roll = fields.rollNo;
+  const newStudent = { ...fields, status:'Active', hasLogin:false, createdAt: new Date().toISOString(), addedBy: currentUser.name };
   students.push(newStudent);
   await DB.set('students', students);
 
@@ -3205,7 +3590,14 @@ async function createLoginForExistingStudent(rollNo) {
   const s = students.find(st => st.rollNo === rollNo);
   if (!s) return;
   if (!s.email) { alert('This student has no email on file. Edit the student record to add one first.'); return; }
-  if (!confirm(`Create a portal login for ${s.fname} ${s.lname}?\n\nUsername: ${s.email}\nPassword: ${s.mobile}`)) return;
+  confirmAction(
+    `Create a portal login for ${s.fname} ${s.lname}?\n\nUsername: ${s.email}\nPassword: ${s.mobile}`,
+    () => createLoginForExistingStudentConfirmed(s),
+    { title: 'Create Student Login', confirmLabel: 'Yes, Create Login' }
+  );
+}
+
+async function createLoginForExistingStudentConfirmed(s) {
   const result = await createStudentLogin(s);
   if (result.success) {
     showAlert('students-alert','success',`✅ Login created for ${s.fname} ${s.lname}. Username: ${s.email}, Password: ${s.mobile}.`);
@@ -3217,10 +3609,45 @@ async function createLoginForExistingStudent(rollNo) {
 window.createLoginForExistingStudent = createLoginForExistingStudent;
 
 function clearAdmissionForm() {
-  ['adm-fname','adm-lname','adm-dob','adm-email','adm-address','adm-mobile','adm-totalfees','adm-guardian','adm-gmobile','adm-qual','adm-remarks','adm-duedate'].forEach(id => document.getElementById(id).value='');
+  ['adm-rollno','adm-fname','adm-lname','adm-dob','adm-email','adm-address','adm-mobile','adm-totalfees','adm-guardian','adm-gmobile','adm-qual','adm-idnumber','adm-remarks','adm-duedate'].forEach(id => document.getElementById(id).value='');
   ['adm-gender','adm-course','adm-batch','adm-idtype','adm-coursetype','adm-mode'].forEach(id => document.getElementById(id).selectedIndex=0);
   document.getElementById('adm-date').value = todayStr();
   document.getElementById('adm-concession').value = '0';
+  const photoInput = document.getElementById('adm-photo');
+  if (photoInput) photoInput.value = '';
+  admPhotoData = '';
+  const preview = document.getElementById('adm-photo-preview');
+  if (preview) preview.innerHTML = '';
+}
+
+// Reads the chosen photo file and stores it as a base64 data URL (admPhotoData)
+// so it can be saved with the student record on submit.
+let admPhotoData = '';
+function previewAdmissionPhoto(event) {
+  const file = event.target.files && event.target.files[0];
+  const preview = document.getElementById('adm-photo-preview');
+  if (!file) { admPhotoData = ''; preview.innerHTML = ''; return; }
+  if (!file.type.startsWith('image/')) {
+    alert('Please select a valid image file.'); event.target.value = ''; admPhotoData = ''; preview.innerHTML = ''; return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    alert('Photo must be smaller than 2MB.'); event.target.value = ''; admPhotoData = ''; preview.innerHTML = ''; return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    admPhotoData = e.target.result;
+    preview.innerHTML = '<img src="' + admPhotoData + '" style="width:84px;height:84px;border-radius:10px;object-fit:cover;border:1px solid var(--border);">';
+  };
+  reader.readAsDataURL(file);
+}
+
+// Fills the Roll No field with the next ID from the pattern configured in
+// Settings, if one has been set. The field remains fully editable — this is
+// just a convenience, not an automatic/forced roll number.
+function suggestAdmissionRollNo() {
+  const next = getNextAdmissionId();
+  if (!next) { alert('No Admission ID Pattern is set in Settings. Please type the roll no manually.'); return; }
+  document.getElementById('adm-rollno').value = next;
 }
 
 // ============================================================
@@ -3230,24 +3657,31 @@ function renderStudentsTable(filtered) {
   const list = filtered !== undefined ? filtered : students;
   const tbody = document.getElementById('students-table-body');
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px;">No students found</td></tr>'; return;
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px;">No students found</td></tr>'; return;
   }
-  tbody.innerHTML = list.map(s => {
+  tbody.innerHTML = list.map((s, slIdx) => {
     const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
     const net = parseFloat(s.totalFees||0)-parseFloat(s.concession||0);
     const bal = net-paid;
     const status = bal<=0 ? '<span class="chip chip-green">Paid</span>' :
                    paid>0 ? '<span class="chip chip-amber">Partial</span>' :
                    '<span class="chip chip-red">Pending</span>';
-    const editBtn = canModify() ? `<button class="btn btn-outline" onclick="openEditStudent('${s.rollNo}')" style="padding:4px 10px;font-size:12px;color:var(--amber);border-color:var(--amber);">✏️ Edit</button>` : '';
+    const editBtn = canModifyStudents() ? `<button class="btn btn-outline" onclick="openEditStudent('${s.rollNo}')" style="padding:4px 10px;font-size:12px;color:var(--amber);border-color:var(--amber);">✏️ Edit</button>` : '';
+    const isInactive = s.status === 'Inactive';
+    const statusBtn = canModifyStudents()
+      ? (isInactive
+          ? `<button class="btn btn-outline" onclick="openStatusChangeModal('${s.rollNo}','Active')" style="padding:4px 10px;font-size:12px;color:var(--green);border-color:var(--green);">▶️ Activate</button>`
+          : `<button class="btn btn-outline" onclick="openStatusChangeModal('${s.rollNo}','Inactive')" style="padding:4px 10px;font-size:12px;color:var(--red);border-color:var(--red);">⏸️ Deactivate</button>`)
+      : '';
     const loginCell = s.hasLogin
       ? '<span class="chip chip-green">Active</span>'
       : (s.email
           ? `<button class="btn btn-outline" onclick="createLoginForExistingStudent('${s.rollNo}')" style="padding:4px 10px;font-size:11px;">+ Create Login</button>`
           : '<span class="chip chip-red" title="No email on file">No Email</span>');
     return `<tr>
+      <td>${slIdx + 1}</td>
       <td><strong>${s.rollNo}</strong></td>
-      <td>${s.fname} ${s.lname}</td>
+      <td>${s.fname} ${s.lname}${isInactive ? ' <span class="chip chip-red" style="margin-left:4px;">Inactive</span>' : ''}</td>
       <td>${s.course}</td>
       <td><span class="chip ${s.courseType==='Fast Track'?'chip-amber':'chip-blue'}">${s.courseType||'Regular'}</span></td>
       <td style="font-size:12px;">${s.batch.split('(')[0].trim()}</td>
@@ -3255,9 +3689,10 @@ function renderStudentsTable(filtered) {
       <td>${s.mobile}</td>
       <td>${status}</td>
       <td>${loginCell}</td>
-      <td style="display:flex;gap:6px;">
+      <td style="display:flex;gap:6px;flex-wrap:wrap;">
         <button class="btn btn-outline" onclick="viewStudent('${s.rollNo}')" style="padding:4px 10px;font-size:12px;">View</button>
         ${editBtn}
+        ${statusBtn}
       </td>
     </tr>`;
   }).join('');
@@ -3279,16 +3714,26 @@ function viewStudent(rollNo) {
   const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
   const net = parseFloat(s.totalFees||0)-parseFloat(s.concession||0);
   document.getElementById('modal-student-name').textContent = s.fname+' '+s.lname+' ('+s.rollNo+')';
+  const photoHtml = s.photo
+    ? `<img src="${s.photo}" style="width:88px;height:88px;border-radius:10px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;">`
+    : `<div style="width:88px;height:88px;border-radius:10px;background:#f1f5f9;color:var(--muted);font-size:11px;display:flex;align-items:center;justify-content:center;text-align:center;flex-shrink:0;">No Photo</div>`;
   document.getElementById('modal-content').innerHTML = `
     <div style="font-size:13.5px;line-height:2;">
+      <div style="display:flex;gap:14px;margin-bottom:14px;align-items:flex-start;">
+        ${photoHtml}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:1;">
+          <div><span style="color:var(--muted);">Roll No:</span> <strong>${s.rollNo}</strong></div>
+          <div><span style="color:var(--muted);">Gender:</span> <strong>${s.gender||'—'}</strong></div>
+          <div><span style="color:var(--muted);">DOB:</span> <strong>${s.dob||'—'}</strong></div>
+          <div><span style="color:var(--muted);">Mobile:</span> <strong>${s.mobile}</strong></div>
+          <div><span style="color:var(--muted);">Email:</span> <strong>${s.email||'—'}</strong></div>
+          <div><span style="color:var(--muted);">Status:</span> <strong>${s.status||'Active'}</strong></div>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
         <div><span style="color:var(--muted);">Course:</span> <strong>${s.course}</strong></div>
         <div><span style="color:var(--muted);">Batch:</span> <strong>${s.batch.split('(')[0].trim()}</strong></div>
-        <div><span style="color:var(--muted);">Mobile:</span> <strong>${s.mobile}</strong></div>
-        <div><span style="color:var(--muted);">Email:</span> <strong>${s.email||'—'}</strong></div>
-        <div><span style="color:var(--muted);">DOB:</span> <strong>${s.dob}</strong></div>
         <div><span style="color:var(--muted);">Admitted:</span> <strong>${s.admDate}</strong></div>
-        <div><span style="color:var(--muted);">Status:</span> <strong>${s.status||'Active'}</strong></div>
         <div><span style="color:var(--muted);">Duration:</span> <strong>${s.duration} months</strong></div>
         <div><span style="color:var(--muted);">Course Type:</span> <strong>${s.courseType||'Regular'}</strong></div>
         <div><span style="color:var(--muted);">Mode:</span> <strong>${s.mode||'Offline'}</strong></div>
@@ -3302,13 +3747,34 @@ function viewStudent(rollNo) {
           <div><div class="stat-label">Balance</div><div style="font-weight:700;font-size:16px;color:var(--red);">₹${(net-paid).toLocaleString('en-IN')}</div></div>
         </div>
       </div>
-      <div style="margin-top:10px;"><span style="color:var(--muted);">Address:</span> ${s.address}</div>
+      <div style="margin-top:12px;"><span style="color:var(--muted);">Address:</span> ${s.address||'—'}</div>
+      <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border);">
+        <div style="font-weight:600;color:var(--navy);margin-bottom:4px;">Guardian & ID Details</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div><span style="color:var(--muted);">Guardian Name:</span> <strong>${s.guardian||'—'}</strong></div>
+          <div><span style="color:var(--muted);">Guardian Mobile:</span> <strong>${s.guardianMobile||'—'}</strong></div>
+          <div><span style="color:var(--muted);">Qualification:</span> <strong>${s.qual||'—'}</strong></div>
+          <div><span style="color:var(--muted);">ID Proof:</span> <strong>${s.idType||'—'}</strong></div>
+          <div><span style="color:var(--muted);">ID Proof Number:</span> <strong>${s.idNumber||'—'}</strong></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;"><span style="color:var(--muted);">Remarks:</span> ${s.remarks||'—'}</div>
+      ${s.statusHistory && s.statusHistory.length ? `
+      <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border);">
+        <div style="font-weight:600;color:var(--navy);margin-bottom:4px;">Status History</div>
+        ${[...s.statusHistory].reverse().map(h => `
+          <div style="font-size:12.5px;margin-bottom:4px;">
+            <span class="chip ${h.status==='Inactive'?'chip-red':'chip-green'}">${h.status}</span>
+            — ${h.reason} <span style="color:var(--muted);">(${h.changedBy||'—'}, ${new Date(h.changedAt).toLocaleString('en-IN')})</span>
+          </div>`).join('')}
+      </div>` : ''}
+      <div style="margin-top:10px;font-size:12px;color:var(--muted);">Admitted by: ${s.addedBy||'—'}</div>
     </div>`;
   document.getElementById('student-modal').classList.add('open');
 }
 
 function openEditStudent(rollNo) {
-  if (!canModify()) { alert('Only Admin can edit student records.'); return; }
+  if (!canModifyStudents()) { alert('Only Admin and Office Staff can edit student records.'); return; }
   const s = students.find(st=>st.rollNo===rollNo);
   if (!s) return;
   populateCourseBatchSelects();
@@ -3331,10 +3797,18 @@ function openEditStudent(rollNo) {
 }
 
 async function saveStudentEdit() {
-  if (!canModify()) { showAlert('global-alert','error','❌ Only Admin can edit records.'); return; }
+  if (!canModifyStudents()) { showAlert('global-alert','error','❌ Only Admin and Office Staff can edit records.'); return; }
   const roll = document.getElementById('es-roll').value;
   const idx = students.findIndex(s=>s.rollNo===roll);
   if (idx < 0) return;
+  confirmAction(
+    `Save changes to student ${roll}? This will update their record immediately.`,
+    () => saveStudentEditConfirmed(roll, idx),
+    { title: 'Confirm Changes', confirmLabel: 'Yes, Save Changes' }
+  );
+}
+
+async function saveStudentEditConfirmed(roll, idx) {
   students[idx] = { ...students[idx],
     fname: document.getElementById('es-fname').value.trim(),
     lname: document.getElementById('es-lname').value.trim(),
@@ -3349,7 +3823,7 @@ async function saveStudentEdit() {
     concession: parseFloat(document.getElementById('es-concession').value)||0,
     status: document.getElementById('es-status').value,
     remarks: document.getElementById('es-remarks').value.trim(),
-    editedBy: currentUser.email, editedAt: new Date().toISOString()
+    editedBy: currentUser.name, editedAt: new Date().toISOString()
   };
   await DB.set('students', students);
   closeModal('edit-student-modal');
@@ -3358,12 +3832,18 @@ async function saveStudentEdit() {
 }
 
 async function deleteStudent() {
-  if (!canModify()) { showAlert('global-alert','error','❌ Only Admin can delete records.'); return; }
+  if (!canModifyStudents()) { showAlert('global-alert','error','❌ Only Admin and Office Staff can delete records.'); return; }
   const roll = document.getElementById('es-roll').value;
   const s = students.find(st => st.rollNo === roll);
   if (!s) return;
-  if (!confirm('Permanently delete student ' + roll + ' (' + (s.fname||'') + ' ' + (s.lname||'') + ')?\n\nThis will remove the record completely from the database and cannot be undone.')) return;
+  confirmAction(
+    'Permanently delete student ' + roll + ' (' + (s.fname||'') + ' ' + (s.lname||'') + ')?\n\nThis will remove the record completely from the database and cannot be undone.',
+    () => deleteStudentConfirmed(roll, s),
+    { title: 'Delete Student', confirmLabel: 'Yes, Delete Permanently', danger: true }
+  );
+}
 
+async function deleteStudentConfirmed(roll, s) {
   // Find the Firestore document ID — could be rollNo or the id field
   const docId = s.id || s.rollNo;
 
@@ -3388,33 +3868,149 @@ async function deleteStudent() {
 }
 
 // ============================================================
+// STUDENT ACTIVATE / DEACTIVATE (with reason) — Admin & Office
+// ============================================================
+let statusChangeContext = null; // { rollNo, newStatus }
+
+function openStatusChangeModal(rollNo, newStatus) {
+  if (!canModifyStudents()) { alert('Only Admin and Office Staff can change student status.'); return; }
+  const s = students.find(st => st.rollNo === rollNo);
+  if (!s) return;
+  statusChangeContext = { rollNo, newStatus };
+  const isDeactivating = newStatus === 'Inactive';
+  document.getElementById('status-modal-title').textContent =
+    (isDeactivating ? '⏸️ Deactivate' : '▶️ Activate') + ' — ' + s.fname + ' ' + s.lname + ' (' + s.rollNo + ')';
+  document.getElementById('status-reason-label').textContent = isDeactivating
+    ? 'Reason for deactivation (e.g. discontinued the course, on long leave)'
+    : 'Reason for reactivation (e.g. student has rejoined)';
+  const reasonBox = document.getElementById('status-reason');
+  reasonBox.placeholder = isDeactivating
+    ? 'e.g. Student discontinued the course / on long leave'
+    : 'e.g. Student has rejoined the course';
+  reasonBox.value = '';
+  document.getElementById('status-modal-alert').innerHTML = '';
+  document.getElementById('status-modal').classList.add('open');
+}
+
+async function confirmStatusChange() {
+  if (!statusChangeContext) return;
+  if (!canModifyStudents()) { showAlert('status-modal-alert','error','❌ Only Admin and Office Staff can change student status.'); return; }
+  const reason = document.getElementById('status-reason').value.trim();
+  if (!reason) { showAlert('status-modal-alert','error','❌ Please enter a reason.'); return; }
+
+  const { rollNo, newStatus } = statusChangeContext;
+  const idx = students.findIndex(s => s.rollNo === rollNo);
+  if (idx < 0) return;
+  const s = students[idx];
+
+  confirmAction(
+    `Mark ${s.fname} ${s.lname} (${s.rollNo}) as ${newStatus}?\n\nReason: ${reason}`,
+    () => applyStatusChange(rollNo, newStatus, reason),
+    { title: newStatus === 'Inactive' ? 'Confirm Deactivation' : 'Confirm Activation', confirmLabel: 'Yes, Confirm', danger: newStatus === 'Inactive' }
+  );
+}
+
+async function applyStatusChange(rollNo, newStatus, reason) {
+  const idx = students.findIndex(s => s.rollNo === rollNo);
+  if (idx < 0) return;
+
+  const historyEntry = { status: newStatus, reason, changedBy: currentUser.name, changedAt: new Date().toISOString() };
+  students[idx] = {
+    ...students[idx],
+    status: newStatus,
+    statusReason: reason,
+    statusHistory: [...(students[idx].statusHistory || []), historyEntry]
+  };
+  await DB.set('students', students);
+
+  closeModal('status-modal');
+  statusChangeContext = null;
+  renderStudentsTable();
+  showAlert('students-alert','success', `✅ Student marked <strong>${newStatus}</strong>. Reason recorded.`);
+}
+window.openStatusChangeModal = openStatusChangeModal;
+window.confirmStatusChange = confirmStatusChange;
+
+// ============================================================
 // FEES
 // ============================================================
 let selectedStudentForFee = null;
 
-function searchStudentForFee() {
+// Live autocomplete: shows a dropdown of matching students (name + roll no +
+// course) as the office staff types. Selecting one loads their details and
+// the payment form; it does not auto-select on partial matches.
+function onFeeSearchInput() {
   const q = document.getElementById('fee-search').value.toLowerCase().trim();
-  if (!q) { document.getElementById('fee-student-info').style.display='none'; document.getElementById('fee-payment-form').style.display='none'; return; }
-  const s = students.find(st=>st.rollNo.toLowerCase()===q||(st.fname+' '+st.lname).toLowerCase().includes(q));
-  if (s) {
-    selectedStudentForFee = s;
-    const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
-    const net = parseFloat(s.totalFees||0)-parseFloat(s.concession||0);
-    document.getElementById('fee-sname').textContent = s.fname+' '+s.lname;
-    document.getElementById('fee-scourse').textContent = s.course;
-    document.getElementById('fee-stotal').textContent = '₹'+net.toLocaleString('en-IN');
-    document.getElementById('fee-spaid').textContent = '₹'+paid.toLocaleString('en-IN');
-    document.getElementById('fee-sbalance').textContent = '₹'+(net-paid).toLocaleString('en-IN');
-    document.getElementById('fee-student-info').style.display='block';
-    document.getElementById('fee-payment-form').style.display='block';
-    }
+  const dropdown = document.getElementById('fee-search-dropdown');
+  if (!q) {
+    dropdown.style.display='none'; dropdown.innerHTML='';
+    selectedStudentForFee = null;
+    document.getElementById('fee-student-info').style.display='none';
+    document.getElementById('fee-payment-form').style.display='none';
+    return;
+  }
+  const matches = students.filter(s =>
+    (s.rollNo||'').toLowerCase().startsWith(q) ||
+    (s.fname||'').toLowerCase().startsWith(q) ||
+    (s.lname||'').toLowerCase().startsWith(q) ||
+    (s.fname+' '+s.lname).toLowerCase().startsWith(q)
+  ).slice(0, 8);
+
+  if (!matches.length) {
+    dropdown.innerHTML = '<div class="autocomplete-empty">No matching students</div>';
+    dropdown.style.display = 'block';
+    return;
+  }
+  dropdown.innerHTML = matches.map(s => `
+    <div class="autocomplete-item" onmousedown="selectFeeStudent('${s.rollNo}')">
+      <div>
+        <div class="ac-name">${s.fname} ${s.lname}</div>
+        <div class="ac-meta">${s.rollNo} • ${s.course}</div>
+      </div>
+      <span class="chip ${s.status==='Inactive'?'chip-red':'chip-green'}" style="font-size:10px;">${s.status||'Active'}</span>
+    </div>
+  `).join('');
+  dropdown.style.display = 'block';
+}
+
+function selectFeeStudent(rollNo) {
+  const s = students.find(st => st.rollNo === rollNo);
+  const dropdown = document.getElementById('fee-search-dropdown');
+  dropdown.style.display = 'none'; dropdown.innerHTML = '';
+  if (!s) return;
+  document.getElementById('fee-search').value = s.fname + ' ' + s.lname + ' (' + s.rollNo + ')';
+  selectedStudentForFee = s;
+  refreshFeeStudentInfo();
+}
+
+function refreshFeeStudentInfo() {
+  const s = selectedStudentForFee;
+  if (!s) return;
+  const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+  const net = parseFloat(s.totalFees||0)-parseFloat(s.concession||0);
+  document.getElementById('fee-sname').textContent = s.fname+' '+s.lname;
+  document.getElementById('fee-scourse').textContent = s.course;
+  document.getElementById('fee-stotal').textContent = '₹'+net.toLocaleString('en-IN');
+  document.getElementById('fee-spaid').textContent = '₹'+paid.toLocaleString('en-IN');
+  document.getElementById('fee-sbalance').textContent = '₹'+(net-paid).toLocaleString('en-IN');
+  document.getElementById('fee-student-info').style.display='block';
+  document.getElementById('fee-payment-form').style.display='block';
 }
 
 async function collectFee() {
+  if (!canManageFees()) { showAlert('fees-alert','error','❌ Your account has view-only access to the Fee process.'); return; }
   if (!selectedStudentForFee) return;
   const amount = parseFloat(document.getElementById('fee-amount').value);
   if (!amount||amount<=0) { showAlert('fees-alert','error','❌ Enter a valid amount.'); return; }
 
+  confirmAction(
+    `Record a payment of ₹${amount.toLocaleString('en-IN')} for ${selectedStudentForFee.fname} ${selectedStudentForFee.lname} (${selectedStudentForFee.rollNo})?`,
+    () => finalizeCollectFee(amount),
+    { title: 'Confirm Payment', confirmLabel: 'Yes, Record Payment' }
+  );
+}
+
+async function finalizeCollectFee(amount) {
   const btn = document.getElementById('fee-collect-btn');
   btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Recording...';
 
@@ -3426,7 +4022,7 @@ async function collectFee() {
     mode: document.getElementById('fee-mode').value,
     reference: document.getElementById('fee-ref').value,
     remarks: document.getElementById('fee-remarks').value,
-    recordedBy: currentUser.email
+    recordedBy: currentUser.name
   };
   pd.id = rcptNo;
   payments.push(pd);
@@ -3436,7 +4032,26 @@ async function collectFee() {
   showAlert('fees-alert','success','✅ ₹'+amount.toLocaleString('en-IN')+' recorded! Receipt: <strong>'+rcptNo+'</strong>');
   document.getElementById('fee-amount').value='';
   document.getElementById('fee-ref').value='';
-  searchStudentForFee();
+  document.getElementById('fee-remarks').value='';
+  refreshFeeStudentInfo();
+}
+
+// Resets the Fee Collection form back to a blank state so office staff can
+// start over or move on to another student without any leftover data.
+function clearFeeForm() {
+  document.getElementById('fee-search').value = '';
+  const dropdown = document.getElementById('fee-search-dropdown');
+  if (dropdown) { dropdown.style.display='none'; dropdown.innerHTML=''; }
+  selectedStudentForFee = null;
+  document.getElementById('fee-student-info').style.display='none';
+  document.getElementById('fee-payment-form').style.display='none';
+  document.getElementById('fee-amount').value='';
+  document.getElementById('fee-ref').value='';
+  document.getElementById('fee-remarks').value='';
+  document.getElementById('fee-mode').selectedIndex=0;
+  document.getElementById('fee-date').value = todayStr();
+  const alertBox = document.getElementById('fees-alert');
+  if (alertBox) { alertBox.innerHTML=''; alertBox.style.display='none'; }
 }
 
 function goToReceipt() {
@@ -3448,9 +4063,10 @@ function goToReceipt() {
 
 function renderPaymentsTable() {
   const tbody = document.getElementById('payments-table-body');
-  if (!payments.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">No payments yet</td></tr>'; return; }
-  tbody.innerHTML = [...payments].reverse().map(p=>`
+  if (!payments.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">No payments yet</td></tr>'; return; }
+  tbody.innerHTML = [...payments].reverse().map((p,pIdx)=>`
     <tr>
+      <td>${pIdx + 1}</td>
       <td><strong>${p.receiptNo}</strong></td><td>${p.date}</td><td>${p.studentName}</td><td>${p.course}</td>
       <td><strong>₹${parseFloat(p.amount).toLocaleString('en-IN')}</strong></td>
       <td><span class="chip chip-blue">${p.mode}</span></td>
@@ -3732,6 +4348,21 @@ function markAllPresent() {
   });
 }
 
+// Unchecks every Present/Absent radio and clears topic/software notes, so
+// staff can redo the day's attendance entry from scratch before submitting.
+function clearAttendanceMarks() {
+  document.querySelectorAll('[id^="att-row-"]').forEach(row=>{
+    const roll=row.dataset.roll;
+    document.querySelectorAll(`input[name="att-${roll}"]`).forEach(r=>r.checked=false);
+    const t=document.getElementById('topic-'+roll), sw=document.getElementById('software-'+roll);
+    if (t) { t.value=''; t.disabled=false; }
+    if (sw) { sw.value=''; sw.disabled=false; }
+    row.style.opacity='1';
+  });
+  const alertBox = document.getElementById('att-alert');
+  if (alertBox) { alertBox.innerHTML=''; alertBox.style.display='none'; }
+}
+
 async function submitAttendance() {
   const date=document.getElementById('att-date').value;
   const batch=document.getElementById('att-batch').value;
@@ -3740,16 +4371,29 @@ async function submitAttendance() {
   if (!rows.length) { showAlert('att-alert','error','No students loaded.'); return; }
 
   const records = [];
+  let missing = false;
   rows.forEach(row=>{
     const roll=row.dataset.roll, name=row.dataset.name;
-    const status=document.querySelector(`input[name="att-${roll}"]:checked`).value;
-    records.push({ roll, name, status, topic:document.getElementById('topic-'+roll).value.trim(), software:document.getElementById('software-'+roll).value.trim() });
+    const checked=document.querySelector(`input[name="att-${roll}"]:checked`);
+    if (!checked) { missing = true; return; }
+    records.push({ roll, name, status:checked.value, topic:document.getElementById('topic-'+roll).value.trim(), software:document.getElementById('software-'+roll).value.trim() });
   });
+  if (missing) { showAlert('att-alert','error','❌ Please mark Present/Absent for every student before submitting.'); return; }
 
+  const presentCount = records.filter(r=>r.status==='Present').length;
+  const absentCount = records.filter(r=>r.status==='Absent').length;
+  confirmAction(
+    `Submit attendance for ${date}?\n\nTotal: ${records.length} • Present: ${presentCount} • Absent: ${absentCount}`,
+    () => finalizeAttendance(date, batch, course, records),
+    { title: 'Confirm Attendance', confirmLabel: 'Yes, Submit Attendance' }
+  );
+}
+
+async function finalizeAttendance(date, batch, course, records) {
   const btn=document.getElementById('att-submit-btn');
   btn.disabled=true; btn.innerHTML='<span class="loader"></span> Submitting...';
 
-  const attData = records.map(r=>({ id: date+'_'+r.roll, date, rollNo:r.roll, studentName:r.name, course, batch, status:r.status, topic:r.topic, software:r.software, recordedBy:currentUser.email, recordedAt:new Date().toISOString() }));
+  const attData = records.map(r=>({ id: date+'_'+r.roll, date, rollNo:r.roll, studentName:r.name, course, batch, status:r.status, topic:r.topic, software:r.software, recordedBy:currentUser.name, recordedAt:new Date().toISOString() }));
   attendance=[...attendance,...attData];
   await DB.set('attendance',attendance);
 
@@ -3771,6 +4415,7 @@ function loadAbsentStudents() {
   const emptyEl = document.getElementById('abs-empty');
   if (!filtered.length) { listEl.style.display='none'; emptyEl.style.display='block'; return; }
   listEl.style.display='block'; emptyEl.style.display='none';
+  const reasonRequired = currentUser && (currentUser.role === 'admin' || currentUser.role === 'office');
   document.getElementById('abs-rows').innerHTML = filtered.map(s=>`
     <div class="abs-student-row" id="abs-row-${s.rollNo}" data-roll="${s.rollNo}" data-name="${s.fname} ${s.lname}" data-mobile="${s.mobile||''}"
          style="display:grid;grid-template-columns:50px 90px 1fr 130px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
@@ -3778,7 +4423,7 @@ function loadAbsentStudents() {
       <div style="font-size:12px;font-weight:600;color:var(--muted);">${s.rollNo}</div>
       <div>${s.fname} ${s.lname}</div>
       <div style="font-size:13px;color:var(--muted);">${s.mobile||'—'}</div>
-      <div><input type="text" id="abs-reason-${s.rollNo}" placeholder="Reason for absence" disabled style="width:100%;"></div>
+      <div><input type="text" id="abs-reason-${s.rollNo}" placeholder="${reasonRequired ? 'Reason for absence (required)' : 'Reason for absence'}" disabled style="width:100%;"></div>
     </div>`).join('');
 }
 
@@ -3797,20 +4442,32 @@ async function submitAbsentList() {
   const rows = document.querySelectorAll('[id^="abs-row-"]');
   if (!rows.length) { showAlert('abs-alert','error','No students loaded.'); return; }
 
+  const reasonRequired = currentUser && (currentUser.role === 'admin' || currentUser.role === 'office');
   const absentees = [];
+  let missingReason = false;
   rows.forEach(row => {
     const roll = row.dataset.roll;
     const checked = document.getElementById('abs-check-'+roll).checked;
     if (checked) {
+      const reason = document.getElementById('abs-reason-'+roll).value.trim();
+      if (reasonRequired && !reason) missingReason = true;
       absentees.push({
-        roll, name: row.dataset.name, mobile: row.dataset.mobile,
-        reason: document.getElementById('abs-reason-'+roll).value.trim()
+        roll, name: row.dataset.name, mobile: row.dataset.mobile, reason
       });
     }
   });
 
   if (!absentees.length) { showAlert('abs-alert','error','❌ No students marked absent. Tick at least one student.'); return; }
+  if (missingReason) { showAlert('abs-alert','error','❌ Reason is required for every absent student.'); return; }
 
+  confirmAction(
+    `Save the absent list for ${date}? ${absentees.length} student(s) will be marked absent.`,
+    () => submitAbsentListConfirmed(date, batch, course, absentees),
+    { title: 'Confirm Absent List', confirmLabel: 'Yes, Save' }
+  );
+}
+
+async function submitAbsentListConfirmed(date, batch, course, absentees) {
   const btn = document.getElementById('abs-submit-btn');
   btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Saving...';
 
@@ -3818,7 +4475,7 @@ async function submitAbsentList() {
     id: date + '_' + a.roll + '_' + course.replace(/\s+/g,'_'),
     date, rollNo: a.roll, studentName: a.name, mobile: a.mobile,
     course, batch, reason: a.reason || 'Not specified',
-    recordedBy: currentUser.email, recordedAt: new Date().toISOString()
+    recordedBy: currentUser.name, recordedAt: new Date().toISOString()
   }));
   absences = [...absences.filter(a => !absData.some(n => n.id === a.id)), ...absData];
   await DB.set('absences', absences);
@@ -3837,10 +4494,20 @@ async function submitAbsentList() {
 function renderAbsentHistory() {
   const tbody = document.getElementById('abs-history-body');
   if (!tbody) return;
-  if (!absences.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">No absences recorded yet</td></tr>'; return; }
-  const sorted = [...absences].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 100);
-  tbody.innerHTML = sorted.map(a => `
+  const onlySelChk = document.getElementById('abs-only-selected-date');
+  const dateInput = document.getElementById('abs-date');
+  const onlySelected = onlySelChk && onlySelChk.checked && dateInput && dateInput.value;
+  let list = absences;
+  if (onlySelected) list = list.filter(a => a.date === dateInput.value);
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px;">' +
+      (onlySelected ? 'No absences recorded for the selected date' : 'No absences recorded yet') + '</td></tr>';
+    return;
+  }
+  const sorted = [...list].sort((a,b) => b.date.localeCompare(a.date)).slice(0, onlySelected ? list.length : 100);
+  tbody.innerHTML = sorted.map((a, aIdx) => `
     <tr>
+      <td>${aIdx + 1}</td>
       <td>${a.date}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.mobile||'—'}</td>
       <td>${a.course}</td><td>${a.batch}</td><td>${a.reason}</td><td>${a.recordedBy}</td>
     </tr>`).join('');
@@ -3850,20 +4517,33 @@ function renderAbsentHistory() {
 // ATTENDANCE REPORT
 // ============================================================
 function generateAttReport() {
-  let f=attendance;
+  let base=attendance;
   const course=document.getElementById('ar-course').value;
   const batch=document.getElementById('ar-batch').value;
   const from=document.getElementById('ar-from').value;
   const to=document.getElementById('ar-to').value;
-  if (course) f=f.filter(a=>a.course===course);
-  if (batch) f=f.filter(a=>a.batch===batch);
-  if (from) f=f.filter(a=>a.date>=from);
-  if (to) f=f.filter(a=>a.date<=to);
-  f.sort((a,b)=>b.date.localeCompare(a.date));
+  const statusFilter=document.getElementById('ar-status').value;
+  if (course) base=base.filter(a=>a.course===course);
+  if (batch) base=base.filter(a=>a.batch===batch);
+  if (from) base=base.filter(a=>a.date>=from);
+  if (to) base=base.filter(a=>a.date<=to);
+
+  const totalPresent = base.filter(a=>a.status==='Present').length;
+  const totalAbsent = base.filter(a=>a.status==='Absent').length;
+
   document.getElementById('att-report-output').style.display='block';
+  document.getElementById('att-report-summary').innerHTML = `
+    <div class="stat-card teal" style="flex:1;min-width:140px;"><div class="stat-label">Total Records</div><div class="stat-value">${base.length}</div></div>
+    <div class="stat-card green" style="flex:1;min-width:140px;"><div class="stat-label">Total Present</div><div class="stat-value">${totalPresent}</div></div>
+    <div class="stat-card red" style="flex:1;min-width:140px;"><div class="stat-label">Total Absent</div><div class="stat-value">${totalAbsent}</div></div>
+  `;
+
+  let f = statusFilter ? base.filter(a=>a.status===statusFilter) : base;
+  f = [...f].sort((a,b)=>b.date.localeCompare(a.date));
   const tbody=document.getElementById('att-report-body');
-  if (!f.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px;">No records for the selected filters</td></tr>'; return; }
-  tbody.innerHTML=f.map(a=>`<tr>
+  if (!f.length) { tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px;">No records for the selected filters</td></tr>'; return; }
+  tbody.innerHTML=f.map((a,i)=>`<tr>
+    <td>${i+1}</td>
     <td>${a.date}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.course}</td>
     <td style="font-size:12px;">${(a.batch||'').split('(')[0].trim()}</td>
     <td><span class="chip ${a.status==='Present'?'chip-green':'chip-red'}">${a.status}</span></td>
@@ -3917,12 +4597,20 @@ async function saveAttendanceEdit(id) {
   if (!canEditAttendanceRecord(attendance[idx])) { showAlert('global-alert','error','❌ You can only edit today\'s attendance entries.'); return; }
 
   const status = document.getElementById('ea-status').value;
+  confirmAction(
+    `Update this attendance record to "${status}"?`,
+    () => saveAttendanceEditConfirmed(id, idx, status),
+    { title: 'Confirm Attendance Update', confirmLabel: 'Yes, Update' }
+  );
+}
+
+async function saveAttendanceEditConfirmed(id, idx, status) {
   attendance[idx] = {
     ...attendance[idx],
     status,
     topic: status==='Absent' ? '' : document.getElementById('ea-topic').value.trim(),
     software: status==='Absent' ? '' : document.getElementById('ea-software').value.trim(),
-    editedBy: currentUser.email,
+    editedBy: currentUser.name,
     editedAt: new Date().toISOString()
   };
   await DB.set('attendance', attendance);
@@ -4080,12 +4768,12 @@ function loadStudentDashboard() {
 // DASHBOARD
 // ============================================================
 function refreshDashboard() {
-  const showFees = isAdmin();
+  const showFees = isAdminLevel();
 
   if (showFees) {
-    // Admin full dashboard
+    // Admin / Manager full dashboard (due-date edit stays Admin/Office only — Fees is view-only for Manager)
     document.getElementById('stat-students').textContent=students.length;
-    buildDueTable('today-due-body','today-due-total',true);
+    buildDueTable('today-due-body','today-due-total',canManageFees());
     document.getElementById('stat-fees').textContent='₹'+payments.reduce((a,p)=>a+parseFloat(p.amount||0),0).toLocaleString('en-IN');
     const pctA=attendance.length?Math.round(attendance.filter(a=>a.status==='Present').length/attendance.length*100):0;
     document.getElementById('stat-att').textContent=pctA+'%';
@@ -4286,6 +4974,7 @@ function buildDueTable(bodyId, totalId, canEdit) {
 }
 
 async function editDueDate(rollNo) {
+  if (!canManageFees()) { showAlert('global-alert','error','❌ You have view-only access to the Fee process.'); return; }
   const s = students.find(x => x.rollNo === rollNo);
   if (!s) return;
   const currentDay = getInstallmentDay(s) || '';
@@ -4656,7 +5345,7 @@ function renderResourcesPage() {
         <div class="notif-msg">${n.message}</div>
         <div class="notif-meta">${n.audience==='all'?'All Students':n.audience} · ${n.date||''} · by ${n.createdBy||''}</div>
       </div>
-      ${isAdmin() || (currentUser && currentUser.role==='office') ? `<button class="btn btn-outline" onclick="deleteNotification('${n.id}')" style="padding:4px 10px;font-size:11px;height:fit-content;">🗑️</button>` : ''}
+      ${isAdminLevel() || (currentUser && currentUser.role==='office') ? `<button class="btn btn-outline" onclick="deleteNotification('${n.id}')" style="padding:4px 10px;font-size:11px;height:fit-content;">🗑️</button>` : ''}
     </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No notifications yet.</p>';
 
   // ---- Study materials grid ----
@@ -4689,21 +5378,36 @@ async function saveNotification() {
   const message = document.getElementById('nf-message').value.trim();
   const audience = document.getElementById('nf-audience').value;
   if (!title || !message) { showAlert('notification-modal-alert','error','❌ Title and message are required.'); return; }
+  confirmAction(
+    `Send this notification to ${audience === 'all' ? 'everyone' : audience}?`,
+    () => saveNotificationConfirmed(title, message, audience),
+    { title: 'Confirm Notification', confirmLabel: 'Yes, Send' }
+  );
+}
+window.saveNotification = saveNotification;
+
+async function saveNotificationConfirmed(title, message, audience) {
   const rec = { id:'NOTIF'+Date.now(), title, message, audience, date: todayStr(), createdBy: currentUser.name, createdAt: new Date().toISOString() };
   notifications = [...notifications, rec];
   await DB.set('notifications', notifications);
   closeModal('notification-modal');
   renderResourcesPage();
 }
-window.saveNotification = saveNotification;
 
 async function deleteNotification(id) {
-  if (!confirm('Delete this notification?')) return;
+  confirmAction(
+    'Delete this notification? This cannot be undone.',
+    () => deleteNotificationConfirmed(id),
+    { title: 'Delete Notification', confirmLabel: 'Yes, Delete', danger: true }
+  );
+}
+window.deleteNotification = deleteNotification;
+
+async function deleteNotificationConfirmed(id) {
   notifications = notifications.filter(n => n.id !== id);
   await DB.set('notifications', notifications);
   renderResourcesPage();
 }
-window.deleteNotification = deleteNotification;
 
 function openResourceModal() {
   document.getElementById('resource-modal-alert').innerHTML = '';
@@ -4722,21 +5426,36 @@ async function saveResource() {
   const url = document.getElementById('rf-url').value.trim();
   if (!title || !course || !url) { showAlert('resource-modal-alert','error','❌ Title, course and link are required.'); return; }
   if (!/^https?:\/\//i.test(url)) { showAlert('resource-modal-alert','error','❌ Link must start with http:// or https://'); return; }
+  confirmAction(
+    `Add study material "${title}" for ${course}?`,
+    () => saveResourceConfirmed(title, type, course, url),
+    { title: 'Confirm Study Material', confirmLabel: 'Yes, Add' }
+  );
+}
+window.saveResource = saveResource;
+
+async function saveResourceConfirmed(title, type, course, url) {
   const rec = { id:'RES'+Date.now(), title, type, course, url, addedBy: currentUser.name, addedAt: new Date().toISOString() };
   resources = [...resources, rec];
   await DB.set('resources', resources);
   closeModal('resource-modal');
   renderResourcesPage();
 }
-window.saveResource = saveResource;
 
 async function deleteResource(id) {
-  if (!confirm('Delete this study material?')) return;
+  confirmAction(
+    'Delete this study material? This cannot be undone.',
+    () => deleteResourceConfirmed(id),
+    { title: 'Delete Study Material', confirmLabel: 'Yes, Delete', danger: true }
+  );
+}
+window.deleteResource = deleteResource;
+
+async function deleteResourceConfirmed(id) {
   resources = resources.filter(r => r.id !== id);
   await DB.set('resources', resources);
   renderResourcesPage();
 }
-window.deleteResource = deleteResource;
 
 // ============================================================
 // STUDENT PORTAL — self-service Dashboard & Profile
@@ -4913,7 +5632,7 @@ function renderCalendar() {
   const { year, month } = calState;
   document.getElementById('cal-month-label').textContent = `${CAL_MONTH_NAMES[month]} ${year}`;
 
-  const canMarkHoliday = isAdmin() || (currentUser && currentUser.role === 'office');
+  const canMarkHoliday = isAdminLevel() || (currentUser && currentUser.role === 'office');
   const addBtn = document.getElementById('cal-add-holiday-btn');
   if (addBtn) addBtn.style.display = canMarkHoliday ? 'inline-flex' : 'none';
 
@@ -4961,7 +5680,7 @@ function calSelectDate(dateStr) {
   else if (dow === 0) badgeHtml = '<span style="background:rgba(239,68,68,0.15);color:#b91c1c;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:20px;">Sunday</span>';
   document.getElementById('cal-detail-badge').innerHTML = badgeHtml;
 
-  const canMarkHoliday = isAdmin() || (currentUser && currentUser.role === 'office');
+  const canMarkHoliday = isAdminLevel() || (currentUser && currentUser.role === 'office');
   const holidayRow = document.getElementById('cal-holiday-row');
   const removeBtn = document.getElementById('cal-remove-holiday-btn');
   if (holiday) {
@@ -4980,7 +5699,11 @@ function calSelectDate(dateStr) {
 
 function openHolidayModal() {
   document.getElementById('holiday-modal-alert').innerHTML = '';
-  document.getElementById('hf-date').value = calState.selectedDate || todayStr();
+  // Works from both the Calendar page and the Staff Attendance page —
+  // whichever is currently active supplies the selected date.
+  const saActive = document.getElementById('page-staff-attendance') && document.getElementById('page-staff-attendance').classList.contains('active');
+  const activeDate = saActive ? saState.selectedDate : calState.selectedDate;
+  document.getElementById('hf-date').value = activeDate || todayStr();
   document.getElementById('hf-name').value = '';
   document.getElementById('holiday-modal').classList.add('open');
 }
@@ -4990,27 +5713,48 @@ async function saveHoliday() {
   const name = document.getElementById('hf-name').value.trim();
   if (!date || !name) { showAlert('holiday-modal-alert', 'error', '❌ Date and holiday name are required.'); return; }
   if (calHolidayFor(date)) { showAlert('holiday-modal-alert', 'error', '❌ This date is already marked as a holiday.'); return; }
+  confirmAction(
+    `Mark ${date} as a holiday ("${name}")?`,
+    () => saveHolidayConfirmed(date, name),
+    { title: 'Confirm Holiday', confirmLabel: 'Yes, Add Holiday' }
+  );
+}
+window.openHolidayModal = openHolidayModal;
+window.saveHoliday = saveHoliday;
+
+async function saveHolidayConfirmed(date, name) {
   const rec = { id: 'HOL' + date, date, name, addedBy: currentUser.name, addedAt: new Date().toISOString() };
   holidays = [...holidays, rec];
   await DB.set('holidays', holidays);
   closeModal('holiday-modal');
-  renderCalendar();
-  if (calState.selectedDate === date) calSelectDate(date);
+  if (document.getElementById('page-calendar')) {
+    renderCalendar();
+    if (calState.selectedDate === date) calSelectDate(date);
+  }
+  if (document.getElementById('page-staff-attendance')) {
+    renderSaCalendar();
+    if (saState.selectedDate === date) saSelectDate(date);
+  }
 }
-window.openHolidayModal = openHolidayModal;
-window.saveHoliday = saveHoliday;
 
 async function calRemoveHoliday() {
   const date = calState.selectedDate;
   const holiday = calHolidayFor(date);
   if (!holiday) return;
-  if (!confirm(`Remove the holiday "${holiday.name}" on ${date}?`)) return;
+  confirmAction(
+    `Remove the holiday "${holiday.name}" on ${date}?`,
+    () => calRemoveHolidayConfirmed(date, holiday),
+    { title: 'Remove Holiday', confirmLabel: 'Yes, Remove', danger: true }
+  );
+}
+window.calRemoveHoliday = calRemoveHoliday;
+
+async function calRemoveHolidayConfirmed(date, holiday) {
   holidays = holidays.filter(h => h.id !== holiday.id);
   await DB.set('holidays', holidays);
   renderCalendar();
   calSelectDate(date);
 }
-window.calRemoveHoliday = calRemoveHoliday;
 
 function calLoadSummary() {
   const batch = document.getElementById('cal-batch').value;
@@ -5147,6 +5891,16 @@ function saveSubject() {
   if (!name)     { alertEl.innerHTML='<div class="alert alert-error">Subject name is required.</div>'; return; }
   const course = masterData.courses.find(c=>c.id===courseId);
   if (!course) { alertEl.innerHTML='<div class="alert alert-error">Course not found.</div>'; return; }
+  confirmAction(
+    `Save subject "${name}" for ${course.name}?`,
+    () => saveSubjectConfirmed(courseId, name, editIdx),
+    { title: 'Confirm Subject', confirmLabel: 'Yes, Save' }
+  );
+}
+
+function saveSubjectConfirmed(courseId, name, editIdx) {
+  const course = masterData.courses.find(c=>c.id===courseId);
+  if (!course) return;
   if (!course.subjects) course.subjects=[];
   const subData = {
     id: (editIdx!=='' && course.subjects[editIdx]) ? course.subjects[editIdx].id : 'sub'+Date.now(),
@@ -5166,7 +5920,17 @@ function saveSubject() {
 }
 
 function deleteSubject(courseId, idx) {
-  if (!confirm('Delete this subject?')) return;
+  const course = masterData.courses.find(c=>c.id===courseId);
+  if (!course) return;
+  const subj = course.subjects[idx];
+  confirmAction(
+    `Delete subject "${subj ? subj.name : ''}" from ${course.name}?`,
+    () => deleteSubjectConfirmed(courseId, idx),
+    { title: 'Delete Subject', confirmLabel: 'Yes, Delete', danger: true }
+  );
+}
+
+function deleteSubjectConfirmed(courseId, idx) {
   const course = masterData.courses.find(c=>c.id===courseId);
   if (!course) return;
   course.subjects.splice(idx,1);
@@ -5284,6 +6048,14 @@ function showInlineModal(title, fieldsHtml, saveCall) {
 async function saveMasterItem() {
   const name = document.getElementById('mf-name') ? document.getElementById('mf-name').value.trim() : '';
   if (!name) { showAlert('master-alert','error','Name is required.'); return; }
+  confirmAction(
+    `Save this ${masterEditType}${masterEditIdx>=0 ? ' change' : ''} — "${name}"? Related student records will be updated to match.`,
+    () => saveMasterItemConfirmed(name),
+    { title: 'Confirm Save', confirmLabel: 'Yes, Save' }
+  );
+}
+
+async function saveMasterItemConfirmed(name) {
   let item = {};
   if (masterEditType === 'course') {
     const oldName = masterEditIdx >= 0 ? masterData.courses[masterEditIdx].name : null;
@@ -5325,7 +6097,16 @@ async function saveMasterItem() {
 }
 
 function deleteMaster(type, i) {
-  if (!confirm('Delete this item?')) return;
+  const list = type==='course' ? masterData.courses : type==='batch' ? masterData.batches : masterData.staff;
+  const item = list && list[i];
+  confirmAction(
+    `Delete this ${type}${item && item.name ? ' — "'+item.name+'"' : ''}? This cannot be undone.`,
+    () => deleteMasterConfirmed(type, i),
+    { title: 'Delete ' + type.charAt(0).toUpperCase()+type.slice(1), confirmLabel: 'Yes, Delete', danger: true }
+  );
+}
+
+function deleteMasterConfirmed(type, i) {
   if (type === 'course') masterData.courses.splice(i,1);
   else if (type === 'batch') masterData.batches.splice(i,1);
   else if (type === 'staff') masterData.staff.splice(i,1);
@@ -5429,6 +6210,14 @@ async function saveSalary() {
   if (!currentSalaryStaff) { showAlert('salary-alert','error','Select a staff member first.'); return; }
   const month = document.getElementById('sal-month').value;
   if (!month) { showAlert('salary-alert','error','Select a month.'); return; }
+  confirmAction(
+    `Save salary record for ${currentSalaryStaff.name} (${month})?`,
+    () => saveSalaryConfirmed(month),
+    { title: 'Confirm Salary Record', confirmLabel: 'Yes, Save Salary' }
+  );
+}
+
+async function saveSalaryConfirmed(month) {
   const basic = parseFloat(currentSalaryStaff.basicSalary)||0;
   const workDays = parseFloat(document.getElementById('sal-working-days').value)||26;
   const presentDays = parseFloat(document.getElementById('sal-present-days').value)||0;
@@ -5450,11 +6239,21 @@ async function saveSalary() {
     month, basic, workDays, presentDays, leaveDays, otHours, otDays, otRate, otAmount,
     advance, deductions, bonus, earnedSalary, grossPay, netPay,
     remarks: document.getElementById('sal-remarks').value,
-    savedAt: new Date().toISOString(), savedBy: currentUser.email
+    savedAt: new Date().toISOString(), savedBy: currentUser.name
   };
   salaries.push(record);
   await DB.set('salaries', salaries);
   showAlert('salary-alert','success','✅ Salary record saved for '+currentSalaryStaff.name+' ('+month+'). Net Pay: ₹'+netPay.toLocaleString('en-IN'));
+}
+
+function clearSalaryForm() {
+  ['sal-working-days','sal-present-days','sal-ot-hours','sal-ot-days','sal-ot-rate','sal-ot-amount','sal-advance','sal-deductions','sal-bonus','sal-remarks'].forEach(id=>{
+    const el = document.getElementById(id); if (!el) return;
+    el.value = (id==='sal-leave-days'||id==='sal-ot-days'||id==='sal-ot-rate'||id==='sal-advance'||id==='sal-deductions'||id==='sal-bonus') ? '0' : '';
+  });
+  document.getElementById('sal-leave-days').value = '0';
+  const alertBox = document.getElementById('salary-alert'); if (alertBox) alertBox.innerHTML='';
+  if (typeof calcSalary === 'function') calcSalary();
 }
 
 function viewSalaryHistory() {
@@ -5649,6 +6448,15 @@ async function mkSubmitMarks() {
   if (!rows.length) { showAlert('marks-alert','error','❌ No subjects loaded.'); return; }
   const student = students.find(s=>s.rollNo===rollNo);
   const studentName = student ? student.fname+' '+student.lname : rollNo;
+  confirmAction(
+    `Save marks for ${studentName} — Exam: ${examName} (${rows.length} subject(s))?`,
+    () => mkSubmitMarksConfirmed(rollNo, course, examName, student, studentName),
+    { title: 'Confirm Marks Entry', confirmLabel: 'Yes, Save Marks' }
+  );
+}
+
+async function mkSubmitMarksConfirmed(rollNo, course, examName, student, studentName) {
+  const rows = document.querySelectorAll('[data-subid]');
   const batch = student ? student.batch : '';
   const newMarks = [];
   rows.forEach(row=>{
@@ -5681,11 +6489,15 @@ async function mkSubmitMarks() {
   marks = [...marks, ...newMarks];
   await DB.set('marks', marks);
   showAlert('marks-alert','success',`✅ Marks saved for ${studentName} — Exam: ${examName} (${newMarks.length} subjects)`);
-  // Reset form
+  clearMarksForm();
+}
+
+function clearMarksForm() {
   document.getElementById('mk-student').value='';
   document.getElementById('mk-exam').value='';
   document.getElementById('marks-subjects-card').style.display='none';
   document.getElementById('marks-summary').style.display='none';
+  const alertBox = document.getElementById('marks-alert'); if (alertBox) alertBox.innerHTML='';
 }
 
 // kept for backward compat
@@ -5740,6 +6552,31 @@ function switchTab(page, tab, el) {
 
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
+// ============================================================
+// GENERIC YES/NO CONFIRMATION — used before any save/record/delete
+// action across the app, so nothing is submitted by accident.
+// ============================================================
+let _confirmModalCallback = null;
+
+function confirmAction(message, onYes, opts = {}) {
+  document.getElementById('confirm-modal-title').textContent = opts.title || 'Please Confirm';
+  document.getElementById('confirm-modal-message').textContent = message;
+  const yesBtn = document.getElementById('confirm-modal-yes-btn');
+  yesBtn.textContent = opts.confirmLabel || 'Yes, Proceed';
+  yesBtn.className = 'btn ' + (opts.danger ? 'btn-danger' : 'btn-teal');
+  _confirmModalCallback = onYes;
+  document.getElementById('confirm-modal').classList.add('open');
+}
+
+function closeConfirmModal(confirmed) {
+  document.getElementById('confirm-modal').classList.remove('open');
+  const cb = _confirmModalCallback;
+  _confirmModalCallback = null;
+  if (confirmed && typeof cb === 'function') cb();
+}
+window.confirmAction = confirmAction;
+window.closeConfirmModal = closeConfirmModal;
+
 function showAlert(id, type, msg) {
   const el=document.getElementById(id);
   if (!el) return;
@@ -5757,11 +6594,24 @@ async function addIncome() {
   const amount = parseFloat(document.getElementById('inc-amount').value) || 0;
   const remarks = document.getElementById('inc-remarks').value.trim();
   if (!date || !source || amount<=0) { showAlert('finance-alert','error','❌ Date, source and a valid amount are required.'); return; }
+  confirmAction(
+    `Record income of ₹${amount.toLocaleString('en-IN')} from "${source}"?`,
+    () => addIncomeConfirmed(date, source, amount, remarks),
+    { title: 'Confirm Income Entry', confirmLabel: 'Yes, Record Income' }
+  );
+}
+
+async function addIncomeConfirmed(date, source, amount, remarks) {
   incomes.push({ id:'INC'+Date.now(), date, source, amount, remarks, enteredBy: currentUser.name });
   await DB.set('incomes', incomes);
-  ['inc-source','inc-amount','inc-remarks'].forEach(id=>document.getElementById(id).value='');
+  clearIncomeForm();
   renderFinance();
   showAlert('finance-alert','success','✅ Income recorded.');
+}
+
+function clearIncomeForm() {
+  ['inc-source','inc-amount','inc-remarks'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('inc-date').value = todayStr();
 }
 
 async function addExpense() {
@@ -5771,12 +6621,25 @@ async function addExpense() {
   const paidTo = document.getElementById('exp-paidto').value.trim();
   const remarks = document.getElementById('exp-remarks').value.trim();
   if (!date || !category || amount<=0) { showAlert('finance-alert','error','❌ Date, category and a valid amount are required.'); return; }
+  confirmAction(
+    `Record expense of ₹${amount.toLocaleString('en-IN')} for "${category}"${paidTo ? ' paid to '+paidTo : ''}?`,
+    () => addExpenseConfirmed(date, category, amount, paidTo, remarks),
+    { title: 'Confirm Expense Entry', confirmLabel: 'Yes, Record Expense' }
+  );
+}
+
+async function addExpenseConfirmed(date, category, amount, paidTo, remarks) {
   expenses.push({ id:'EXP'+Date.now(), date, category, amount, paidTo, remarks, enteredBy: currentUser.name });
   await DB.set('expenses', expenses);
-  ['exp-amount','exp-paidto','exp-remarks'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('exp-category').selectedIndex=0;
+  clearExpenseForm();
   renderFinance();
   showAlert('finance-alert','success','✅ Expense recorded.');
+}
+
+function clearExpenseForm() {
+  ['exp-amount','exp-paidto','exp-remarks'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('exp-category').selectedIndex=0;
+  document.getElementById('exp-date').value = todayStr();
 }
 
 function renderFinance() {
@@ -5836,6 +6699,14 @@ async function saveCertificate() {
   const roll = document.getElementById('cert-roll').value;
   const s = students.find(st=>st.rollNo===roll);
   if (!s) { showAlert('cert-alert','error','❌ Select a valid student first.'); return; }
+  confirmAction(
+    `Save certificate record for ${s.fname} ${s.lname} (${roll})?`,
+    () => saveCertificateConfirmed(roll, s),
+    { title: 'Confirm Certificate Record', confirmLabel: 'Yes, Save' }
+  );
+}
+
+async function saveCertificateConfirmed(roll, s) {
   const record = {
     rollNo: s.rollNo, studentName: s.fname+' '+s.lname, course: s.course,
     certNo: document.getElementById('cert-number').value.trim(),
@@ -5849,9 +6720,15 @@ async function saveCertificate() {
   await DB.set('certificates', certificates);
   renderCertificates();
   showAlert('cert-alert','success','✅ Certificate record saved for '+record.studentName);
+  clearCertificateForm();
+}
+
+function clearCertificateForm() {
   document.getElementById('cert-search').value=''; document.getElementById('cert-course').value='';
   document.getElementById('cert-number').value=''; document.getElementById('cert-roll').value='';
-  document.getElementById('cert-givenby').value=''; document.getElementById('cert-status').selectedIndex=0;
+  document.getElementById('cert-givendate').value=''; document.getElementById('cert-givenby').value='';
+  document.getElementById('cert-status').selectedIndex=0;
+  document.getElementById('cert-alert').innerHTML='';
 }
 
 function editCertificate(roll) {
@@ -5863,19 +6740,475 @@ function editCertificate(roll) {
 function renderCertificates() {
   const tbody = document.getElementById('cert-table-body');
   if (!certificates.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">No certificate records yet</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px;">No certificate records yet</td></tr>';
     return;
   }
   const badge = st => st==='Received' ? '<span class="chip chip-green">Received</span>' :
                        st==='Informed' ? '<span class="chip chip-amber">Informed</span>' :
                        '<span class="chip chip-red">Not Issued</span>';
-  tbody.innerHTML = certificates.map(c=>`
+  tbody.innerHTML = certificates.map((c,cIdx)=>`
     <tr>
+      <td>${cIdx + 1}</td>
       <td><strong>${c.rollNo}</strong></td><td>${c.studentName}</td><td>${c.course}</td>
       <td>${c.certNo||'—'}</td><td>${c.givenDate||'—'}</td><td>${c.givenBy||'—'}</td>
       <td>${badge(c.status)}</td>
       <td><button class="btn btn-outline" onclick="editCertificate('${c.rollNo}')" style="padding:4px 10px;font-size:12px;">✏️ Edit</button></td>
     </tr>`).join('');
+}
+
+// ============================================================
+// JOB PLACEMENT REPORT — Admin, Manager, HR Manager
+// Search a student by name/roll no, view their full academic snapshot
+// (course, join date, pending subjects, certificate status, exam marks),
+// then record placement details (company, designation, interview,
+// outcome). The bottom table lists placed students with month/area filters.
+// ============================================================
+let plSelectedRoll = null;
+
+function searchStudentForPlacement() {
+  const q = document.getElementById('pl-search').value.toLowerCase().trim();
+  const box = document.getElementById('pl-suggest-box');
+  if (!q) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  const matches = (window.students||[]).filter(s =>
+    s.rollNo.toLowerCase().includes(q) || (s.fname+' '+s.lname).toLowerCase().includes(q)
+  ).slice(0, 8);
+  if (!matches.length) {
+    box.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:12.5px;">No students found</div>';
+    box.style.display = 'block';
+    return;
+  }
+  box.innerHTML = matches.map(s => `
+    <div class="pl-suggest-item" onclick="selectPlacementStudent('${s.rollNo}')">
+      <strong>${s.fname} ${s.lname}</strong> <span style="color:var(--muted);">— ${s.rollNo} · ${s.course}</span>
+    </div>`).join('');
+  box.style.display = 'block';
+}
+window.searchStudentForPlacement = searchStudentForPlacement;
+
+function selectPlacementStudent(rollNo) {
+  const box = document.getElementById('pl-suggest-box');
+  box.style.display = 'none';
+  box.innerHTML = '';
+  const s = (window.students||[]).find(st => st.rollNo === rollNo);
+  if (!s) return;
+  plSelectedRoll = rollNo;
+  document.getElementById('pl-search').value = s.fname + ' ' + s.lname + ' (' + s.rollNo + ')';
+  renderPlacementStudentDetails(s);
+}
+window.selectPlacementStudent = selectPlacementStudent;
+
+function renderPlacementStudentDetails(s) {
+  document.getElementById('pl-details-card').style.display = 'block';
+
+  // Pending subjects/software = subjects defined for the student's course
+  // (Master Data → Course Subjects) that have no marks entry yet for them.
+  const courseObj = (masterData.courses||[]).find(c => c.name === s.course);
+  const courseSubjects = (courseObj && courseObj.subjects) ? courseObj.subjects : [];
+  const recordedSubjectNames = (window.marks||[]).filter(m => m.rollNo === s.rollNo).map(m => m.subject);
+  const pendingSubjects = courseSubjects.filter(sub => !recordedSubjectNames.includes(sub.name)).map(sub => sub.name);
+
+  const cert = (window.certificates||[]).find(c => c.rollNo === s.rollNo);
+  const certLabel = !cert || cert.status === 'Not Issued' ? 'Pending' : (cert.status === 'Informed' ? 'Informed' : 'Given');
+  const certChipClass = !cert || cert.status === 'Not Issued' ? 'chip-red' : (cert.status === 'Informed' ? 'chip-amber' : 'chip-green');
+
+  document.getElementById('pl-student-details').innerHTML = `
+    <div><span style="color:var(--muted);">Name:</span> <strong>${s.fname} ${s.lname}</strong></div>
+    <div><span style="color:var(--muted);">Roll No:</span> <strong>${s.rollNo}</strong></div>
+    <div><span style="color:var(--muted);">Course:</span> <strong>${s.course}</strong></div>
+    <div><span style="color:var(--muted);">Date of Join:</span> <strong>${s.admDate||'—'}</strong></div>
+    <div><span style="color:var(--muted);">Mobile:</span> <strong>${s.mobile||'—'}</strong></div>
+    <div><span style="color:var(--muted);">Certificate:</span> <span class="chip ${certChipClass}">${certLabel}</span></div>
+    <div style="grid-column:1/-1;">
+      <span style="color:var(--muted);">Pending Subjects / Softwares:</span>
+      ${pendingSubjects.length
+        ? pendingSubjects.map(p => `<span class="chip chip-amber" style="margin-left:4px;">${p}</span>`).join('')
+        : '<span class="chip chip-green" style="margin-left:4px;">None — All Cleared</span>'}
+    </div>`;
+
+  // Exam marks
+  const studentMarks = (window.marks||[]).filter(m => m.rollNo === s.rollNo);
+  const gColor = g => g==='F' ? 'chip-red' : (g==='O'||g==='A+') ? 'chip-green' : (g==='A'||g==='B+') ? 'chip-blue' : 'chip-amber';
+  document.getElementById('pl-marks-body').innerHTML = studentMarks.length ? studentMarks.map(m => `
+    <tr>
+      <td><strong>${m.subject}</strong></td>
+      <td style="font-size:12px;color:var(--muted);">${m.examName||m.exam||'—'}</td>
+      <td>${m.theoryObt!==undefined ? m.theoryObt+'/'+m.theoryMax : '—'}</td>
+      <td>${m.practicalObt!==undefined ? m.practicalObt+'/'+m.practicalMax : '—'}</td>
+      <td><strong>${m.total!==undefined ? m.total+'/'+(parseFloat(m.theoryMax||0)+parseFloat(m.practicalMax||0)) : (m.obtainedMarks||'—')}</strong></td>
+      <td><span class="chip ${gColor(m.grade)}">${m.grade||'—'}</span></td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px;">No marks recorded yet</td></tr>';
+
+  // Prefill placement form with the latest existing record for this student, if any
+  const existing = [...(window.placements||[])].filter(p => p.rollNo === s.rollNo).sort((a,b)=>(b.enteredAt||'').localeCompare(a.enteredAt||''))[0];
+  document.getElementById('pl-company').value = existing ? existing.company||'' : '';
+  document.getElementById('pl-designation').value = existing ? existing.designation||'' : '';
+  document.getElementById('pl-address').value = existing ? existing.address||'' : '';
+  document.getElementById('pl-interview-date').value = existing ? existing.interviewDate||'' : '';
+  document.getElementById('pl-status').value = existing ? existing.status||'Pending' : 'Pending';
+  document.getElementById('pl-joindate').value = existing ? existing.joinDate||'' : '';
+  togglePlacementJoinDate();
+  document.getElementById('pl-alert').innerHTML = '';
+}
+
+function togglePlacementJoinDate() {
+  const status = document.getElementById('pl-status').value;
+  document.getElementById('pl-joindate-wrap').style.display = status === 'Joined' ? '' : 'none';
+}
+window.togglePlacementJoinDate = togglePlacementJoinDate;
+
+function clearPlacementForm() {
+  plSelectedRoll = null;
+  document.getElementById('pl-search').value = '';
+  document.getElementById('pl-suggest-box').innerHTML = '';
+  document.getElementById('pl-suggest-box').style.display = 'none';
+  document.getElementById('pl-details-card').style.display = 'none';
+  document.getElementById('pl-company').value = '';
+  document.getElementById('pl-designation').value = '';
+  document.getElementById('pl-address').value = '';
+  document.getElementById('pl-interview-date').value = '';
+  document.getElementById('pl-status').selectedIndex = 0;
+  document.getElementById('pl-joindate').value = '';
+  document.getElementById('pl-alert').innerHTML = '';
+}
+window.clearPlacementForm = clearPlacementForm;
+
+async function savePlacement() {
+  if (!plSelectedRoll) { showAlert('pl-alert','error','❌ Search for and select a student first.'); return; }
+  const s = (window.students||[]).find(st => st.rollNo === plSelectedRoll);
+  if (!s) { showAlert('pl-alert','error','❌ Student record not found.'); return; }
+  const company = document.getElementById('pl-company').value.trim();
+  const designation = document.getElementById('pl-designation').value.trim();
+  const address = document.getElementById('pl-address').value.trim();
+  const interviewDate = document.getElementById('pl-interview-date').value;
+  const status = document.getElementById('pl-status').value;
+  const joinDate = status === 'Joined' ? document.getElementById('pl-joindate').value : '';
+  if (!company) { showAlert('pl-alert','error','❌ Company name is required.'); return; }
+  if (status === 'Joined' && !joinDate) { showAlert('pl-alert','error','❌ Date of Join is required when status is "Joined".'); return; }
+
+  confirmAction(
+    `Save placement record for ${s.fname} ${s.lname} (${s.rollNo}) at "${company}"?`,
+    () => savePlacementConfirmed({ s, company, designation, address, interviewDate, status, joinDate }),
+    { title: 'Confirm Placement Record', confirmLabel: 'Yes, Save' }
+  );
+}
+window.savePlacement = savePlacement;
+
+async function savePlacementConfirmed({ s, company, designation, address, interviewDate, status, joinDate }) {
+  const existingIdx = (window.placements||[]).findIndex(p => p.rollNo === s.rollNo);
+  const record = {
+    id: existingIdx >= 0 ? window.placements[existingIdx].id : 'PLC' + Date.now(),
+    rollNo: s.rollNo, studentName: s.fname + ' ' + s.lname, course: s.course,
+    company, designation, address, interviewDate, status, joinDate,
+    enteredBy: currentUser.name, enteredAt: new Date().toISOString()
+  };
+  if (existingIdx >= 0) window.placements[existingIdx] = record; else window.placements.push(record);
+  await DB.set('placements', window.placements);
+  renderPlacementList();
+  showAlert('pl-alert','success','✅ Placement record saved for ' + record.studentName + '.');
+}
+
+function clearPlacementFilters() {
+  document.getElementById('pl-filter-month').value = '';
+  document.getElementById('pl-filter-area').value = '';
+  renderPlacementList();
+}
+window.clearPlacementFilters = clearPlacementFilters;
+
+function renderPlacementList() {
+  const tbody = document.getElementById('placement-table-body');
+  if (!tbody) return;
+  const monthFilter = document.getElementById('pl-filter-month').value; // 'YYYY-MM'
+  const areaFilter = document.getElementById('pl-filter-area').value.toLowerCase().trim();
+
+  // "Placed Students" = those with status Joined; month filter matches
+  // against the Join Date, area filter matches against the company address.
+  let list = (window.placements||[]).filter(p => p.status === 'Joined');
+  if (monthFilter) list = list.filter(p => (p.joinDate||'').startsWith(monthFilter));
+  if (areaFilter) list = list.filter(p => (p.address||'').toLowerCase().includes(areaFilter));
+  list = [...list].sort((a,b) => (b.joinDate||'').localeCompare(a.joinDate||''));
+
+  const statusChip = st => st === 'Joined' ? '<span class="chip chip-green">Joined</span>' :
+                            st === 'Rejected' ? '<span class="chip chip-red">Rejected</span>' :
+                            '<span class="chip chip-amber">Pending</span>';
+
+  tbody.innerHTML = list.length ? list.map(p => `
+    <tr>
+      <td><strong>${p.rollNo}</strong></td><td>${p.studentName}</td><td>${p.course}</td>
+      <td>${p.company}</td><td>${p.designation||'—'}</td><td>${p.address||'—'}</td>
+      <td>${p.interviewDate||'—'}</td><td>${statusChip(p.status)}</td><td>${p.joinDate||'—'}</td>
+      <td><button class="btn btn-outline" onclick="selectPlacementStudent('${p.rollNo}'); window.scrollTo({top:0,behavior:'smooth'});" style="padding:4px 10px;font-size:12px;">✏️ Edit</button></td>
+    </tr>`).join('') : '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px;">No placed students found for the selected filters.</td></tr>';
+}
+window.renderPlacementList = renderPlacementList;
+
+// ============================================================
+// STAFF ATTENDANCE — Admin, Manager, HR Manager
+// A monthly calendar (mirrors the institute Calendar's working-day /
+// Sunday / holiday logic and shares the same `holidays` collection).
+// The staff roster comes from Master Data → Staff List (masterData.staff) —
+// the same source used by Staff Salary — not from login/user accounts, so
+// staff who don't have a login are still included and every page stays in
+// sync with one place. Clicking a date lists every staff member so their
+// attendance can be marked Present (green) / Absent (red, with a reason
+// field). Holidays are shown in orange. A running monthly summary shows
+// working/present/leave days per staff.
+// ============================================================
+let saState = { year: new Date().getFullYear(), month: new Date().getMonth(), selectedDate: null };
+let saSelectedStaffId = null; // staff currently shown in the "Month Overview" stat card
+
+// Staff roster comes straight from Master Data → Staff List (masterData.staff),
+// the same list used for Staff Salary — so every staff record is entered once
+// in Master Data and reused everywhere it's needed.
+function saStaffList() {
+  return masterData.staff || [];
+}
+
+async function renderStaffAttendancePage() {
+  document.getElementById('sa-detail-card').style.display = 'none';
+  document.getElementById('sa-alert').innerHTML = '';
+  renderSaCalendar();
+  renderSaSummary();
+  if (!saStaffList().length) {
+    showAlert('sa-alert', 'error', '⚠️ No staff found in Master Data. Add staff members under Master Data → Staff List to mark their attendance.');
+  }
+}
+window.renderStaffAttendancePage = renderStaffAttendancePage;
+
+function saChangeMonth(delta) {
+  let m = saState.month + delta, y = saState.year;
+  if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+  saState.month = m; saState.year = y;
+  saState.selectedDate = null;
+  document.getElementById('sa-detail-card').style.display = 'none';
+  renderSaCalendar();
+  renderSaSummary();
+}
+window.saChangeMonth = saChangeMonth;
+
+function saGoToday() {
+  const t = new Date();
+  saState.year = t.getFullYear(); saState.month = t.getMonth();
+  renderSaCalendar();
+  renderSaSummary();
+}
+window.saGoToday = saGoToday;
+
+function renderSaCalendar() {
+  const page = document.getElementById('page-staff-attendance');
+  if (!page) return;
+  const { year, month } = saState;
+  document.getElementById('sa-month-label').textContent = `${CAL_MONTH_NAMES[month]} ${year}`;
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStrVal = todayStr();
+
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day cal-empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = calDateStr(year, month, d);
+    const dow = new Date(year, month, d).getDay();
+    const holiday = calHolidayFor(dateStr);
+    let cls = 'day-working', tag = 'Working';
+    if (holiday) { cls = 'day-holiday'; tag = 'Holiday'; }
+    else if (dow === 0) { cls = 'day-sunday'; tag = 'Sunday'; }
+    const dayRecs = (window.staffAttendance||[]).filter(a => a.date === dateStr);
+    const presentCt = dayRecs.filter(a => a.status === 'Present').length;
+    const absentCt = dayRecs.filter(a => a.status === 'Absent').length;
+    const isToday = dateStr === todayStrVal;
+    const isSelected = dateStr === saState.selectedDate;
+    html += `
+      <div class="cal-day ${cls} ${isToday ? 'cal-today' : ''} ${isSelected ? 'cal-selected' : ''}" onclick="saSelectDate('${dateStr}')">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <span class="cal-day-num">${d}</span>
+          <span class="cal-day-tag">${tag}</span>
+        </div>
+        ${holiday ? `<div class="cal-day-label">${holiday.name}</div>` : (dayRecs.length ? `<div class="cal-day-label">🟢${presentCt} 🔴${absentCt}</div>` : '')}
+      </div>`;
+  }
+  document.getElementById('sa-grid').innerHTML = html;
+}
+
+function saSelectDate(dateStr) {
+  try {
+    saState.selectedDate = dateStr;
+    saSelectedStaffId = null;
+    document.getElementById('sa-staff-stat-card').style.display = 'none';
+    renderSaCalendar();
+
+    document.getElementById('sa-detail-card').style.display = 'block';
+    const d = new Date(dateStr + 'T00:00:00');
+    const dow = d.getDay();
+    const holiday = calHolidayFor(dateStr);
+    document.getElementById('sa-detail-date').textContent = d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    let badgeHtml = '<span style="background:rgba(16,185,129,0.15);color:#047857;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:20px;">Working Day</span>';
+    if (holiday) badgeHtml = '<span style="background:rgba(245,158,11,0.18);color:#92400e;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:20px;">Holiday</span>';
+    else if (dow === 0) badgeHtml = '<span style="background:rgba(239,68,68,0.15);color:#b91c1c;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:20px;">Sunday</span>';
+    document.getElementById('sa-detail-badge').innerHTML = badgeHtml;
+
+    const holidayRow = document.getElementById('sa-holiday-row');
+    if (holiday) {
+      holidayRow.style.display = 'flex';
+      document.getElementById('sa-holiday-text').textContent = `🟠 Marked as holiday: ${holiday.name}`;
+    } else {
+      holidayRow.style.display = 'none';
+    }
+    document.getElementById('sa-mark-holiday-wrap').style.display = holiday ? 'none' : 'block';
+
+    renderSaStaffTable(dateStr);
+  } catch (err) {
+    console.error('saSelectDate failed', err);
+    showAlert('sa-alert', 'error', '❌ Could not open this date: ' + (err && err.message ? err.message : err));
+  }
+}
+window.saSelectDate = saSelectDate;
+
+function renderSaStaffTable(dateStr) {
+  const staff = saStaffList();
+  const tbody = document.getElementById('sa-staff-body');
+  if (!staff.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No staff added yet. Add staff members in Master Data → Staff List.</td></tr>'; return; }
+  tbody.innerHTML = staff.map(u => {
+    const rec = (window.staffAttendance||[]).find(a => a.date === dateStr && a.staffId === u.id);
+    const status = rec ? rec.status : '';
+    const nameSafe = (u.name||'').replace(/'/g,"\\'");
+    const isSelected = u.id === saSelectedStaffId;
+    return `<tr style="${isSelected ? 'background:rgba(20,184,166,0.08);' : ''}">
+      <td>
+        <div style="cursor:pointer;" onclick="selectStaffForStats('${u.id}','${nameSafe}')" title="Click to view this staff's monthly attendance overview">
+          <strong style="${isSelected ? 'color:var(--teal);' : ''}">${u.name}${isSelected ? ' 👁' : ''}</strong>
+          <div style="font-size:11px;color:var(--muted);">${u.mobile||u.dept||''}</div>
+        </div>
+      </td>
+      <td><span class="chip chip-blue" style="font-size:10px;">${u.designation||u.dept||'—'}</span></td>
+      <td>
+        <button class="btn btn-outline" style="padding:5px 12px;font-size:12px;border-color:var(--green);color:${status==='Present' ? '#fff' : 'var(--green)'};background:${status==='Present' ? 'var(--green)' : ''};" onclick="markStaffAttendance('${dateStr}','${u.id}','${nameSafe}','Present')">✔ Present</button>
+        <button class="btn btn-outline" style="padding:5px 12px;font-size:12px;margin-left:6px;border-color:var(--red);color:${status==='Absent' ? '#fff' : 'var(--red)'};background:${status==='Absent' ? 'var(--red)' : ''};" onclick="markStaffAttendance('${dateStr}','${u.id}','${nameSafe}','Absent')">✘ Absent</button>
+      </td>
+      <td>
+        <input type="text" id="sa-reason-${u.id}" placeholder="Reason for absence" value="${rec && rec.reason ? rec.reason.replace(/"/g,'&quot;') : ''}" style="width:180px;padding:6px 9px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;" ${status==='Absent' ? '' : 'disabled'} onchange="saveSaReason('${dateStr}','${u.id}',this.value)">
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// Called when a staff name is clicked in the date's attendance list.
+// Shows that staff's totals for the currently-displayed month: total
+// working days (green/working days on the calendar), how many of those
+// they were marked Present, and how many were Leave (Absent).
+function selectStaffForStats(staffId, staffName) {
+  saSelectedStaffId = (saSelectedStaffId === staffId) ? null : staffId; // click again to toggle off
+  if (saState.selectedDate) renderSaStaffTable(saState.selectedDate);
+  if (saSelectedStaffId) {
+    renderStaffStatCard(staffId, staffName);
+  } else {
+    document.getElementById('sa-staff-stat-card').style.display = 'none';
+  }
+}
+window.selectStaffForStats = selectStaffForStats;
+
+function renderStaffStatCard(staffId, staffName) {
+  const { year, month } = saState;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let workingDays = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = calDateStr(year, month, d);
+    const dow = new Date(year, month, d).getDay();
+    if (!calHolidayFor(dateStr) && dow !== 0) workingDays++;
+  }
+
+  const monthKey = calMonthKey(year, month);
+  const recs = (window.staffAttendance||[]).filter(a => a.staffId === staffId && a.date.startsWith(monthKey));
+  const present = recs.filter(a => a.status === 'Present').length;
+  const leave = recs.filter(a => a.status === 'Absent').length;
+  const pct = workingDays > 0 ? Math.round((present / workingDays) * 100) : 0;
+
+  document.getElementById('sa-staff-stat-title').textContent = `${staffName} — ${CAL_MONTH_NAMES[month]} ${year} Overview`;
+  document.getElementById('sa-stat-working').textContent = workingDays;
+  document.getElementById('sa-stat-present').textContent = present;
+  document.getElementById('sa-stat-leave').textContent = leave;
+  const pctEl = document.getElementById('sa-stat-pct');
+  pctEl.textContent = pct + '%';
+  pctEl.style.color = pct >= 90 ? 'var(--green)' : pct >= 75 ? '#b45309' : 'var(--red)';
+  document.getElementById('sa-staff-stat-card').style.display = 'block';
+}
+window.renderStaffStatCard = renderStaffStatCard;
+
+async function markStaffAttendance(dateStr, staffId, staffName, status) {
+  const idx = (window.staffAttendance||[]).findIndex(a => a.date === dateStr && a.staffId === staffId);
+  const existingReason = idx > -1 ? (window.staffAttendance[idx].reason || '') : '';
+  const rec = {
+    id: 'SATT' + dateStr + '_' + staffId,
+    date: dateStr, staffId, staffName, status,
+    reason: status === 'Absent' ? existingReason : '',
+    markedBy: currentUser.name, markedAt: new Date().toISOString()
+  };
+  if (idx > -1) window.staffAttendance[idx] = rec; else window.staffAttendance.push(rec);
+  await DB.set('staffAttendance', window.staffAttendance);
+  renderSaStaffTable(dateStr);
+  renderSaCalendar();
+  renderSaSummary();
+  if (saSelectedStaffId === staffId) renderStaffStatCard(staffId, staffName);
+}
+window.markStaffAttendance = markStaffAttendance;
+
+async function saveSaReason(dateStr, staffId, reason) {
+  const idx = (window.staffAttendance||[]).findIndex(a => a.date === dateStr && a.staffId === staffId);
+  if (idx < 0) return;
+  window.staffAttendance[idx].reason = reason;
+  await DB.set('staffAttendance', window.staffAttendance);
+}
+window.saveSaReason = saveSaReason;
+
+async function saRemoveHoliday() {
+  const date = saState.selectedDate;
+  const holiday = calHolidayFor(date);
+  if (!holiday) return;
+  confirmAction(
+    `Remove the holiday "${holiday.name}" on ${date}?`,
+    async () => {
+      holidays = holidays.filter(h => h.id !== holiday.id);
+      await DB.set('holidays', holidays);
+      renderSaCalendar();
+      saSelectDate(date);
+    },
+    { title: 'Remove Holiday', confirmLabel: 'Yes, Remove', danger: true }
+  );
+}
+window.saRemoveHoliday = saRemoveHoliday;
+
+function renderSaSummary() {
+  const tbody = document.getElementById('sa-summary-body');
+  if (!tbody) return;
+  const staff = saStaffList();
+  const { year, month } = saState;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let workingDays = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = calDateStr(year, month, d);
+    const dow = new Date(year, month, d).getDay();
+    if (!calHolidayFor(dateStr) && dow !== 0) workingDays++;
+  }
+
+  if (!staff.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">No staff added yet. Add staff members in Master Data → Staff List.</td></tr>'; return; }
+
+  const monthKey = calMonthKey(year, month);
+  tbody.innerHTML = staff.map(u => {
+    const recs = (window.staffAttendance||[]).filter(a => a.staffId === u.id && a.date.startsWith(monthKey));
+    const present = recs.filter(a => a.status === 'Present').length;
+    const absent = recs.filter(a => a.status === 'Absent').length;
+    const pct = workingDays > 0 ? Math.round((present / workingDays) * 100) : 0;
+    return `<tr>
+      <td><strong>${u.name}</strong></td>
+      <td><span class="chip chip-blue" style="font-size:10px;">${u.designation||u.dept||'—'}</span></td>
+      <td>${workingDays}</td>
+      <td style="color:var(--green);font-weight:600;">${present}</td>
+      <td style="color:var(--red);font-weight:600;">${absent}</td>
+      <td>${pct}%</td>
+    </tr>`;
+  }).join('');
 }
 </script>
 </body>
