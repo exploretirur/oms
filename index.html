@@ -241,6 +241,10 @@ textarea { min-height: 80px; resize: vertical; }
 .cal-day.day-sunday .cal-day-tag { background: var(--red); color: #fff; }
 .cal-day.day-holiday { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.45); }
 .cal-day.day-holiday .cal-day-tag { background: var(--amber); color: #fff; }
+.cal-day.day-absent { background: rgba(239,68,68,0.09); border-color: rgba(239,68,68,0.35); }
+.cal-day.day-absent .cal-day-tag { background: var(--red); color: #fff; }
+.cal-day.day-none { background: transparent; }
+.cal-day.day-none .cal-day-tag { display: none; }
 .cal-day.cal-today { outline: 2px solid var(--navy); outline-offset: 1px; }
 .cal-day.cal-selected { outline: 2.5px solid var(--teal); outline-offset: 1px; }
 .cal-day-label { font-size: 9.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -576,6 +580,12 @@ tr:hover td { background: #f8fafd; }
     <div class="sidebar-section">My Explore Learning</div>
     <div class="nav-item" id="nav-my-dashboard" onclick="navTo('my-dashboard',this)">
       <span class="icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" id="nav-my-attendance" onclick="navTo('my-attendance',this)">
+      <span class="icon">🗓️</span> My Attendance
+    </div>
+    <div class="nav-item" id="nav-study-material" onclick="navTo('study-material',this)">
+      <span class="icon">📚</span> Study Material
     </div>
     <div class="nav-item" id="nav-my-profile" onclick="navTo('my-profile',this)">
       <span class="icon">🧑‍🎓</span> Profile
@@ -1292,6 +1302,43 @@ tr:hover td { background: #f8fafd; }
       </div>
     </div>
 
+    <!-- ===== MY ATTENDANCE (Student self-service calendar) ===== -->
+    <div id="page-my-attendance" class="page">
+      <div id="my-att-cal-alert"></div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">🗓️</span> <span id="my-att-cal-month-label">My Attendance</span></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-outline" onclick="myCalChangeMonth(-1)" style="padding:6px 12px;font-size:13px;">‹ Prev</button>
+            <button class="btn btn-outline" onclick="myCalGoToday()" style="padding:6px 12px;font-size:13px;">Today</button>
+            <button class="btn btn-outline" onclick="myCalChangeMonth(1)" style="padding:6px 12px;font-size:13px;">Next ›</button>
+          </div>
+        </div>
+        <div class="cal-legend">
+          <span class="cal-legend-item"><span class="cal-dot cal-dot-green"></span> Present</span>
+          <span class="cal-legend-item"><span class="cal-dot cal-dot-red"></span> Absent</span>
+          <span class="cal-legend-item"><span class="cal-dot cal-dot-orange"></span> Holiday</span>
+        </div>
+        <div class="cal-weekdays">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div class="cal-grid" id="my-att-cal-grid"></div>
+      </div>
+
+      <!-- Selected date detail -->
+      <div class="card" id="my-att-detail-card" style="display:none;">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">📌</span> <span id="my-att-detail-date">Selected Date</span></div>
+          <span id="my-att-detail-badge"></span>
+        </div>
+        <div id="my-att-detail-body"></div>
+      </div>
+      <div id="my-att-empty-hint" class="card" style="text-align:center;padding:32px;">
+        <div style="font-size:36px;margin-bottom:10px;">👆</div>
+        <p style="color:var(--muted);">Click a date on the calendar to see if you were present or absent and what topic was covered.</p>
+      </div>
+    </div>
+
     <!-- ===== MY PROFILE (Student self-service) ===== -->
     <div id="page-my-profile" class="page">
       <div class="card">
@@ -1316,15 +1363,21 @@ tr:hover td { background: #f8fafd; }
         <div class="card-header"><div class="card-title"><span class="icon">🏆</span> Marks Gained</div></div>
         <div class="table-wrap"><table><thead><tr><th>Subject</th><th>Exam</th><th>Theory</th><th>Practical</th><th>Total</th><th>%</th><th>Grade</th></tr></thead><tbody id="mp-marks-log"></tbody></table></div>
       </div>
+    </div>
 
+    <!-- ===== STUDY MATERIAL (Student self-service — E-Books & Video Tutorials) ===== -->
+    <div id="page-study-material" class="page">
+      <div id="sm-alert"></div>
       <div class="card">
-        <div class="card-header"><div class="card-title"><span class="icon">📘</span> E-Books</div></div>
-        <div id="mp-ebook-list" class="resource-grid"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><div class="card-title"><span class="icon">🎬</span> Recorded Videos</div></div>
-        <div id="mp-video-list" class="resource-grid"></div>
+        <!-- Sub-menu: E-Books / Video Tutorials -->
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+          <button class="btn" id="sm-tab-ebook" onclick="smSelectType('ebook')" style="padding:8px 18px;font-size:13.5px;">📘 E-Books</button>
+          <button class="btn" id="sm-tab-video" onclick="smSelectType('video')" style="padding:8px 18px;font-size:13.5px;">🎬 Video Tutorials</button>
+        </div>
+        <!-- Top menu strip: list of items of the selected type -->
+        <div id="sm-item-menu" style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:14px;margin-bottom:16px;border-bottom:1.5px solid var(--border);"></div>
+        <!-- Main viewing area -->
+        <div id="sm-main-area"></div>
       </div>
     </div>
 
@@ -1468,11 +1521,30 @@ tr:hover td { background: #f8fafd; }
             <select id="rf-type"><option value="ebook">📘 E-Book</option><option value="video">🎬 Recorded Video</option></select>
           </div>
           <div class="form-group"><label>Course <span class="required">*</span></label><select id="rf-course"><option value="">Select course</option></select></div>
-          <div class="form-group full"><label>Link (URL) <span class="required">*</span></label><input id="rf-url" type="url" placeholder="https://..."></div>
+          <div class="form-group full"><label>Link (URL) <span class="required">*</span></label><input id="rf-url" type="url" placeholder="https://..."><div style="font-size:11px;color:var(--muted);margin-top:4px;">YouTube and Google Drive links open in a built-in preview for students — no new tab needed. Make sure Drive files are shared as "Anyone with the link".</div></div>
         </div>
         <div class="action-bar">
           <button class="btn btn-outline" onclick="closeModal('resource-modal')">Cancel</button>
           <button class="btn btn-teal" onclick="saveResource()">💾 Save Material</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: inline preview for E-Books / Videos — YouTube & Google Drive
+         links are converted to an embeddable URL so students never leave
+         the page; any other link falls back to embedding it directly, with
+         a manual "Open in new tab" escape hatch if a host blocks framing. -->
+    <div class="modal-backdrop" id="resource-viewer-modal">
+      <div class="modal" style="max-width:900px;width:92vw;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:12px;">
+          <h3 id="rv-title" style="font-size:16px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Resource</h3>
+          <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+            <a id="rv-open-link" href="#" target="_blank" rel="noopener" class="btn btn-outline" style="padding:5px 12px;font-size:12px;text-decoration:none;">Open in new tab ↗</a>
+            <button class="btn btn-outline" onclick="closeResourceViewer()" style="padding:4px 12px;">✕</button>
+          </div>
+        </div>
+        <div style="width:100%;height:75vh;background:#000;border-radius:10px;overflow:hidden;">
+          <iframe id="rv-iframe" src="" allow="autoplay; encrypted-media; fullscreen" allowfullscreen style="width:100%;height:100%;border:0;"></iframe>
         </div>
       </div>
     </div>
@@ -2477,6 +2549,7 @@ function startListeners() {
     window.resources = data;
     if (document.getElementById('page-resources') && document.getElementById('page-resources').classList.contains('active')) renderResourcesPage();
     if (document.getElementById('page-my-profile') && document.getElementById('page-my-profile').classList.contains('active')) loadMyProfile();
+    if (document.getElementById('page-study-material') && document.getElementById('page-study-material').classList.contains('active')) renderStudyMaterialPage();
   });
   // Staff-only — absences is a pre-marking tool for Office/Teacher, not
   // part of the student portal.
@@ -2736,7 +2809,7 @@ const PERMISSIONS = {
   hrmanager: { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance'], canEnter: true, canModify: true },
   office:  { pages: ['dashboard','admission','students','fees','receipt','certificates','absent-list','student-dashboard','calendar','resources'],                                                                               canEnter: true, canModify: false },
   teacher: { pages: ['dashboard','attendance','absent-list','attendance-report','student-dashboard','marks','calendar','resources'],                                                                              canEnter: true, canModify: false },
-  student: { pages: ['my-dashboard','my-profile'], canEnter: false, canModify: false }
+  student: { pages: ['my-dashboard','my-profile','my-attendance','study-material'], canEnter: false, canModify: false }
 };
 
 function canAccess(page) {
@@ -2941,7 +3014,7 @@ function navTo(page, el) {
     marks:'Marks Entry', master:'Master Data', salary:'Staff Salary',
     users:'User Management', 'import-students':'Import Students from Excel',
     settings:'Configuration', calendar:'Calendar', resources:'Study Materials',
-    'my-dashboard':'My Dashboard', 'my-profile':'My Profile',
+    'my-dashboard':'My Dashboard', 'my-profile':'My Profile', 'my-attendance':'My Attendance', 'study-material':'Study Material',
     placement:'Job Placement Report', 'staff-attendance':'Staff Attendance'
   };
   document.getElementById('page-title').textContent = titles[page] || page;
@@ -3001,6 +3074,8 @@ function navTo(page, el) {
   if (page === 'resources') renderResourcesPage();
   if (page === 'my-dashboard') loadMyDashboard();
   if (page === 'my-profile') loadMyProfile();
+  if (page === 'my-attendance') renderMyAttendanceCalendar();
+  if (page === 'study-material') renderStudyMaterialPage();
 }
 
 function showPage(page) {
@@ -5511,6 +5586,116 @@ function parseCSVLine(line) {
 }
 
 // ============================================================
+// RESOURCE VIEWER — converts a YouTube or Google Drive link into its
+// embeddable form so E-Books / Recorded Videos open in an in-page player
+// instead of a new tab. Any other link is embedded directly (works for
+// most direct PDF/file URLs); "Open in new tab" stays as a manual
+// fallback in case a host blocks being framed.
+// ============================================================
+// Safely embed a JS value into a single-quoted HTML onclick attribute
+// (JSON.stringify alone leaves raw apostrophes in titles/urls, which would
+// break out of the attribute early).
+function jsAttr(val) { return JSON.stringify(val).replace(/'/g, '&#39;'); }
+window.jsAttr = jsAttr;
+
+function getEmbedUrl(url) {
+  if (!url) return '';
+  let m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{6,})/);
+  if (m) return `https://www.youtube.com/embed/${m[1]}`;
+  m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+  m = url.match(/drive\.google\.com\/(?:open|uc)\?[^#]*\bid=([a-zA-Z0-9_-]+)/);
+  if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+  return url; // fallback: try embedding the URL as-is
+}
+window.getEmbedUrl = getEmbedUrl;
+
+function openResourceViewer(url, title, type) {
+  document.getElementById('rv-title').textContent = (type === 'video' ? '🎬 ' : '📘 ') + (title || 'Resource');
+  document.getElementById('rv-iframe').src = getEmbedUrl(url);
+  document.getElementById('rv-open-link').href = url;
+  document.getElementById('resource-viewer-modal').classList.add('open');
+}
+window.openResourceViewer = openResourceViewer;
+
+function closeResourceViewer() {
+  document.getElementById('rv-iframe').src = ''; // stop any playing video
+  closeModal('resource-viewer-modal');
+}
+window.closeResourceViewer = closeResourceViewer;
+
+// ============================================================
+// STUDY MATERIAL (Student) — E-Books / Video Tutorials picked from a top
+// menu strip, opening in the main content area on the right (never a
+// popup, never a new tab) so students stay on the same screen.
+// ============================================================
+let smState = { type: 'ebook', selectedId: null };
+
+function smSelectType(type) {
+  smState.type = type;
+  smState.selectedId = null; // reset so the new list auto-selects its first item
+  renderStudyMaterialPage();
+}
+window.smSelectType = smSelectType;
+
+function smSelectItem(id) {
+  smState.selectedId = id;
+  renderStudyMaterialPage();
+}
+window.smSelectItem = smSelectItem;
+
+function renderStudyMaterialPage() {
+  const page = document.getElementById('page-study-material');
+  if (!page) return;
+  const s = findMyStudentRecord();
+  const alertBox = document.getElementById('sm-alert');
+  if (!s) {
+    if (alertBox) alertBox.innerHTML = '<div class="alert alert-error">We couldn\'t find your student record. Please contact the office.</div>';
+    return;
+  }
+  if (alertBox) alertBox.innerHTML = '';
+
+  // Tab button active styling
+  const ebookTab = document.getElementById('sm-tab-ebook');
+  const videoTab = document.getElementById('sm-tab-video');
+  ebookTab.className = 'btn ' + (smState.type === 'ebook' ? 'btn-teal' : 'btn-outline');
+  videoTab.className = 'btn ' + (smState.type === 'video' ? 'btn-teal' : 'btn-outline');
+  ebookTab.style.cssText = 'padding:8px 18px;font-size:13.5px;';
+  videoTab.style.cssText = 'padding:8px 18px;font-size:13.5px;';
+
+  const items = (window.resources||[]).filter(r => r.course === s.course && r.type === smState.type);
+
+  // Auto-select the first item if nothing (or a now-missing item) is selected
+  if (!smState.selectedId || !items.some(i => i.id === smState.selectedId)) {
+    smState.selectedId = items.length ? items[0].id : null;
+  }
+
+  // Top menu strip
+  const menu = document.getElementById('sm-item-menu');
+  menu.innerHTML = items.length ? items.map(i => `
+    <button class="btn ${i.id === smState.selectedId ? 'btn-teal' : 'btn-outline'}" onclick="smSelectItem('${i.id}')" style="padding:6px 14px;font-size:12.5px;">
+      ${smState.type === 'video' ? '🎬' : '📘'} ${i.title}
+    </button>`).join('') : `<p style="color:var(--muted);font-size:13px;">No ${smState.type === 'video' ? 'video tutorials' : 'e-books'} available for your course yet.</p>`;
+
+  // Main viewing area
+  const mainArea = document.getElementById('sm-main-area');
+  const selected = items.find(i => i.id === smState.selectedId);
+  if (!selected) { mainArea.innerHTML = ''; return; }
+  mainArea.innerHTML = `
+    <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:15.5px;font-weight:700;">${selected.title}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${selected.course} · ${selected.type === 'video' ? 'Recorded Video' : 'E-Book'}</div>
+      </div>
+      <a href="${selected.url}" target="_blank" rel="noopener" class="btn btn-outline" style="padding:5px 12px;font-size:12px;text-decoration:none;">Open in new tab ↗</a>
+    </div>
+    <div style="width:100%;height:70vh;background:#000;border-radius:10px;overflow:hidden;">
+      <iframe src="${getEmbedUrl(selected.url)}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen style="width:100%;height:100%;border:0;"></iframe>
+    </div>`;
+}
+window.renderStudyMaterialPage = renderStudyMaterialPage;
+
+// ============================================================
 // STUDY MATERIALS — Notifications + E-Books/Videos (staff-managed,
 // read by students on their Dashboard / Profile)
 // ============================================================
@@ -5547,7 +5732,7 @@ function renderResourcesPage() {
       <div class="resource-title">${r.title}</div>
       <div class="resource-meta">${r.course} · ${r.type==='video'?'Recorded Video':'E-Book'}</div>
       <div style="display:flex;gap:8px;">
-        <a href="${r.url}" target="_blank" rel="noopener" class="btn btn-outline" style="padding:5px 12px;font-size:12px;text-decoration:none;">Open ↗</a>
+        <button class="btn btn-outline" style="padding:5px 12px;font-size:12px;" onclick='openResourceViewer(${jsAttr(r.url)}, ${jsAttr(r.title)}, ${jsAttr(r.type)})'>Preview</button>
         <button class="btn btn-outline" onclick="deleteResource('${r.id}')" style="padding:5px 10px;font-size:12px;">🗑️</button>
       </div>
     </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No study materials added yet.</p>';
@@ -5719,6 +5904,129 @@ function loadMyDashboard() {
 }
 window.loadMyDashboard = loadMyDashboard;
 
+// ============================================================
+// MY ATTENDANCE — Student self-service personal attendance calendar.
+// Colors each day from THIS student's own attendance record: green =
+// Present, red = Absent, orange = Holiday (set by Admin/Office in the
+// institute Calendar). Clicking a date shows the topic covered that day —
+// taken from the student's own record when Present, or (since the topic
+// field is blank on an Absent record) backfilled by checking their
+// batch/course classmates' Present records for the same date, so an
+// absent student can still see what was taught.
+// ============================================================
+let myCalState = { year: new Date().getFullYear(), month: new Date().getMonth(), selectedDate: null };
+let _myAttMyLog = [], _myAttClassLog = [];
+
+function myCalChangeMonth(delta) {
+  let m = myCalState.month + delta, y = myCalState.year;
+  if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+  myCalState.month = m; myCalState.year = y;
+  renderMyAttendanceCalendar();
+}
+function myCalGoToday() {
+  const t = new Date();
+  myCalState.year = t.getFullYear(); myCalState.month = t.getMonth();
+  renderMyAttendanceCalendar();
+}
+
+function renderMyAttendanceCalendar() {
+  const page = document.getElementById('page-my-attendance');
+  if (!page) return;
+  const s = findMyStudentRecord();
+  const alertBox = document.getElementById('my-att-cal-alert');
+  if (!s) {
+    if (alertBox) alertBox.innerHTML = '<div class="alert alert-error">We couldn\'t find your student record. Please contact the office.</div>';
+    return;
+  }
+  if (alertBox) alertBox.innerHTML = '';
+
+  const { year, month } = myCalState;
+  document.getElementById('my-att-cal-month-label').textContent = `${CAL_MONTH_NAMES[month]} ${year}`;
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStrVal = todayStr();
+
+  _myAttMyLog = (window.attendance||[]).filter(a => a.rollNo === s.rollNo);
+  _myAttClassLog = (window.attendance||[]).filter(a => a.course === s.course && a.batch === s.batch);
+
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day cal-empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = calDateStr(year, month, d);
+    const dow = new Date(year, month, d).getDay();
+    const holiday = calHolidayFor(dateStr);
+    const myRec = _myAttMyLog.find(a => a.date === dateStr);
+    let cls = 'day-none', tag = '';
+    if (holiday) { cls = 'day-holiday'; tag = 'Holiday'; }
+    else if (myRec && myRec.status === 'Present') { cls = 'day-working'; tag = 'Present'; }
+    else if (myRec && myRec.status === 'Absent') { cls = 'day-absent'; tag = 'Absent'; }
+    else if (dow === 0) { cls = 'day-sunday'; tag = 'Sunday'; }
+    const isToday = dateStr === todayStrVal;
+    const isSelected = dateStr === myCalState.selectedDate;
+    html += `
+      <div class="cal-day ${cls} ${isToday ? 'cal-today' : ''} ${isSelected ? 'cal-selected' : ''}" onclick="myCalSelectDate('${dateStr}')">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <span class="cal-day-num">${d}</span>
+          ${tag ? `<span class="cal-day-tag">${tag}</span>` : ''}
+        </div>
+        ${holiday ? `<div class="cal-day-label">${holiday.name}</div>` : ''}
+      </div>`;
+  }
+  document.getElementById('my-att-cal-grid').innerHTML = html;
+
+  if (myCalState.selectedDate) myCalRenderDetail(myCalState.selectedDate);
+}
+window.renderMyAttendanceCalendar = renderMyAttendanceCalendar;
+window.myCalChangeMonth = myCalChangeMonth;
+window.myCalGoToday = myCalGoToday;
+
+function myCalSelectDate(dateStr) {
+  myCalState.selectedDate = dateStr;
+  renderMyAttendanceCalendar();
+  document.getElementById('my-att-empty-hint').style.display = 'none';
+  document.getElementById('my-att-detail-card').style.display = 'block';
+  myCalRenderDetail(dateStr);
+}
+window.myCalSelectDate = myCalSelectDate;
+
+function myCalRenderDetail(dateStr) {
+  document.getElementById('my-att-detail-date').textContent = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  const badge = document.getElementById('my-att-detail-badge');
+  const body = document.getElementById('my-att-detail-body');
+  const holiday = calHolidayFor(dateStr);
+  const myRec = _myAttMyLog.find(a => a.date === dateStr);
+
+  if (holiday) {
+    badge.innerHTML = '<span class="chip chip-amber">🟠 Holiday</span>';
+    body.innerHTML = `<p style="font-size:14px;color:var(--text);">${holiday.name}</p>`;
+    return;
+  }
+  if (!myRec) {
+    badge.innerHTML = '<span class="chip" style="background:#e2e8f0;color:#475569;">No Record</span>';
+    body.innerHTML = `<p style="color:var(--muted);font-size:13px;">No attendance was recorded for you on this date — either there was no class, or it hasn't been marked yet.</p>`;
+    return;
+  }
+  if (myRec.status === 'Present') {
+    badge.innerHTML = '<span class="chip chip-green">🟢 Present</span>';
+    body.innerHTML = `
+      <div class="stat-label" style="margin-bottom:6px;">Topic Covered</div>
+      <div style="font-size:14.5px;font-weight:600;">${myRec.topic || 'No topic recorded for this date.'}</div>
+      ${myRec.software ? `<div style="margin-top:14px;"><div class="stat-label" style="margin-bottom:6px;">Software Used</div><div style="font-size:13.5px;">${myRec.software}</div></div>` : ''}
+    `;
+  } else {
+    // Absent — the student's own topic field is blank, so pull the topic
+    // from classmates in the same course/batch who were marked Present
+    // on this date.
+    const classDayTopics = [...new Set(_myAttClassLog.filter(a => a.date === dateStr && a.status === 'Present' && (a.topic||'').trim()).map(a => a.topic.trim()))];
+    badge.innerHTML = '<span class="chip chip-red">🔴 Absent</span>';
+    body.innerHTML = `
+      <div class="stat-label" style="margin-bottom:6px;">Topic Covered (from your batch's attendance)</div>
+      <div style="font-size:14.5px;font-weight:600;">${classDayTopics.length ? classDayTopics.join(', ') : 'No topic recorded by your batch for this date.'}</div>
+    `;
+  }
+}
+
 function loadMyProfile() {
   const s = findMyStudentRecord();
   if (!s) return;
@@ -5748,20 +6056,6 @@ function loadMyProfile() {
       <td><span class="chip ${gradeColor}">${m.grade||'—'}</span></td>
     </tr>`;
   }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">No marks recorded yet</td></tr>';
-
-  // E-books & videos for this student's course
-  const myResources = (window.resources||[]).filter(r => r.course === s.course);
-  const ebooks = myResources.filter(r => r.type === 'ebook');
-  const videos = myResources.filter(r => r.type === 'video');
-  const cardHtml = r => `
-    <div class="resource-card">
-      <div class="resource-icon">${r.type==='video'?'🎬':'📘'}</div>
-      <div class="resource-title">${r.title}</div>
-      <div class="resource-meta">${r.course}</div>
-      <a href="${r.url}" target="_blank" rel="noopener" class="btn btn-teal" style="padding:5px 14px;font-size:12px;text-decoration:none;">${r.type==='video'?'▶ Watch':'📖 Open'}</a>
-    </div>`;
-  document.getElementById('mp-ebook-list').innerHTML = ebooks.length ? ebooks.map(cardHtml).join('') : '<p style="color:var(--muted);font-size:13px;">No e-books available for your course yet.</p>';
-  document.getElementById('mp-video-list').innerHTML = videos.length ? videos.map(cardHtml).join('') : '<p style="color:var(--muted);font-size:13px;">No recorded videos available for your course yet.</p>';
 }
 window.loadMyProfile = loadMyProfile;
 
