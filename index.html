@@ -5905,7 +5905,10 @@ function renderWeeklyPlanner() {
     tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px;">No schedule entries yet${canManageWeeklyPlanner() ? ' — click "+ Add Entry" to plan this week.' : '.'}</td></tr>`;
     return;
   }
-  const canEditStatus = currentUser.role === 'teacher' || canManageWeeklyPlanner();
+  // Status + Reason are entered ONLY by the Teacher — Academic Head (and
+  // Admin/Manager/HR, who can still add/edit/delete the schedule itself)
+  // see these as read-only once the Teacher has updated them.
+  const canEditStatus = currentUser.role === 'teacher';
   tbody.innerHTML = rows.map(r => {
     const needsReason = r.status === 'Partially Complete' || r.status === 'Not Complete';
     const statusChip = !r.status ? '' :
@@ -6011,8 +6014,15 @@ function deleteWeeklyPlannerEntry(id) {
   confirmAction(
     `Delete this schedule entry${item ? ' — "'+item.topic+'" ('+item.date+')' : ''}? This cannot be undone.`,
     async () => {
+      // Delete the Firestore document directly (guaranteed removal) rather
+      // than relying on DB.set's whole-array diff-sync, which only has a
+      // "previous state" baseline to compare against after a save has
+      // already happened once in this session — meaning the very first
+      // delete in a fresh session would silently fail to remove anything
+      // server-side (the row would just reappear on the next data refresh).
+      const ok = await DB.deleteDoc('weekly_planner', id);
+      if (!ok) { showAlert('wp-alert','error','❌ Could not delete from database. Please try again.'); return; }
       window.weeklyPlanner = window.weeklyPlanner.filter(r => r.id !== id);
-      await DB.set('weekly_planner', window.weeklyPlanner);
       renderWeeklyPlanner();
       showAlert('wp-alert', 'success', 'Deleted.');
     },
@@ -6022,12 +6032,15 @@ function deleteWeeklyPlannerEntry(id) {
 window.deleteWeeklyPlannerEntry = deleteWeeklyPlannerEntry;
 
 // Status dropdown changed on a row — Complete saves immediately; Partially
-// / Not Complete reveals the Reason box and waits for Submit.
+// / Not Complete reveals the Reason box and waits for Submit. Either way we
+// remember the chosen value on the in-memory item right away, so Submit
+// (which reads item.status) has the correct pending selection to save.
 function wpStatusChanged(id, value) {
   const item = (window.weeklyPlanner||[]).find(r => r.id === id);
   if (!item) return;
   const reasonWrap = document.getElementById('wp-reason-wrap-' + id);
   if (value === 'Partially Complete' || value === 'Not Complete') {
+    item.status = value; // remember the pending selection until Submit
     if (reasonWrap) reasonWrap.style.display = '';
     return; // wait for teacher to type a reason and click Submit
   }
