@@ -129,6 +129,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: va
 .role-badge.hrmanager { background: #cffafe; color: #0e7490; }
 .role-badge.office { background: #dbeafe; color: #1d4ed8; }
 .role-badge.teacher { background: #d1fae5; color: #065f46; }
+.role-badge.academichead { background: #ffe4e6; color: #9f1239; }
 .role-badge.student { background: #fce7f3; color: #9d174d; }
 .readonly-banner {
   background: #eff6ff; border-bottom: 1px solid #bfdbfe;
@@ -469,15 +470,32 @@ tr:hover td { background: #f8fafd; }
     </div>
     <div class="login-card">
       <div id="login-error" class="login-error">Invalid email or password.</div>
-      <div class="login-field">
-        <label>Email</label>
-        <input id="login-username" type="email" placeholder="Enter your email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+      <div id="login-fields">
+        <div class="login-field">
+          <label>Email</label>
+          <input id="login-username" type="email" placeholder="Enter your email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div class="login-field">
+          <label>Password</label>
+          <input id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div style="text-align:right;margin:-10px 0 16px;">
+          <a href="#" onclick="showForgotPassword();return false;" style="font-size:12.5px;color:var(--teal);text-decoration:none;">Forgot Password?</a>
+        </div>
+        <button class="btn-login" onclick="doLogin()" id="login-btn">Sign In</button>
       </div>
-      <div class="login-field">
-        <label>Password</label>
-        <input id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <div id="forgot-password-fields" style="display:none;">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Enter your account email and we'll send you a link to reset your password.</p>
+        <div class="login-field">
+          <label>Email</label>
+          <input id="fp-email" type="email" placeholder="Enter your account email" autocomplete="username" onkeydown="if(event.key==='Enter')sendPasswordReset()">
+        </div>
+        <div id="fp-alert"></div>
+        <button class="btn-login" onclick="sendPasswordReset()" id="fp-send-btn">Send Reset Link</button>
+        <div style="text-align:center;margin-top:16px;">
+          <a href="#" onclick="hideForgotPassword();return false;" style="font-size:12.5px;color:var(--muted);text-decoration:none;">← Back to Sign In</a>
+        </div>
       </div>
-      <button class="btn-login" onclick="doLogin()" id="login-btn">Sign In</button>
     </div>
   </div>
 </div>
@@ -542,6 +560,9 @@ tr:hover td { background: #f8fafd; }
   </div>
 
   <div class="sidebar-section">Academics</div>
+  <div class="nav-item" id="nav-weekly-planner" onclick="navTo('weekly-planner',this)">
+    <span class="icon">🗓️</span> Weekly Planner
+  </div>
   <div class="nav-item" id="nav-marks" onclick="navTo('marks',this)">
     <span class="icon">📋</span> Marks Entry
   </div>
@@ -1530,6 +1551,48 @@ tr:hover td { background: #f8fafd; }
       </div>
     </div>
 
+    <!-- ===== WEEKLY PLANNER (Academic Head sets schedule; Teachers fill Status/Reason) ===== -->
+    <div id="page-weekly-planner" class="page">
+      <div id="wp-alert"></div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">🗓️</span> This Week's Topic Schedule</div>
+          <button class="btn btn-teal" id="wp-add-btn" onclick="openWeeklyPlannerModal()" style="padding:6px 14px;font-size:12.5px;">+ Add Entry</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Date</th><th>Batch</th><th>Course</th><th>Faculty</th><th>Topic</th>
+              <th style="min-width:170px;">Status</th><th style="min-width:180px;">Reason</th><th>Submitted By</th><th></th>
+            </tr></thead>
+            <tbody id="wp-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Weekly Planner — Add/Edit schedule entry (Academic Head / Admin / Manager / HR) -->
+    <div class="modal-backdrop" id="weekly-planner-modal">
+      <div class="modal" style="max-width:520px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h3 id="wp-modal-title">Add Schedule Entry</h3>
+          <button class="btn btn-outline" onclick="closeModal('weekly-planner-modal')" style="padding:4px 12px;">✕</button>
+        </div>
+        <div id="wp-form-alert"></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Date *</label><input id="wp-date" type="date"></div>
+          <div class="form-group"><label>Batch *</label><select id="wp-batch"></select></div>
+          <div class="form-group"><label>Course *</label><select id="wp-course"></select></div>
+          <div class="form-group"><label>Faculty *</label><select id="wp-faculty"></select></div>
+          <div class="form-group full"><label>Topic *</label><input id="wp-topic" type="text" placeholder="Topic planned for this class"></div>
+        </div>
+        <div class="action-bar">
+          <button class="btn btn-outline" onclick="closeModal('weekly-planner-modal')">Cancel</button>
+          <button class="btn btn-teal" id="wp-save-btn" onclick="saveWeeklyPlannerEntry()">💾 Save</button>
+        </div>
+      </div>
+    </div>
+
     <!-- MODAL: inline preview for E-Books / Videos — YouTube & Google Drive
          links are converted to an embeddable URL so students never leave
          the page; any other link falls back to embedding it directly, with
@@ -1553,8 +1616,8 @@ tr:hover td { background: #f8fafd; }
     <div id="page-master" class="page">
       <div id="master-alert"></div>
 
-      <!-- Row 1: Courses + Batches -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+      <!-- Row 1: Courses + Batches + Job Roles -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px;">
         <div class="card">
           <div class="card-header">
             <div class="card-title"><span class="icon">📚</span> Courses</div>
@@ -1568,6 +1631,13 @@ tr:hover td { background: #f8fafd; }
             <button class="btn btn-teal" onclick="openMasterModal('batch')" style="padding:6px 12px;font-size:12px;">+ Add</button>
           </div>
           <div id="master-batches-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="icon">🧑‍💼</span> Job Roles</div>
+            <button class="btn btn-teal" onclick="openMasterModal('designation')" style="padding:6px 12px;font-size:12px;">+ Add</button>
+          </div>
+          <div id="master-designations-list"></div>
         </div>
       </div>
 
@@ -2077,14 +2147,8 @@ tr:hover td { background: #f8fafd; }
       <div class="form-group"><label>Email (login ID) <span class="required">*</span></label><input id="uf-username" type="email" placeholder="name@yourinstitute.com"></div>
       <div class="form-group" id="uf-password-wrap"><label>Temporary Password <span class="required">*</span></label><input id="uf-password" type="password" placeholder="Set initial password (min 6 characters)"></div>
       <div class="form-group"><label>Role <span class="required">*</span></label>
-        <select id="uf-role" onchange="toggleTeacherFields()">
-          <option value="office">Office Staff</option>
-          <option value="teacher">Teacher</option>
-          <option value="manager">Manager</option>
-          <option value="hrmanager">HR Manager</option>
-          <option value="admin">Admin</option>
-          <option value="student">Student</option>
-        </select>
+        <select id="uf-role" onchange="toggleTeacherFields()"></select>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Pulled from Master Data → Job Roles. Add/rename roles there and they show up here too.</div>
       </div>
       <div class="form-group"><label>Subject / Department</label><input id="uf-dept" type="text" placeholder="e.g. Tally, Python"></div>
       <div class="form-group"><label>Mobile</label><input id="uf-mobile" type="tel" placeholder="Mobile number"></div>
@@ -2248,7 +2312,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
   setPersistence, browserLocalPersistence, createUserWithEmailAndPassword,
-  updatePassword, reauthenticateWithCredential, EmailAuthProvider
+  updatePassword, reauthenticateWithCredential, EmailAuthProvider,
+  sendPasswordResetEmail
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
   getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc,
@@ -2421,6 +2486,7 @@ window.notifications = []; // {id, title, message, audience:'all'|courseName, da
 window.resources = [];     // {id, title, type:'ebook'|'video', course, url, addedBy, addedAt}
 window.placements = [];    // {id, rollNo, studentName, course, company, designation, address, interviewDate, status:'Pending'|'Joined'|'Rejected', joinDate, enteredBy, enteredAt}
 window.staffAttendance = []; // {id, date:'YYYY-MM-DD', staffId, staffName, status:'Present'|'Absent', reason, markedBy, markedAt}
+window.weeklyPlanner = [];   // {id, date:'YYYY-MM-DD', batch, course, faculty, topic, status:''|'Complete'|'Partially Complete'|'Not Complete', reason, submittedBy, submittedAt, createdBy, createdAt}
 window.masterData = {
   courses: [
     {id:'c1',name:'Tally with GST',duration:3,fee:3500},
@@ -2437,6 +2503,14 @@ window.masterData = {
     {id:'b2',name:'Forenoon',time:'10:00 AM - 12:00 PM'},
     {id:'b3',name:'Afternoon',time:'1:00 PM - 3:00 PM'},
     {id:'b4',name:'Evening',time:'5:00 PM - 7:00 PM'}
+  ],
+  designations: [
+    {id:'d1',name:'Teacher'},
+    {id:'d2',name:'Office Staff'},
+    {id:'d3',name:'Manager'},
+    {id:'d4',name:'HR Manager'},
+    {id:'d5',name:'Admin'},
+    {id:'d6',name:'Academic Head'}
   ],
   staff: []
 };
@@ -2580,6 +2654,20 @@ function startListeners() {
     listenCol('master_courses', data => { if (data.length) { window.masterData.courses = data; populateCourseBatchSelects(); } });
     listenCol('master_batches', data => { if (data.length) { window.masterData.batches = data; populateCourseBatchSelects(); } });
   }
+  // Weekly Planner — Academic Head (and Admin/Manager/HR) create/edit the
+  // schedule; Teachers see the same list read-only except Status/Reason.
+  if (role === 'admin' || role === 'manager' || role === 'hrmanager' || role === 'academichead' || role === 'teacher') {
+    listenCol('weekly_planner', data => {
+      window.weeklyPlanner = data;
+      if (document.getElementById('page-weekly-planner') && document.getElementById('page-weekly-planner').classList.contains('active')) renderWeeklyPlanner();
+    });
+  }
+  // Master Data → Staff List — Academic Head needs this to populate the
+  // Faculty dropdown when scheduling; Admin/Manager/HR already use it
+  // app-wide for Salary/Staff Attendance.
+  if (role === 'academichead') {
+    listenCol('master_staff', data => { window.masterData.staff = data; });
+  }
   if (role === 'admin' || role === 'manager' || role === 'hrmanager') {
     // Master Data → Staff List is the single source of truth for staff
     // details app-wide (Salary already used it; Staff Attendance now uses
@@ -2587,6 +2675,10 @@ function startListeners() {
     listenCol('master_staff', data => {
       window.masterData.staff = data;
       if (document.getElementById('page-staff-attendance') && document.getElementById('page-staff-attendance').classList.contains('active')) { renderSaCalendar(); renderSaSummary(); if (saState.selectedDate) renderSaStaffTable(saState.selectedDate); }
+    });
+    listenCol('master_designations', data => {
+      if (data.length) window.masterData.designations = data;
+      if (document.getElementById('page-master') && document.getElementById('page-master').classList.contains('active')) renderMasterData();
     });
     // Admin/Manager/HR Manager only — full user directory for User Management.
     listenCol('users', data => {
@@ -2669,6 +2761,50 @@ async function doLogin() {
 }
 window.doLogin = doLogin;
 
+function showForgotPassword() {
+  document.getElementById('login-fields').style.display = 'none';
+  document.getElementById('forgot-password-fields').style.display = '';
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('fp-email').value = document.getElementById('login-username').value.trim();
+  document.getElementById('fp-alert').innerHTML = '';
+}
+window.showForgotPassword = showForgotPassword;
+
+function hideForgotPassword() {
+  document.getElementById('forgot-password-fields').style.display = 'none';
+  document.getElementById('login-fields').style.display = '';
+}
+window.hideForgotPassword = hideForgotPassword;
+
+async function sendPasswordReset() {
+  const email = document.getElementById('fp-email').value.trim();
+  const alertBox = document.getElementById('fp-alert');
+  const btn = document.getElementById('fp-send-btn');
+  alertBox.innerHTML = '';
+
+  if (!email) {
+    alertBox.innerHTML = '<div class="alert alert-error" style="margin-top:12px;">Enter your account email.</div>';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    await sendPasswordResetEmail(auth, email);
+    alertBox.innerHTML = '<div class="alert alert-success" style="margin-top:12px;">✅ Reset link sent. Check your inbox (and spam folder) for an email to set a new password.</div>';
+  } catch (err) {
+    console.error('Password reset failed:', err);
+    // Don't confirm/deny whether the email is registered — show the same
+    // neutral message for an unknown account as for success.
+    if (err && err.code === 'auth/user-not-found') {
+      alertBox.innerHTML = '<div class="alert alert-success" style="margin-top:12px;">If an account exists for this email, a reset link has been sent.</div>';
+    } else {
+      alertBox.innerHTML = '<div class="alert alert-error" style="margin-top:12px;">❌ ' + friendlyAuthError(err) + '</div>';
+    }
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send Reset Link';
+  }
+}
+window.sendPasswordReset = sendPasswordReset;
+
 // ---- Sign out ----
 async function doLogout() {
   try { await signOut(auth); } catch(e) { console.warn('Sign out error:', e); }
@@ -2680,7 +2816,7 @@ function resetAppState() {
   stopAllListeners();
   _cachedUsers = null;
   currentUser = null;
-  window.students=[]; window.payments=[]; window.attendance=[]; window.marks=[]; window.salaries=[]; window.incomes=[]; window.expenses=[]; window.certificates=[]; window.absences=[]; window.holidays=[]; window.notifications=[]; window.resources=[]; window.placements=[]; window.staffAttendance=[];
+  window.students=[]; window.payments=[]; window.attendance=[]; window.marks=[]; window.salaries=[]; window.incomes=[]; window.expenses=[]; window.certificates=[]; window.absences=[]; window.holidays=[]; window.notifications=[]; window.resources=[]; window.placements=[]; window.staffAttendance=[]; window.weeklyPlanner=[];
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('login-screen').style.display = 'flex';
   // A sign-out triggered *because* login failed (bad profile, permission
@@ -2785,6 +2921,7 @@ window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
 window.updatePassword = updatePassword;
 window.reauthenticateWithCredential = reauthenticateWithCredential;
 window.EmailAuthProvider = EmailAuthProvider;
+window.sendPasswordResetEmail = sendPasswordResetEmail;
 window.serverTimestamp = serverTimestamp;
 window.friendlyAuthError = friendlyAuthError;
 window.fbSignOut = signOut;
@@ -2799,16 +2936,20 @@ window.fbSignOut = signOut;
 // canEnter = can submit new records (admission, payments, attendance)
 // canModify = can edit or delete existing records (admin/manager)
 const PERMISSIONS = {
-  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance'], canEnter: true, canModify: true },
+  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
   // Manager: sees and can enter/edit/delete everything an Admin can, EXCEPT
   // the Student Admission and Fee Collection processes, which are view-only
   // (enforced via canManageAdmissions() / canManageFees() below, not here).
-  manager: { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance'], canEnter: true, canModify: true },
+  manager: { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
   // HR Manager: full access, identical to Admin — plus the HR-specific
   // Job Placement Report and Staff Attendance sections.
-  hrmanager: { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance'], canEnter: true, canModify: true },
+  hrmanager: { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
   office:  { pages: ['dashboard','admission','students','fees','receipt','certificates','absent-list','student-dashboard','calendar','resources'],                                                                               canEnter: true, canModify: false },
-  teacher: { pages: ['dashboard','attendance','absent-list','attendance-report','student-dashboard','marks','calendar','resources'],                                                                              canEnter: true, canModify: false },
+  teacher: { pages: ['dashboard','attendance','absent-list','attendance-report','student-dashboard','marks','calendar','resources','weekly-planner'],                                                                              canEnter: true, canModify: false },
+  // Academic Head: owns the Weekly Planner (creates/edits the schedule);
+  // sees the Dashboard/Calendar/Study Materials for context, same as a
+  // Teacher, but doesn't get the back-office (Fees/Admin/Users) pages.
+  academichead: { pages: ['dashboard','calendar','resources','weekly-planner'], canEnter: true, canModify: false },
   student: { pages: ['my-dashboard','my-profile','my-attendance','study-material'], canEnter: false, canModify: false }
 };
 
@@ -2840,6 +2981,10 @@ function canModifyStudents() { return currentUser && (currentUser.role === 'admi
 // full Admin-equivalent access, so it's included here too.
 function canManageAdmissions() { return currentUser && (currentUser.role === 'admin' || currentUser.role === 'office' || currentUser.role === 'hrmanager'); }
 function canManageFees() { return currentUser && (currentUser.role === 'admin' || currentUser.role === 'office' || currentUser.role === 'hrmanager'); }
+// Weekly Planner: Academic Head (and Admin/Manager/HR) create/edit/delete
+// the schedule rows (date, batch, course, faculty, topic). Teachers can
+// only view the schedule and fill in Status + Reason on any row.
+function canManageWeeklyPlanner() { return currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'hrmanager' || currentUser.role === 'academichead'); }
 
 function applyRoleUI() {
   const role = currentUser.role;
@@ -2847,14 +2992,15 @@ function applyRoleUI() {
 
   // Topbar
   const badge = document.getElementById('topbar-role-badge');
-  badge.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+  const ROLE_LABELS = { admin:'Admin', manager:'Manager', hrmanager:'HR Manager', office:'Office', teacher:'Teacher', academichead:'Academic Head', student:'Student' };
+  badge.textContent = ROLE_LABELS[role] || (role.charAt(0).toUpperCase() + role.slice(1));
   badge.className = 'role-badge ' + role;
   document.getElementById('topbar-uname').textContent = currentUser.name;
 
   // Sidebar user info
   document.getElementById('sb-avatar').textContent = currentUser.name.slice(0,2).toUpperCase();
   document.getElementById('sb-uname').textContent = currentUser.name;
-  document.getElementById('sb-urole').textContent = role.toUpperCase();
+  document.getElementById('sb-urole').textContent = (ROLE_LABELS[role] || role).toUpperCase();
 
   // Students get an entirely separate, simplified sidebar/nav — swap the
   // groups and skip the staff-only lock/visibility logic below.
@@ -2864,7 +3010,7 @@ function applyRoleUI() {
   if (role === 'student') return;
 
   // Nav items — lock inaccessible pages
-  const allPages = ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance'];
+  const allPages = ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'];
   allPages.forEach(p => {
     const nav = document.getElementById('nav-' + p);
     if (!nav) return;
@@ -3015,10 +3161,10 @@ function navTo(page, el) {
     users:'User Management', 'import-students':'Import Students from Excel',
     settings:'Configuration', calendar:'Calendar', resources:'Study Materials',
     'my-dashboard':'My Dashboard', 'my-profile':'My Profile', 'my-attendance':'My Attendance', 'study-material':'Study Material',
-    placement:'Job Placement Report', 'staff-attendance':'Staff Attendance'
+    placement:'Job Placement Report', 'staff-attendance':'Staff Attendance', 'weekly-planner':'Weekly Planner'
   };
   document.getElementById('page-title').textContent = titles[page] || page;
-  if (['admission','students','attendance','absent-list','attendance-report','marks','calendar'].includes(page)) populateCourseBatchSelects();
+  if (['admission','students','attendance','absent-list','attendance-report','marks','calendar','weekly-planner'].includes(page)) populateCourseBatchSelects();
   if (page === 'dashboard') refreshDashboard();
   if (page === 'students') renderStudentsTable();
   if (page === 'receipt') refreshReceiptDropdown();
@@ -3030,6 +3176,7 @@ function navTo(page, el) {
   if (page === 'salary') initSalaryPage();
   if (page === 'placement') { clearPlacementForm(); renderPlacementList(); }
   if (page === 'staff-attendance') renderStaffAttendancePage();
+  if (page === 'weekly-planner') renderWeeklyPlanner();
   if (page === 'admission') {
     const btn = document.getElementById('adm-submit-btn');
     const readOnly = !canManageAdmissions();
@@ -3448,7 +3595,7 @@ async function renderUsersPage() {
       + '<div class="user-avatar ua-'+u.role+'">'+u.name.slice(0,2).toUpperCase()+'</div>'
       + '<div style="flex:1;">'
       + '<div style="font-weight:600;font-size:14px;">'+u.name+' <span style="font-size:12px;color:var(--muted);">'+(u.email||u.username||'')+'</span> '+statusChip+'</div>'
-      + '<div style="font-size:12px;color:var(--muted);margin-top:2px;">'+(u.dept||'—')+(u.mobile?' · '+u.mobile:'')+'</div>'
+      + '<div style="font-size:12px;color:var(--muted);margin-top:2px;">'+(u.designation?u.designation+' · ':'')+(u.dept||'—')+(u.mobile?' · '+u.mobile:'')+'</div>'
       + (courseTags ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">'+courseTags+'</div>' : '')
       + '</div>'
       + '<span class="chip chip-'+(u.role==='admin'?'purple':u.role==='hrmanager'?'teal':u.role==='manager'?'amber':u.role==='office'?'blue':'green')+'">'+(u.role==='hrmanager'?'HR Manager':(u.role.charAt(0).toUpperCase()+u.role.slice(1)))+'</span>'
@@ -3464,7 +3611,7 @@ function openAddUserModal() {
   document.getElementById('uf-name').value = '';
   document.getElementById('uf-username').value = '';
   document.getElementById('uf-password').value = '';
-  document.getElementById('uf-role').value = 'office';
+  populateRoleSelect('', 'office');
   document.getElementById('uf-dept').value = '';
   document.getElementById('uf-mobile').value = '';
   document.getElementById('uf-rollno').value = '';
@@ -3490,7 +3637,7 @@ async function openEditUserModal(docId) {
   document.getElementById('uf-name').value = u.name;
   document.getElementById('uf-username').value = u.email || u.username || '';
   document.getElementById('uf-password').value = '';
-  document.getElementById('uf-role').value = u.role;
+  populateRoleSelect(u.designation || '', u.role);
   document.getElementById('uf-dept').value = u.dept || '';
   document.getElementById('uf-mobile').value = u.mobile || '';
   document.getElementById('uf-rollno').value = u.rollNo || '';
@@ -3519,6 +3666,40 @@ function toggleTeacherFields() {
   document.getElementById('uf-rollno-wrap').style.display = role === 'student' ? '' : 'none';
 }
 
+// Maps a Master Data Job Role name to the app's fixed access-permission
+// levels. The permission system itself (PERMISSIONS object) only knows
+// these 5 staff keys + 'student', so any Job Role Admin creates in Master
+// Data still needs to resolve to one of them — matched by keyword in the
+// name, defaulting to the least-privileged 'office' level for anything
+// that doesn't clearly say Admin/HR/Manager/Teacher.
+function designationToRoleKey(name) {
+  const k = (name || '').toLowerCase();
+  if (k.includes('admin')) return 'admin';
+  if (k.includes('academic')) return 'academichead';
+  if (k.includes('hr')) return 'hrmanager';
+  if (k.includes('manager')) return 'manager';
+  if (k.includes('teach')) return 'teacher';
+  return 'office';
+}
+
+// Role dropdown on the User form — options come straight from Master Data
+// → Job Roles, so it's one list, managed in one place, instead of a
+// separate hard-coded role list living only in User Management.
+function populateRoleSelect(selectedDesignation, selectedRoleKey) {
+  const sel = document.getElementById('uf-role');
+  const roles = masterData.designations || [];
+  let html = roles.map(d => `<option value="${designationToRoleKey(d.name)}" data-label="${d.name}" ${d.name===selectedDesignation ? 'selected' : ''}>${d.name}</option>`).join('');
+  html += `<option value="student" data-label="Student" ${selectedRoleKey==='student' ? 'selected' : ''}>Student</option>`;
+  sel.innerHTML = html;
+  // If nothing matched by name (e.g. editing an older account saved before
+  // Job Roles existed), fall back to selecting by permission key so the
+  // dropdown still reflects the account's real access level.
+  if (selectedRoleKey && ![...sel.options].some(o => o.selected)) {
+    const fallback = [...sel.options].find(o => o.value === selectedRoleKey);
+    if (fallback) fallback.selected = true;
+  }
+}
+
 // Creating a brand-new staff login needs two things: (1) a Firebase Auth
 // account so the person can sign in, and (2) a matching Firestore profile
 // document (id = Auth UID) that carries their name/role/etc. Step 1 is done
@@ -3528,7 +3709,9 @@ async function saveUser() {
   const name = document.getElementById('uf-name').value.trim();
   const email = document.getElementById('uf-username').value.trim().toLowerCase();
   const password = document.getElementById('uf-password').value.trim();
-  const role = document.getElementById('uf-role').value;
+  const roleSelect = document.getElementById('uf-role');
+  const role = roleSelect.value;
+  const designation = roleSelect.selectedOptions[0] ? roleSelect.selectedOptions[0].dataset.label : '';
   const dept = document.getElementById('uf-dept').value.trim();
   const mobile = document.getElementById('uf-mobile').value.trim();
   const rollNo = document.getElementById('uf-rollno').value.trim();
@@ -3561,18 +3744,18 @@ async function saveUser() {
     isEdit
       ? `Save changes to ${name}'s account?`
       : `Create a new ${role} account for ${name} (${email})? A temporary password will be set and should be shared with them.`,
-    () => saveUserConfirmed({ name, email, password, role, dept, mobile, rollNo, editDocId, linkedStudent, courses, alertBox, saveBtn }),
+    () => saveUserConfirmed({ name, email, password, role, designation, dept, mobile, rollNo, editDocId, linkedStudent, courses, alertBox, saveBtn }),
     { title: isEdit ? 'Save User Changes' : 'Create New User', confirmLabel: isEdit ? 'Yes, Save Changes' : 'Yes, Create Account' }
   );
 }
 
-async function saveUserConfirmed({ name, email, password, role, dept, mobile, rollNo, editDocId, linkedStudent, courses, alertBox, saveBtn }) {
+async function saveUserConfirmed({ name, email, password, role, designation, dept, mobile, rollNo, editDocId, linkedStudent, courses, alertBox, saveBtn }) {
   saveBtn.disabled = true;
 
   if (editDocId) {
     // ---- EDIT existing user: only the Firestore profile fields change ----
     saveBtn.textContent = 'Saving…';
-    const updateData = { name, role, dept, mobile, courses, rollNo: role === 'student' ? rollNo : null };
+    const updateData = { name, role, designation, dept, mobile, courses, rollNo: role === 'student' ? rollNo : null };
     const ok = await DB.updateDoc('users', editDocId, updateData);
     saveBtn.disabled = false; saveBtn.textContent = '💾 Save Changes';
     if (ok) {
@@ -3608,7 +3791,7 @@ async function saveUserConfirmed({ name, email, password, role, dept, mobile, ro
     // Step 2 — write the matching Firestore profile document, keyed by the
     // new Auth UID (this is the schema the rest of the app expects).
     const ok = await DB.setDoc('users', newUid, {
-      name, email, role, dept, mobile, courses,
+      name, email, role, designation, dept, mobile, courses,
       rollNo: role === 'student' ? rollNo : null,
       course: linkedStudent ? linkedStudent.course : null,
       batch: linkedStudent ? linkedStudent.batch : null,
@@ -5696,6 +5879,189 @@ function renderStudyMaterialPage() {
 window.renderStudyMaterialPage = renderStudyMaterialPage;
 
 // ============================================================
+// WEEKLY PLANNER — Academic Head (+ Admin/Manager/HR) sets the week's
+// topic schedule (date, batch, course, faculty, topic). Teachers see the
+// same list and can only fill in Status; Partially/Not Complete requires
+// a Reason before it can be submitted. Academic Head then reviews the
+// Reason and who submitted it.
+// ============================================================
+function wpFacultyOptions(selected) {
+  // Faculty list = Master Data → Staff List, teaching roles first (falls
+  // back to the full staff list if no one is tagged as a teacher yet).
+  const all = masterData.staff || [];
+  const teachers = all.filter(s => (s.designation||'').toLowerCase().includes('teach'));
+  const pool = teachers.length ? teachers : all;
+  return '<option value="">Select faculty</option>' +
+    pool.map(s => `<option value="${s.name}" ${s.name===selected?'selected':''}>${s.name}</option>`).join('') +
+    (selected && !pool.some(s=>s.name===selected) ? `<option value="${selected}" selected>${selected}</option>` : '');
+}
+
+function renderWeeklyPlanner() {
+  document.getElementById('wp-add-btn').style.display = canManageWeeklyPlanner() ? '' : 'none';
+  const rows = [...(window.weeklyPlanner||[])].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const tbody = document.getElementById('wp-body');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px;">No schedule entries yet${canManageWeeklyPlanner() ? ' — click "+ Add Entry" to plan this week.' : '.'}</td></tr>`;
+    return;
+  }
+  const canEditStatus = currentUser.role === 'teacher' || canManageWeeklyPlanner();
+  tbody.innerHTML = rows.map(r => {
+    const needsReason = r.status === 'Partially Complete' || r.status === 'Not Complete';
+    const statusChip = !r.status ? '' :
+      r.status === 'Complete' ? '<span class="chip chip-green">✅ Complete</span>' :
+      r.status === 'Partially Complete' ? '<span class="chip chip-amber">⚠️ Partially Complete</span>' :
+      '<span class="chip chip-red">❌ Not Complete</span>';
+    return `
+    <tr>
+      <td>${r.date}</td>
+      <td>${r.batch}</td>
+      <td>${r.course}</td>
+      <td>${r.faculty}</td>
+      <td>${r.topic}</td>
+      <td>
+        ${canEditStatus ? `
+        <select onchange="wpStatusChanged('${r.id}', this.value)" style="font-size:12.5px;padding:5px 6px;">
+          <option value="" ${!r.status?'selected':''}>— Select —</option>
+          <option value="Complete" ${r.status==='Complete'?'selected':''}>✅ Complete</option>
+          <option value="Partially Complete" ${r.status==='Partially Complete'?'selected':''}>⚠️ Partially Complete</option>
+          <option value="Not Complete" ${r.status==='Not Complete'?'selected':''}>❌ Not Complete</option>
+        </select>` : (statusChip || '<span style="color:var(--muted);font-size:12px;">— Not marked —</span>')}
+      </td>
+      <td>
+        <div id="wp-reason-wrap-${r.id}" style="display:${needsReason ? '' : 'none'};gap:6px;">
+          ${canEditStatus ? `
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="wp-reason-${r.id}" value="${(r.reason||'').replace(/"/g,'&quot;')}" placeholder="Reason..." style="font-size:12.5px;padding:5px 8px;width:130px;">
+            <button class="btn btn-teal" onclick="wpSubmitStatus('${r.id}')" style="padding:5px 10px;font-size:11.5px;">Submit</button>
+          </div>` : `<span style="font-size:12.5px;">${r.reason||'—'}</span>`}
+        </div>
+        ${!needsReason ? '<span style="color:var(--muted);font-size:12px;">—</span>' : ''}
+      </td>
+      <td style="font-size:12px;">${r.submittedBy ? r.submittedBy + (r.submittedAt ? '<div style="color:var(--muted);font-size:10.5px;">' + new Date(r.submittedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) + '</div>' : '') : '<span style="color:var(--muted);">—</span>'}</td>
+      <td>
+        ${canManageWeeklyPlanner() ? `
+        <div style="display:flex;gap:6px;">
+          <button onclick="openWeeklyPlannerModal('${r.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;">✏️</button>
+          <button onclick="deleteWeeklyPlannerEntry('${r.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;">🗑️</button>
+        </div>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+window.renderWeeklyPlanner = renderWeeklyPlanner;
+
+function openWeeklyPlannerModal(id) {
+  if (!canManageWeeklyPlanner()) { alert('Only Academic Head, Admin, Manager, or HR Manager can add or edit the schedule.'); return; }
+  populateCourseBatchSelects();
+  const item = id ? (window.weeklyPlanner||[]).find(r => r.id === id) : null;
+  document.getElementById('wp-modal-title').textContent = item ? 'Edit Schedule Entry' : 'Add Schedule Entry';
+  document.getElementById('wp-form-alert').innerHTML = '';
+  document.getElementById('wp-date').value = item ? item.date : todayStr();
+  document.getElementById('wp-batch').value = item ? item.batch : '';
+  document.getElementById('wp-course').value = item ? item.course : '';
+  document.getElementById('wp-faculty').innerHTML = wpFacultyOptions(item ? item.faculty : '');
+  document.getElementById('wp-topic').value = item ? item.topic : '';
+  document.getElementById('wp-save-btn').dataset.editId = id || '';
+  document.getElementById('weekly-planner-modal').classList.add('open');
+}
+window.openWeeklyPlannerModal = openWeeklyPlannerModal;
+
+async function saveWeeklyPlannerEntry() {
+  const alertBox = document.getElementById('wp-form-alert');
+  const date = document.getElementById('wp-date').value;
+  const batch = document.getElementById('wp-batch').value;
+  const course = document.getElementById('wp-course').value;
+  const faculty = document.getElementById('wp-faculty').value;
+  const topic = document.getElementById('wp-topic').value.trim();
+  if (!date || !batch || !course || !faculty || !topic) {
+    alertBox.innerHTML = '<div class="alert alert-error">Please fill in Date, Batch, Course, Faculty, and Topic.</div>';
+    return;
+  }
+  const btn = document.getElementById('wp-save-btn');
+  const editId = btn.dataset.editId;
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (editId) {
+      const item = window.weeklyPlanner.find(r => r.id === editId);
+      Object.assign(item, { date, batch, course, faculty, topic });
+    } else {
+      window.weeklyPlanner.push({
+        id: 'wp' + Date.now(), date, batch, course, faculty, topic,
+        status: '', reason: '', submittedBy: '', submittedAt: null,
+        createdBy: currentUser.name, createdAt: new Date().toISOString()
+      });
+    }
+    await DB.set('weekly_planner', window.weeklyPlanner);
+    closeModal('weekly-planner-modal');
+    renderWeeklyPlanner();
+    showAlert('wp-alert', 'success', '✅ Schedule saved.');
+  } catch (err) {
+    console.error('Weekly planner save failed:', err);
+    alertBox.innerHTML = '<div class="alert alert-error">❌ ' + (err.message||err) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Save';
+  }
+}
+window.saveWeeklyPlannerEntry = saveWeeklyPlannerEntry;
+
+function deleteWeeklyPlannerEntry(id) {
+  if (!canManageWeeklyPlanner()) return;
+  const item = (window.weeklyPlanner||[]).find(r => r.id === id);
+  confirmAction(
+    `Delete this schedule entry${item ? ' — "'+item.topic+'" ('+item.date+')' : ''}? This cannot be undone.`,
+    async () => {
+      window.weeklyPlanner = window.weeklyPlanner.filter(r => r.id !== id);
+      await DB.set('weekly_planner', window.weeklyPlanner);
+      renderWeeklyPlanner();
+      showAlert('wp-alert', 'success', 'Deleted.');
+    },
+    { title: 'Delete Schedule Entry', confirmLabel: 'Yes, Delete', danger: true }
+  );
+}
+window.deleteWeeklyPlannerEntry = deleteWeeklyPlannerEntry;
+
+// Status dropdown changed on a row — Complete saves immediately; Partially
+// / Not Complete reveals the Reason box and waits for Submit.
+function wpStatusChanged(id, value) {
+  const item = (window.weeklyPlanner||[]).find(r => r.id === id);
+  if (!item) return;
+  const reasonWrap = document.getElementById('wp-reason-wrap-' + id);
+  if (value === 'Partially Complete' || value === 'Not Complete') {
+    if (reasonWrap) reasonWrap.style.display = '';
+    return; // wait for teacher to type a reason and click Submit
+  }
+  if (reasonWrap) reasonWrap.style.display = 'none';
+  wpSaveStatus(id, value, '');
+}
+window.wpStatusChanged = wpStatusChanged;
+
+function wpSubmitStatus(id) {
+  const input = document.getElementById('wp-reason-' + id);
+  const reason = input ? input.value.trim() : '';
+  if (!reason) { alert('Please enter a reason before submitting.'); return; }
+  const item = (window.weeklyPlanner||[]).find(r => r.id === id);
+  wpSaveStatus(id, item ? item.status : '', reason);
+}
+window.wpSubmitStatus = wpSubmitStatus;
+
+async function wpSaveStatus(id, status, reason) {
+  const item = (window.weeklyPlanner||[]).find(r => r.id === id);
+  if (!item) return;
+  item.status = status;
+  item.reason = reason;
+  item.submittedBy = currentUser.name;
+  item.submittedAt = new Date().toISOString();
+  try {
+    await DB.set('weekly_planner', window.weeklyPlanner);
+    renderWeeklyPlanner();
+    showAlert('wp-alert', 'success', '✅ Status submitted.');
+  } catch (err) {
+    console.error('Weekly planner status save failed:', err);
+    showAlert('wp-alert', 'error', '❌ Could not save: ' + (err.message||err));
+  }
+}
+
+// ============================================================
 // STUDY MATERIALS — Notifications + E-Books/Videos (staff-managed,
 // read by students on their Dashboard / Profile)
 // ============================================================
@@ -6063,14 +6429,14 @@ window.loadMyProfile = loadMyProfile;
 // MASTER DATA
 // ============================================================
 function populateCourseBatchSelects() {
-  const courseSelects = ['adm-course','es-course','student-filter-course','ar-course','att-course','abs-course','mk-course','master-subject-course','cal-course'];
-  const batchSelects = ['adm-batch','es-batch','att-batch','abs-batch','ar-batch','mk-batch','cal-batch'];
+  const courseSelects = ['adm-course','es-course','student-filter-course','ar-course','att-course','abs-course','mk-course','master-subject-course','cal-course','wp-course'];
+  const batchSelects = ['adm-batch','es-batch','att-batch','abs-batch','ar-batch','mk-batch','cal-batch','wp-batch'];
   courseSelects.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
     const prev = sel.value;
     const placeholder = (id==='student-filter-course'||id==='ar-course') ? '<option value="">All Courses</option>' :
-                         (id==='adm-course'||id==='att-course'||id==='abs-course'||id==='mk-course'||id==='cal-course') ? '<option value="">Select course</option>' : '';
+                         (id==='adm-course'||id==='att-course'||id==='abs-course'||id==='mk-course'||id==='cal-course'||id==='wp-course') ? '<option value="">Select course</option>' : '';
     sel.innerHTML = placeholder + masterData.courses.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
     if (prev && [...sel.options].some(o=>o.value===prev)) sel.value = prev;
   });
@@ -6079,7 +6445,7 @@ function populateCourseBatchSelects() {
     if (!sel) return;
     const prev = sel.value;
     const placeholder = (id==='ar-batch') ? '<option value="">All Batches</option>' :
-                         (id==='adm-batch'||id==='att-batch'||id==='abs-batch'||id==='mk-batch'||id==='cal-batch') ? '<option value="">Select batch</option>' : '';
+                         (id==='adm-batch'||id==='att-batch'||id==='abs-batch'||id==='mk-batch'||id==='cal-batch'||id==='wp-batch') ? '<option value="">Select batch</option>' : '';
     sel.innerHTML = placeholder + masterData.batches.map(b=>`<option value="${b.name} (${b.time})">${b.name} (${b.time})</option>`).join('');
     if (prev && [...sel.options].some(o=>o.value===prev)) sel.value = prev;
   });
@@ -6426,6 +6792,7 @@ function deleteSubjectConfirmed(courseId, idx) {
 async function saveMasterData() {
   await DB.set('master_courses', masterData.courses);
   await DB.set('master_batches', masterData.batches);
+  await DB.set('master_designations', masterData.designations);
   await DB.set('master_staff', masterData.staff);
 }
 
@@ -6455,6 +6822,24 @@ function renderMasterData() {
       <button onclick="editMaster('batch',${i})" style="background:none;border:none;cursor:pointer;font-size:15px;">✏️</button>
       <button onclick="deleteMaster('batch',${i})" style="background:none;border:none;cursor:pointer;font-size:15px;">🗑️</button>
     </div>`).join('') : '<p style="color:var(--muted);font-size:13px;padding:8px 0;">No batches yet.</p>';
+
+  // JOB ROLES / DESIGNATIONS
+  const dl = document.getElementById('master-designations-list');
+  if (dl) {
+    dl.innerHTML = (masterData.designations||[]).length ? masterData.designations.map((d,i) => {
+      const inUse = masterData.staff.filter(st => st.designation === d.name).length;
+      return `
+      <div class="master-item">
+        <div class="master-badge" style="background:#3730a3;">🧑‍💼</div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:13.5px;">${d.name}</div>
+          <div style="font-size:11.5px;color:var(--muted);">${inUse} staff member${inUse!==1?'s':''}</div>
+        </div>
+        <button onclick="editMaster('designation',${i})" style="background:none;border:none;cursor:pointer;font-size:15px;">✏️</button>
+        <button onclick="deleteMaster('designation',${i})" style="background:none;border:none;cursor:pointer;font-size:15px;">🗑️</button>
+      </div>`;
+    }).join('') : '<p style="color:var(--muted);font-size:13px;padding:8px 0;">No job roles yet.</p>';
+  }
 
   // STAFF
   const sl = document.getElementById('master-staff-list');
@@ -6488,7 +6873,7 @@ let masterEditIdx = -1;
 function openMasterModal(type) {
   masterEditType = type;
   masterEditIdx = -1;
-  const labels = { course:'Course', batch:'Batch', staff:'Staff' };
+  const labels = { course:'Course', batch:'Batch', staff:'Staff', designation:'Job Role' };
   const fields = getMasterFields(type, null);
   showInlineModal('Master Data — Add ' + labels[type], fields, 'saveMasterItem()');
 }
@@ -6496,9 +6881,9 @@ function openMasterModal(type) {
 function editMaster(type, i) {
   masterEditType = type;
   masterEditIdx = i;
-  const arr = masterData[type + 's'] || masterData.staff;
+  const arr = type === 'designation' ? masterData.designations : (masterData[type + 's'] || masterData.staff);
   const item = type === 'staff' ? masterData.staff[i] : arr[i];
-  const labels = { course:'Course', batch:'Batch', staff:'Staff' };
+  const labels = { course:'Course', batch:'Batch', staff:'Staff', designation:'Job Role' };
   const fields = getMasterFields(type, item);
   showInlineModal('Edit ' + labels[type], fields, 'saveMasterItem()');
 }
@@ -6511,13 +6896,20 @@ function getMasterFields(type, item) {
   if (type === 'batch') return `
     <div class="form-group full"><label>Batch Name *</label><input id="mf-name" type="text" value="${item?item.name:''}" placeholder="e.g. Morning"></div>
     <div class="form-group full"><label>Time Slot</label><input id="mf-time" type="text" value="${item?item.time:''}" placeholder="e.g. 8:00 AM - 10:00 AM"></div>`;
-  if (type === 'staff') return `
+  if (type === 'designation') return `
+    <div class="form-group full"><label>Job Role / Designation Name *</label><input id="mf-name" type="text" value="${item?item.name:''}" placeholder="e.g. Teacher, Office Staff, Manager"></div>`;
+  if (type === 'staff') {
+    const desigOptions = '<option value="">— Select Job Role —</option>' +
+      (masterData.designations||[]).map(d => `<option value="${d.name}" ${item && item.designation===d.name ? 'selected' : ''}>${d.name}</option>`).join('') +
+      (item && item.designation && !(masterData.designations||[]).some(d=>d.name===item.designation) ? `<option value="${item.designation}" selected>${item.designation} (not in Job Roles list)</option>` : '');
+    return `
     <div class="form-group full"><label>Full Name *</label><input id="mf-name" type="text" value="${item?item.name:''}" placeholder="Staff name"></div>
-    <div class="form-group"><label>Designation</label><input id="mf-designation" type="text" value="${item?item.designation:''}" placeholder="e.g. Teacher"></div>
+    <div class="form-group"><label>Designation</label><select id="mf-designation">${desigOptions}</select></div>
     <div class="form-group"><label>Mobile</label><input id="mf-mobile" type="tel" value="${item?item.mobile:''}" placeholder="Mobile"></div>
     <div class="form-group"><label>Basic Salary (₹/month)</label><input id="mf-salary" type="number" value="${item?item.basicSalary:0}" placeholder="0"></div>
     <div class="form-group"><label>Join Date</label><input id="mf-joindate" type="date" value="${item?item.joinDate:''}"></div>
     <div class="form-group"><label>Department</label><input id="mf-dept" type="text" value="${item?item.dept:''}" placeholder="e.g. Faculty"></div>`;
+  }
   return '';
 }
 
@@ -6560,6 +6952,14 @@ async function saveMasterItemConfirmed(name) {
       students.forEach(s => { if (s.batch === oldFull) s.batch = newFull; });
       await DB.set('students', students);
     }
+  } else if (masterEditType === 'designation') {
+    const oldName = masterEditIdx >= 0 ? masterData.designations[masterEditIdx].name : null;
+    item = { id: (masterEditIdx>=0 ? masterData.designations[masterEditIdx].id : 'd'+Date.now()), name };
+    if (masterEditIdx >= 0) masterData.designations[masterEditIdx] = item;
+    else masterData.designations.push(item);
+    if (oldName && oldName !== name) {
+      masterData.staff.forEach(st => { if (st.designation === oldName) st.designation = name; });
+    }
   } else if (masterEditType === 'staff') {
     item = { id: (masterEditIdx>=0 ? masterData.staff[masterEditIdx].id : 's'+Date.now()), name,
       designation: document.getElementById('mf-designation').value.trim(),
@@ -6580,18 +6980,25 @@ async function saveMasterItemConfirmed(name) {
 }
 
 function deleteMaster(type, i) {
-  const list = type==='course' ? masterData.courses : type==='batch' ? masterData.batches : masterData.staff;
+  const list = type==='course' ? masterData.courses : type==='batch' ? masterData.batches : type==='designation' ? masterData.designations : masterData.staff;
   const item = list && list[i];
+  const labels = { course:'Course', batch:'Batch', staff:'Staff', designation:'Job Role' };
+  let msg = `Delete this ${type}${item && item.name ? ' — "'+item.name+'"' : ''}? This cannot be undone.`;
+  if (type === 'designation' && item) {
+    const inUse = masterData.staff.filter(st => st.designation === item.name).length;
+    if (inUse) msg += ` ${inUse} staff member${inUse!==1?'s are':' is'} currently using this job role — they'll keep the text but it will no longer be a selectable option.`;
+  }
   confirmAction(
-    `Delete this ${type}${item && item.name ? ' — "'+item.name+'"' : ''}? This cannot be undone.`,
+    msg,
     () => deleteMasterConfirmed(type, i),
-    { title: 'Delete ' + type.charAt(0).toUpperCase()+type.slice(1), confirmLabel: 'Yes, Delete', danger: true }
+    { title: 'Delete ' + (labels[type]||type), confirmLabel: 'Yes, Delete', danger: true }
   );
 }
 
 function deleteMasterConfirmed(type, i) {
   if (type === 'course') masterData.courses.splice(i,1);
   else if (type === 'batch') masterData.batches.splice(i,1);
+  else if (type === 'designation') masterData.designations.splice(i,1);
   else if (type === 'staff') masterData.staff.splice(i,1);
   saveMasterData();
   renderMasterData();
