@@ -2564,8 +2564,9 @@ DB.set = async (k, v) => {
     marks:'marks', salaries:'salaries', incomes:'incomes',
     expenses:'expenses', certificates:'certificates', absences:'absences',
     master_courses:'master_courses', master_batches:'master_batches', master_staff:'master_staff',
+    master_designations:'master_designations',
     holidays:'holidays', notifications:'notifications', resources:'resources',
-    placements:'placements', staffAttendance:'staffAttendance'
+    placements:'placements', staffAttendance:'staffAttendance', weekly_planner:'weekly_planner'
   };
   if (colMap[k]) await DB.saveArray(colMap[k], v);
 };
