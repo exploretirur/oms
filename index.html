@@ -1240,6 +1240,8 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div class="action-bar">
           <button class="btn btn-outline" onclick="closeModal('enquiry-view-modal')">Close</button>
+          <button class="btn btn-outline" id="enq-view-delete-btn" onclick="deleteEnquiryFromView()" style="color:var(--red);border-color:var(--red);">🗑️ Delete</button>
+          <button class="btn btn-outline" id="enq-view-edit-btn" onclick="editEnquiryFromView()">✏️ Edit</button>
           <button class="btn btn-teal" id="enq-view-followup-btn" onclick="openFollowupModalFromView()">📞 Add Follow-up</button>
         </div>
       </div>
@@ -8236,6 +8238,12 @@ function renderEnquiryTable() {
     const followupBtn = canManage && e.stage !== 'Converted'
       ? `<button class="btn btn-outline" onclick="openFollowupModal('${e.id}')" style="padding:4px 10px;font-size:12px;color:var(--teal);border-color:var(--teal);">📞 Follow-up</button>`
       : '';
+    const editBtn = canManage
+      ? `<button class="btn btn-outline" onclick="openEnquiryModal('${e.id}')" style="padding:4px 10px;font-size:12px;" title="Edit enquiry">✏️</button>`
+      : '';
+    const deleteBtn = canManage
+      ? `<button class="btn btn-outline" onclick="deleteEnquiry('${e.id}')" style="padding:4px 10px;font-size:12px;color:var(--red);border-color:var(--red);" title="Delete enquiry">🗑️</button>`
+      : '';
     return `<tr>
       <td><strong>${e.enquiryNo}</strong></td>
       <td>${(e.createdAt||'').slice(0,10) || '—'}</td>
@@ -8245,8 +8253,12 @@ function renderEnquiryTable() {
       <td>${enquiryStageChip(e)}</td>
       <td>${e.nextFollowupDate || '—'}${pendingTag}</td>
       <td>
-        <button class="btn btn-outline" onclick="viewEnquiry('${e.id}')" style="padding:4px 10px;font-size:12px;">👁 View</button>
-        ${followupBtn}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-outline" onclick="viewEnquiry('${e.id}')" style="padding:4px 10px;font-size:12px;">👁 View</button>
+          ${followupBtn}
+          ${editBtn}
+          ${deleteBtn}
+        </div>
       </td>
     </tr>`;
   }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">No enquiries match these filters.</td></tr>';
@@ -8321,6 +8333,23 @@ async function saveEnquiry() {
 }
 window.saveEnquiry = saveEnquiry;
 
+function deleteEnquiry(id) {
+  if (!canManageEnquiry()) { showAlert('enquiry-alert', 'error', '❌ Your account does not have permission to delete enquiries.'); return; }
+  const e = (window.enquiries || []).find(x => x.id === id);
+  if (!e) return;
+  confirmAction(
+    `Delete enquiry ${e.enquiryNo} — "${e.name}" (${e.mobile})? This also removes its entire follow-up history and cannot be undone.`,
+    async () => {
+      window.enquiries = (window.enquiries || []).filter(x => x.id !== id);
+      await DB.set('enquiries', window.enquiries);
+      renderEnquiryDashboard();
+      showAlert('enquiry-alert', 'success', '🗑️ Enquiry ' + e.enquiryNo + ' deleted.');
+    },
+    { title: 'Delete Enquiry', confirmLabel: 'Yes, Delete', danger: true }
+  );
+}
+window.deleteEnquiry = deleteEnquiry;
+
 function viewEnquiry(id) {
   const e = (window.enquiries || []).find(x => x.id === id);
   if (!e) return;
@@ -8350,9 +8379,26 @@ function viewEnquiry(id) {
     : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px;">No follow-ups recorded yet.</td></tr>';
   const fuBtn = document.getElementById('enq-view-followup-btn');
   fuBtn.style.display = (canManageEnquiry() && e.stage !== 'Converted') ? '' : 'none';
+  document.getElementById('enq-view-edit-btn').style.display = canManageEnquiry() ? '' : 'none';
+  document.getElementById('enq-view-delete-btn').style.display = canManageEnquiry() ? '' : 'none';
   document.getElementById('enquiry-view-modal').classList.add('open');
 }
 window.viewEnquiry = viewEnquiry;
+
+function editEnquiryFromView() {
+  if (!enqViewingId) return;
+  closeModal('enquiry-view-modal');
+  openEnquiryModal(enqViewingId);
+}
+window.editEnquiryFromView = editEnquiryFromView;
+
+function deleteEnquiryFromView() {
+  if (!enqViewingId) return;
+  const id = enqViewingId;
+  closeModal('enquiry-view-modal');
+  deleteEnquiry(id);
+}
+window.deleteEnquiryFromView = deleteEnquiryFromView;
 
 function openFollowupModalFromView() {
   if (!enqViewingId) return;
