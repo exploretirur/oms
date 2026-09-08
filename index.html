@@ -2553,8 +2553,27 @@ const DB = {
   setDoc: async (col, id, data) => { const ok = await fbSetDoc(col, id, data); if (ok) writeAuditLog('create', col, id); return ok; },
   updateDoc: async (col, id, data) => { const ok = await fbUpdateDoc(col, id, data); if (ok) writeAuditLog('update', col, id); return ok; },
   deleteDoc: async (col, id) => { const ok = await fbDeleteDoc(col, id); if (ok) writeAuditLog('delete', col, id); return ok; },
-  cfg: () => { try { return JSON.parse(localStorage.getItem('explore_config') || '{}'); } catch(e) { return {}; } },
-  saveCfg: v => localStorage.setItem('explore_config', JSON.stringify(v))
+  // App Configuration (Institute name/contact + Admission ID Pattern) is
+  // synced via Firestore (single doc: settings/app_config), NOT
+  // localStorage — localStorage is per-browser/per-device and never syncs
+  // across accounts, which is exactly why Admin setting the Admission ID
+  // Pattern never showed up for Office Staff on a different machine.
+  // window.appConfig is kept live by the settings listener in
+  // startListeners() below; localStorage is kept only as an instant-load
+  // fallback cache for before that listener's first snapshot arrives.
+  cfg: () => window.appConfig || (() => { try { return JSON.parse(localStorage.getItem('explore_config') || '{}'); } catch(e) { return {}; } })(),
+  saveCfg: async (v) => {
+    window.appConfig = v; // optimistic local update so the UI reflects it instantly
+    try { localStorage.setItem('explore_config', JSON.stringify(v)); } catch(e) {}
+    try {
+      await setDoc(doc(firestoreDB, 'settings', 'app_config'), v);
+      return true;
+    } catch (e) {
+      console.error('DB.saveCfg', e);
+      showAlert('global-alert','error', friendlyFirestoreError(e));
+      return false;
+    }
+  }
 };
 
 // Legacy shim — existing pages call DB.set(key, array). Map to DB.saveArray.
@@ -2582,6 +2601,21 @@ window.fbGetOne = fbGetOne;
 function startListeners() {
   const role = currentUser.role;
   const isStudentRole = role === 'student';
+
+  // App Configuration — every signed-in account (Admin, Office Staff,
+  // Teacher, etc.) listens for live updates so a change made by Admin in
+  // Configuration (e.g. the Admission ID Pattern) shows up immediately
+  // everywhere else, on any device, without needing a fresh login.
+  listenCol('settings', data => {
+    const cfgDoc = data.find(d => d.id === 'app_config') || data[0] || {};
+    window.appConfig = cfgDoc;
+    try { localStorage.setItem('explore_config', JSON.stringify(cfgDoc)); } catch(e) {}
+    if (window.updateIdPatternPreview) window.updateIdPatternPreview();
+    if (window.refreshAdmissionIdPreview) window.refreshAdmissionIdPreview();
+    if (document.getElementById('page-settings') && document.getElementById('page-settings').classList.contains('active') && window.loadSettings) {
+      window.loadSettings();
+    }
+  });
 
   // Students only ever get THEIR OWN record here (never the whole
   // collection) — this must match a Security Rule that checks
@@ -3258,37 +3292,41 @@ function hideGlobalLoader() { const el = document.getElementById('global-loader'
 async function callSheets(data) { return { local: true }; }
 function showPullStatus(type, msg) { const el = document.getElementById('pull-status'); if (el) el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`; }
 
-// cfg stores institute name/contact in localStorage (not Firestore).
-// Read directly from localStorage here — DB isn't available yet since the
-// module script (which sets window.DB) runs AFTER this classic script.
+// Local fallback cache only — the live source of truth is Firestore
+// (settings/app_config, synced via the listener in startListeners()).
+// Read directly from localStorage here for the very first paint, since
+// window.DB isn't available yet at this point (the module script, which
+// sets window.DB and starts the listener, runs AFTER this classic script).
 function _readCfgFromStorage() {
   try { return JSON.parse(localStorage.getItem('explore_config') || '{}'); } catch(e) { return {}; }
 }
 let cfg = _readCfgFromStorage();
+window.appConfig = window.appConfig || cfg;
 
 // ============================================================
 // SETTINGS
 // ============================================================
-function saveSettings() {
+async function saveSettings() {
   if (!canModify()) { showAlert('global-alert','error','❌ Only Admin/Manager can change system settings.'); return; }
   cfg = {
     ...DB.cfg(),
     instName:    document.getElementById('gs-inst-name').value.trim()    || 'Explore Learning',
     instContact: document.getElementById('gs-inst-contact').value.trim() || ''
   };
-  DB.saveCfg(cfg);
-  showAlert('global-alert','success','✅ Institute information saved.');
+  const ok = await DB.saveCfg(cfg);
+  if (ok) showAlert('global-alert','success','✅ Institute information saved.');
 }
 
-function saveIdPattern() {
+async function saveIdPattern() {
   if (!canModify()) { showAlert('global-alert','error','❌ Only Admin/Manager can change settings.'); return; }
   const prefix = (document.getElementById('cfg-id-prefix').value || '').trim().toUpperCase();
   const start  = parseInt(document.getElementById('cfg-id-start').value) || 1;
   if (!prefix) { showAlert('global-alert','error','❌ Please enter a prefix (e.g. EL26).'); return; }
   cfg = { ...DB.cfg(), idPrefix: prefix, idStart: start };
-  DB.saveCfg(cfg);
+  const ok = await DB.saveCfg(cfg);
+  if (!ok) return;
   updateIdPatternPreview();
-  showAlert('global-alert','success','✅ Admission ID pattern saved. Next ID: <strong>' + getNextAdmissionId() + '</strong>');
+  showAlert('global-alert','success','✅ Admission ID pattern saved — this now applies for every account. Next ID: <strong>' + getNextAdmissionId() + '</strong>');
   refreshAdmissionIdPreview();
 }
 
@@ -4587,7 +4625,7 @@ function generateFeeReport() {
 
 function printFeeReport() {
   if (!_lastFeeReport.rows.length) return;
-  const instName = cfg.instName || 'Explore Learning';
+  const instName = DB.cfg().instName || 'Explore Learning';
   const rowsHtml = _lastFeeReport.rows.map(p => `
     <tr><td>${p.receiptNo}</td><td>${p.date}</td><td>${p.studentName}</td><td>${p.rollNo}</td><td>${p.course}</td><td>₹${parseFloat(p.amount).toLocaleString('en-IN')}</td><td>${p.mode}</td><td>${p.recordedBy||'—'}</td></tr>`).join('');
   const total = _lastFeeReport.rows.reduce((s,p)=>s+parseFloat(p.amount||0),0);
@@ -4635,7 +4673,7 @@ async function downloadFeeReportExcel() {
     }
   }
   const XLSX = window.XLSX;
-  const instName = cfg.instName || 'Explore Learning';
+  const instName = DB.cfg().instName || 'Explore Learning';
   const total = _lastFeeReport.rows.reduce((s,p)=>s+parseFloat(p.amount||0),0);
   const header = [
     [instName],
@@ -4675,9 +4713,9 @@ function loadReceipt() {
   const totalPaid = payments.filter(x=>x.rollNo===p.rollNo).reduce((a,x)=>a+parseFloat(x.amount||0),0);
   const net = s ? parseFloat(s.totalFees||0)-parseFloat(s.concession||0) : 0;
   const bal = net-totalPaid;
-  const instName = cfg.instName || 'Explore Learning';
+  const instName = DB.cfg().instName || 'Explore Learning';
   document.getElementById('receipt-inst-name').textContent = instName;
-  document.getElementById('receipt-footer-text').innerHTML = `<p>Thank you for your payment. This is a computer generated receipt.</p><p style="margin-top:4px;">${instName}${cfg.instContact?' | '+cfg.instContact:''}</p>`;
+  document.getElementById('receipt-footer-text').innerHTML = `<p>Thank you for your payment. This is a computer generated receipt.</p><p style="margin-top:4px;">${instName}${DB.cfg().instContact?' | '+DB.cfg().instContact:''}</p>`;
   document.getElementById('receipt-body').innerHTML=`
     <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
       <div><div class="stat-label">Receipt No</div><div style="font-weight:700;">${p.receiptNo}</div></div>
@@ -7187,7 +7225,7 @@ function printSalarySlip(id) {
   const w = window.open('','_blank','width=600,height=700');
   w.document.write(`<!DOCTYPE html><html><head><title>Salary Slip</title>
   <style>body{font-family:sans-serif;padding:30px;font-size:13px;}h2{color:#0f1f3d;}table{width:100%;border-collapse:collapse;margin-top:16px;}td{padding:8px 12px;border-bottom:1px solid #eee;}td:last-child{text-align:right;font-weight:600;}.net{background:#0f1f3d;color:#96fbc4;font-size:16px;font-weight:700;}</style></head><body>
-  <h2>${cfg.instName||'Explore Learning'}</h2>
+  <h2>${DB.cfg().instName||'Explore Learning'}</h2>
   <p>Salary Slip — <strong>${s.month}</strong> &nbsp;|&nbsp; Staff: <strong>${s.staffName}</strong></p>
   <table>
     <tr><td>Basic Salary</td><td>₹${(s.basic||0).toLocaleString('en-IN')}</td></tr>
