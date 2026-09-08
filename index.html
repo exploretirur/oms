@@ -764,7 +764,7 @@ tr:hover td { background: #f8fafd; }
           <div class="form-group"><label>&nbsp;</label><button class="btn btn-outline" onclick="clearEnquiryFilters()">✕ Clear Filters</button></div>
         </div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Enquiry No</th><th>Name</th><th>Mobile</th><th>Course Interested</th><th>Stage</th><th>Next Follow-up</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Enquiry No</th><th>Date</th><th>Name</th><th>Mobile</th><th>Course Interested</th><th>Stage</th><th>Next Follow-up</th><th>Actions</th></tr></thead>
           <tbody id="enquiry-table-body"></tbody>
         </table></div>
       </div>
@@ -8238,6 +8238,7 @@ function renderEnquiryTable() {
       : '';
     return `<tr>
       <td><strong>${e.enquiryNo}</strong></td>
+      <td>${(e.createdAt||'').slice(0,10) || '—'}</td>
       <td>${e.name}</td>
       <td>${e.mobile}</td>
       <td>${e.courseInterested || '—'}</td>
@@ -8248,7 +8249,7 @@ function renderEnquiryTable() {
         ${followupBtn}
       </td>
     </tr>`;
-  }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">No enquiries match these filters.</td></tr>';
+  }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">No enquiries match these filters.</td></tr>';
 }
 window.renderEnquiryTable = renderEnquiryTable;
 
@@ -8327,6 +8328,7 @@ function viewEnquiry(id) {
   document.getElementById('enq-view-body').innerHTML = `
     <div class="pl-info-grid">
       <div><span style="color:var(--muted);">Enquiry No:</span> <strong>${e.enquiryNo}</strong></div>
+      <div><span style="color:var(--muted);">Enquiry Date:</span> <strong>${(e.createdAt||'').slice(0,10) || '—'}</strong></div>
       <div><span style="color:var(--muted);">Name:</span> <strong>${e.name}</strong></div>
       <div><span style="color:var(--muted);">Mobile:</span> <strong>${e.mobile}</strong></div>
       <div><span style="color:var(--muted);">Email:</span> <strong>${e.email || '—'}</strong></div>
@@ -8423,10 +8425,13 @@ function searchEnquiryForAdmission() {
   const q = document.getElementById('adm-enq-search').value.toLowerCase().trim();
   const box = document.getElementById('adm-enq-suggest-box');
   if (!q) { box.innerHTML = ''; box.style.display = 'none'; return; }
-  // Only enquiries not already converted make sense to link here.
+  // Search ALL enquiries regardless of stage — an enquiry can already be
+  // marked "Converted" from the Follow-up modal (a quick note that they
+  // took admission) before the actual Admission form is filled in, so it
+  // must still be searchable/linkable here, not hidden just because it's
+  // marked Converted.
   const matches = (window.enquiries || []).filter(e =>
-    e.stage !== 'Converted' &&
-    ((e.enquiryNo || '').toLowerCase().includes(q) || (e.name || '').toLowerCase().includes(q))
+    (e.enquiryNo || '').toLowerCase().includes(q) || (e.name || '').toLowerCase().includes(q)
   ).slice(0, 8);
   if (!matches.length) {
     box.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:12.5px;">No matching enquiries found</div>';
@@ -8436,6 +8441,7 @@ function searchEnquiryForAdmission() {
   box.innerHTML = matches.map(e => `
     <div class="pl-suggest-item" onclick="loadEnquiryIntoAdmission('${e.id}')">
       <strong>${e.name}</strong> <span style="color:var(--muted);">— ${e.enquiryNo} · ${e.mobile} · ${e.courseInterested || ''}</span>
+      ${e.stage === 'Converted' ? ' <span class="chip chip-green" style="font-size:9.5px;">Already Converted</span>' : ''}
     </div>`).join('');
   box.style.display = 'block';
 }
