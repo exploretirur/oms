@@ -167,6 +167,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: va
 .stat-card.amber { border-left: 4px solid var(--amber); }
 .stat-card.green { border-left: 4px solid var(--green); }
 .stat-card.red { border-left: 4px solid var(--red); }
+.stat-card.blue { border-left: 4px solid #2563eb; }
 
 /* FORMS */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -523,6 +524,9 @@ tr:hover td { background: #f8fafd; }
   <div class="nav-item active" id="nav-dashboard" onclick="navTo('dashboard',this)">
     <span class="icon">📊</span> Dashboard
   </div>
+  <div class="nav-item" id="nav-enquiry" onclick="navTo('enquiry',this)">
+    <span class="icon">📞</span> Enquiry
+  </div>
   <div class="nav-item" id="nav-admission" onclick="navTo('admission',this)">
     <span class="icon">📝</span> Student Admission
   </div>
@@ -708,10 +712,84 @@ tr:hover td { background: #f8fafd; }
       </div>
     </div>
 
+    <!-- ===== ENQUIRY ===== -->
+    <div id="page-enquiry" class="page">
+      <p class="section-desc">Track walk-in / phone enquiries, schedule follow-ups, and convert them into admissions.</p>
+      <div id="enquiry-alert"></div>
+
+      <div class="stats-grid">
+        <div class="stat-card teal"><div class="stat-label">Total Enquiries</div><div class="stat-value" id="enq-stat-total">0</div><div class="stat-sub">All Time</div></div>
+        <div class="stat-card blue"><div class="stat-label">New Enquiries</div><div class="stat-value" id="enq-stat-new">0</div><div class="stat-sub">No Follow-up Yet</div></div>
+        <div class="stat-card amber"><div class="stat-label">Pending Follow-ups</div><div class="stat-value" id="enq-stat-pending">0</div><div class="stat-sub">Due / Overdue</div></div>
+        <div class="stat-card green"><div class="stat-label">Converted</div><div class="stat-value" id="enq-stat-converted">0</div><div class="stat-sub">Admitted</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">📞</span> Enquiries</div>
+          <button class="btn btn-teal" onclick="openEnquiryModal()" id="enq-new-btn">➕ New Enquiry</button>
+        </div>
+        <div class="form-grid" style="margin-bottom:14px;">
+          <div class="form-group"><label>Search</label><input id="enq-search" type="text" placeholder="Search by name, mobile, or enquiry no…" oninput="renderEnquiryTable()"></div>
+          <div class="form-group"><label>Stage <span style="font-size:11px;color:var(--muted);">(incl. Lost)</span></label>
+            <select id="enq-filter-stage" onchange="renderEnquiryTable()">
+              <option value="">All Stages</option>
+              <option value="New">New</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Converted">Converted</option>
+              <option value="Lost">Lost</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Course</label>
+            <select id="enq-filter-course" onchange="renderEnquiryTable()"><option value="">All Courses</option></select>
+          </div>
+          <div class="form-group"><label>Place</label>
+            <select id="enq-filter-place" onchange="renderEnquiryTable()"><option value="">All Places</option></select>
+          </div>
+          <div class="form-group"><label>Referral</label>
+            <select id="enq-filter-referral" onchange="renderEnquiryTable()"><option value="">All Referrals</option></select>
+          </div>
+          <div class="form-group"><label>Period</label>
+            <select id="enq-filter-period" onchange="enqPeriodChanged()">
+              <option value="">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="year">This Year</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Month</label><input id="enq-filter-month" type="month" onchange="enqDateFilterChanged()"></div>
+          <div class="form-group"><label>Date From</label><input id="enq-filter-from" type="date" onchange="enqDateFilterChanged()"></div>
+          <div class="form-group"><label>Date To</label><input id="enq-filter-to" type="date" onchange="enqDateFilterChanged()"></div>
+          <div class="form-group"><label>&nbsp;</label><button class="btn btn-outline" onclick="clearEnquiryFilters()">✕ Clear Filters</button></div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Enquiry No</th><th>Name</th><th>Mobile</th><th>Course Interested</th><th>Stage</th><th>Next Follow-up</th><th>Actions</th></tr></thead>
+          <tbody id="enquiry-table-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
     <!-- ===== ADMISSION ===== -->
     <div id="page-admission" class="page">
       <p class="section-desc">Register a new student. Data saved to Firebase automatically.</p>
       <div id="admission-alert"></div>
+
+      <div class="card" id="enq-link-card">
+        <div class="card-header"><div class="card-title"><span class="icon">📞</span> Load From Enquiry (Optional)</div></div>
+        <div class="pl-search-wrap" style="position:relative;">
+          <div class="form-group full" style="margin-bottom:0;">
+            <label>Search by Enquiry No or Name</label>
+            <input id="adm-enq-search" type="text" placeholder="Type enquiry no or name to auto-fill this form…" oninput="searchEnquiryForAdmission()" autocomplete="off">
+          </div>
+          <div class="pl-suggest-box" id="adm-enq-suggest-box"></div>
+        </div>
+        <div id="adm-enq-linked-banner" style="display:none;margin-top:12px;padding:10px 14px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;font-size:13px;color:#065f46;display:flex;align-items:center;justify-content:space-between;">
+          <span id="adm-enq-linked-text"></span>
+          <button class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="clearEnquiryAdmissionLink()">✕ Unlink</button>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">👤</span> Personal Information</div></div>
         <div class="form-grid">
@@ -1104,6 +1182,99 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div class="table-wrap">
           <table><thead><tr><th>Date</th><th>Roll No</th><th>Name</th></tr></thead><tbody id="cal-present-list-body"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- New / Edit Enquiry Modal -->
+    <div class="modal-backdrop" id="enquiry-modal">
+      <div class="modal" style="max-width:640px;max-height:88vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <h3 id="enquiry-modal-title">New Enquiry</h3>
+          <button class="btn btn-outline" onclick="closeModal('enquiry-modal')" style="padding:4px 12px;font-size:16px;">✕</button>
+        </div>
+        <div id="enquiry-modal-alert"></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Enquiry No</label>
+            <input id="enq-no" type="text" disabled style="background:#f1f5f9;font-weight:600;">
+          </div>
+          <div class="form-group"><label>Name <span class="required">*</span></label><input id="enq-name" type="text" placeholder="Full name"></div>
+          <div class="form-group"><label>Mobile <span class="required">*</span></label><input id="enq-mobile" type="tel" placeholder="10-digit number"></div>
+          <div class="form-group"><label>Email</label><input id="enq-email" type="email" placeholder="name@email.com"></div>
+          <div class="form-group"><label>Qualification</label><input id="enq-qualification" type="text" placeholder="e.g. 12th, B.Com"></div>
+          <div class="form-group"><label>Qualification Status</label>
+            <select id="enq-qualstatus"><option value="">Select</option><option value="Pass">Pass</option><option value="Fail">Fail</option></select>
+          </div>
+          <div class="form-group"><label>School / College Name</label><input id="enq-school" type="text" placeholder="School / college name"></div>
+          <div class="form-group"><label>Place</label><input id="enq-place" type="text" placeholder="City / area"></div>
+          <div class="form-group"><label>Course Interested <span class="required">*</span></label><select id="enq-course"><option value="">Select course</option></select></div>
+          <div class="form-group"><label>Next Follow-up Date</label><input id="enq-nextfollowup" type="date"></div>
+          <div class="form-group"><label>Referral Name</label><input id="enq-referral" type="text" placeholder="Who referred them (if any)"></div>
+          <div class="form-group"><label>How Did They Know Us?</label>
+            <select id="enq-source"><option value="">Select</option><option value="Friend">Friend</option><option value="Advertisement">Advertisement</option><option value="Other">Other</option></select>
+          </div>
+          <div class="form-group full"><label>Remarks</label><textarea id="enq-remarks" placeholder="Additional notes..." style="min-height:60px;"></textarea></div>
+        </div>
+        <div class="action-bar">
+          <button class="btn btn-outline" onclick="closeModal('enquiry-modal')">Cancel</button>
+          <button class="btn btn-teal" onclick="saveEnquiry()">💾 Save Enquiry</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Enquiry Modal -->
+    <div class="modal-backdrop" id="enquiry-view-modal">
+      <div class="modal" style="max-width:680px;max-height:88vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <h3>Enquiry Details</h3>
+          <button class="btn btn-outline" onclick="closeModal('enquiry-view-modal')" style="padding:4px 12px;font-size:16px;">✕</button>
+        </div>
+        <div id="enq-view-body"></div>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+          <div class="card-title" style="margin-bottom:12px;"><span class="icon">📋</span> Follow-up History</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Date</th><th>Status</th><th>Next Follow-up</th><th>Notes</th><th>By</th></tr></thead>
+            <tbody id="enq-view-followups"></tbody>
+          </table></div>
+        </div>
+        <div class="action-bar">
+          <button class="btn btn-outline" onclick="closeModal('enquiry-view-modal')">Close</button>
+          <button class="btn btn-teal" id="enq-view-followup-btn" onclick="openFollowupModalFromView()">📞 Add Follow-up</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Follow-up Modal -->
+    <div class="modal-backdrop" id="followup-modal">
+      <div class="modal" style="max-width:460px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <h3>Record Follow-up</h3>
+          <button class="btn btn-outline" onclick="closeModal('followup-modal')" style="padding:4px 12px;font-size:16px;">✕</button>
+        </div>
+        <div id="followup-modal-alert"></div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;" id="followup-modal-subtitle"></p>
+        <div class="form-grid">
+          <div class="form-group full"><label>Status <span class="required">*</span></label>
+            <select id="fu-status" onchange="toggleFollowupNextDate()">
+              <option value="">Select status</option>
+              <option value="Interested">Interested</option>
+              <option value="Not Interested">Not Interested</option>
+              <option value="Will Call Back">Will Call Back</option>
+              <option value="Other">Other</option>
+              <option value="Converted">✅ Converted (Took Admission)</option>
+            </select>
+          </div>
+          <div class="form-group full" id="fu-nextdate-wrap"><label>Next Follow-up Date</label><input id="fu-nextdate" type="date"></div>
+          <div class="form-group full" id="fu-rollno-wrap" style="display:none;">
+            <label>Admission Roll No <span style="font-size:11px;color:var(--muted);">(optional, if already known)</span></label>
+            <input id="fu-rollno" type="text" placeholder="e.g. ST0001">
+          </div>
+          <div class="form-group full"><label>Notes</label><textarea id="fu-notes" placeholder="What was discussed..." style="min-height:60px;"></textarea></div>
+        </div>
+        <div class="action-bar">
+          <button class="btn btn-outline" onclick="closeModal('followup-modal')">Cancel</button>
+          <button class="btn btn-teal" onclick="saveFollowup()">💾 Save Follow-up</button>
         </div>
       </div>
     </div>
@@ -2487,6 +2658,7 @@ window.resources = [];     // {id, title, type:'ebook'|'video', course, url, add
 window.placements = [];    // {id, rollNo, studentName, course, company, designation, address, interviewDate, status:'Pending'|'Joined'|'Rejected', joinDate, enteredBy, enteredAt}
 window.staffAttendance = []; // {id, date:'YYYY-MM-DD', staffId, staffName, status:'Present'|'Absent', reason, markedBy, markedAt}
 window.weeklyPlanner = [];   // {id, date:'YYYY-MM-DD', batch, course, faculty, topic, status:''|'Complete'|'Partially Complete'|'Not Complete', reason, submittedBy, submittedAt, createdBy, createdAt}
+window.enquiries = [];       // {id, enquiryNo, name, qualification, schoolName, place, mobile, email, courseInterested, qualStatus:'Pass'|'Fail', nextFollowupDate, remarks, referralName, source:'Friend'|'Advertisement'|'Other', stage:'New'|'In Progress'|'Converted'|'Lost', followups:[{date,status,nextFollowupDate,notes,by}], convertedRollNo, convertedAt, createdBy, createdAt}
 window.masterData = {
   courses: [
     {id:'c1',name:'Tally with GST',duration:3,fee:3500},
@@ -2585,7 +2757,8 @@ DB.set = async (k, v) => {
     master_courses:'master_courses', master_batches:'master_batches', master_staff:'master_staff',
     master_designations:'master_designations',
     holidays:'holidays', notifications:'notifications', resources:'resources',
-    placements:'placements', staffAttendance:'staffAttendance', weekly_planner:'weekly_planner'
+    placements:'placements', staffAttendance:'staffAttendance', weekly_planner:'weekly_planner',
+    enquiries:'enquiries'
   };
   if (colMap[k]) await DB.saveArray(colMap[k], v);
 };
@@ -2702,6 +2875,14 @@ function startListeners() {
   // app-wide for Salary/Staff Attendance.
   if (role === 'academichead') {
     listenCol('master_staff', data => { window.masterData.staff = data; });
+  }
+  // Enquiry / CRM — Admin, Manager, HR, and Office all handle walk-in /
+  // phone enquiries and their follow-ups.
+  if (role === 'admin' || role === 'manager' || role === 'hrmanager' || role === 'office') {
+    listenCol('enquiries', data => {
+      window.enquiries = data;
+      if (document.getElementById('page-enquiry') && document.getElementById('page-enquiry').classList.contains('active')) renderEnquiryDashboard();
+    });
   }
   if (role === 'admin' || role === 'manager' || role === 'hrmanager') {
     // Master Data → Staff List is the single source of truth for staff
@@ -2851,7 +3032,7 @@ function resetAppState() {
   stopAllListeners();
   _cachedUsers = null;
   currentUser = null;
-  window.students=[]; window.payments=[]; window.attendance=[]; window.marks=[]; window.salaries=[]; window.incomes=[]; window.expenses=[]; window.certificates=[]; window.absences=[]; window.holidays=[]; window.notifications=[]; window.resources=[]; window.placements=[]; window.staffAttendance=[]; window.weeklyPlanner=[];
+  window.students=[]; window.payments=[]; window.attendance=[]; window.marks=[]; window.salaries=[]; window.incomes=[]; window.expenses=[]; window.certificates=[]; window.absences=[]; window.holidays=[]; window.notifications=[]; window.resources=[]; window.placements=[]; window.staffAttendance=[]; window.weeklyPlanner=[]; window.enquiries=[];
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('login-screen').style.display = 'flex';
   // A sign-out triggered *because* login failed (bad profile, permission
@@ -2971,15 +3152,15 @@ window.fbSignOut = signOut;
 // canEnter = can submit new records (admission, payments, attendance)
 // canModify = can edit or delete existing records (admin/manager)
 const PERMISSIONS = {
-  admin:   { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
+  admin:   { pages: ['dashboard','enquiry','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
   // Manager: sees and can enter/edit/delete everything an Admin can, EXCEPT
   // the Student Admission and Fee Collection processes, which are view-only
   // (enforced via canManageAdmissions() / canManageFees() below, not here).
-  manager: { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
+  manager: { pages: ['dashboard','enquiry','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
   // HR Manager: full access, identical to Admin — plus the HR-specific
   // Job Placement Report and Staff Attendance sections.
-  hrmanager: { pages: ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
-  office:  { pages: ['dashboard','admission','students','fees','receipt','certificates','absent-list','student-dashboard','calendar','resources'],                                                                               canEnter: true, canModify: false },
+  hrmanager: { pages: ['dashboard','enquiry','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
+  office:  { pages: ['dashboard','enquiry','admission','students','fees','receipt','certificates','absent-list','student-dashboard','calendar','resources'],                                                                               canEnter: true, canModify: false },
   teacher: { pages: ['dashboard','attendance','absent-list','attendance-report','student-dashboard','marks','calendar','resources','weekly-planner'],                                                                              canEnter: true, canModify: false },
   // Academic Head: owns the Weekly Planner (creates/edits the schedule);
   // sees the Dashboard/Calendar/Study Materials for context, same as a
@@ -3016,6 +3197,10 @@ function canModifyStudents() { return currentUser && (currentUser.role === 'admi
 // full Admin-equivalent access, so it's included here too.
 function canManageAdmissions() { return currentUser && (currentUser.role === 'admin' || currentUser.role === 'office' || currentUser.role === 'hrmanager'); }
 function canManageFees() { return currentUser && (currentUser.role === 'admin' || currentUser.role === 'office' || currentUser.role === 'hrmanager'); }
+// Enquiry/CRM management: unlike Admission & Fees, Manager IS allowed to add
+// enquiries and record follow-ups (it's pre-admission lead tracking, not the
+// admission process itself).
+function canManageEnquiry() { return currentUser && (currentUser.role === 'admin' || currentUser.role === 'office' || currentUser.role === 'manager' || currentUser.role === 'hrmanager'); }
 // Weekly Planner: Academic Head (and Admin/Manager/HR) create/edit/delete
 // the schedule rows (date, batch, course, faculty, topic). Teachers can
 // only view the schedule and fill in Status + Reason on any row.
@@ -3045,7 +3230,7 @@ function applyRoleUI() {
   if (role === 'student') return;
 
   // Nav items — lock inaccessible pages
-  const allPages = ['dashboard','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'];
+  const allPages = ['dashboard','enquiry','admission','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'];
   allPages.forEach(p => {
     const nav = document.getElementById('nav-' + p);
     if (!nav) return;
@@ -3188,7 +3373,7 @@ function navTo(page, el) {
   if (pageEl) pageEl.classList.add('active');
   if (el && !el.classList.contains('locked')) el.classList.add('active');
   const titles = {
-    dashboard:'Dashboard', admission:'Student Admission', students:'Student Records',
+    dashboard:'Dashboard', enquiry:'Enquiry', admission:'Student Admission', students:'Student Records',
     fees:'Fees & Payments', receipt:'Payment Receipt', finance:'Income & Expenses',
     certificates:'Certificates', attendance:'Attendance Entry', 'absent-list':'Absent List',
     'attendance-report':'Attendance Report', 'student-dashboard':'Student Dashboard',
@@ -3199,7 +3384,7 @@ function navTo(page, el) {
     placement:'Job Placement Report', 'staff-attendance':'Staff Attendance', 'weekly-planner':'Weekly Planner'
   };
   document.getElementById('page-title').textContent = titles[page] || page;
-  if (['admission','students','attendance','absent-list','attendance-report','marks','calendar','weekly-planner'].includes(page)) populateCourseBatchSelects();
+  if (['admission','students','attendance','absent-list','attendance-report','marks','calendar','weekly-planner','enquiry'].includes(page)) populateCourseBatchSelects();
   if (page === 'dashboard') refreshDashboard();
   if (page === 'students') renderStudentsTable();
   if (page === 'receipt') refreshReceiptDropdown();
@@ -3212,7 +3397,9 @@ function navTo(page, el) {
   if (page === 'placement') { clearPlacementForm(); renderPlacementList(); }
   if (page === 'staff-attendance') renderStaffAttendancePage();
   if (page === 'weekly-planner') renderWeeklyPlanner();
+  if (page === 'enquiry') renderEnquiryDashboard();
   if (page === 'admission') {
+    refreshEnquiryLinkBanner();
     const btn = document.getElementById('adm-submit-btn');
     const readOnly = !canManageAdmissions();
     if (btn) { btn.disabled = readOnly; btn.style.opacity = readOnly ? '0.5' : ''; btn.style.cursor = readOnly ? 'not-allowed' : ''; }
@@ -3966,6 +4153,9 @@ async function finalizeAdmission(fields) {
   students.push(newStudent);
   await DB.set('students', students);
 
+  // If this admission was loaded from an Enquiry, mark that enquiry Converted now.
+  await markLinkedEnquiryConverted(roll);
+
   btn.disabled = false; txt.innerHTML = '💾 Save Student';
 
   let msg = '✅ Admitted! Roll No: <strong>' + roll + '</strong>' + (firebaseInitialized ? ' — Saved to Firebase!' : ' (Local — connect Firebase in Settings for cloud sync)');
@@ -4061,6 +4251,7 @@ function clearAdmissionForm() {
   admPhotoData = '';
   const preview = document.getElementById('adm-photo-preview');
   if (preview) preview.innerHTML = '';
+  clearEnquiryAdmissionLink();
 }
 
 // Reads the chosen photo file and stores it as a base64 data URL (admPhotoData)
@@ -6481,14 +6672,14 @@ window.loadMyProfile = loadMyProfile;
 // MASTER DATA
 // ============================================================
 function populateCourseBatchSelects() {
-  const courseSelects = ['adm-course','es-course','student-filter-course','ar-course','att-course','abs-course','mk-course','master-subject-course','cal-course','wp-course'];
+  const courseSelects = ['adm-course','es-course','student-filter-course','ar-course','att-course','abs-course','mk-course','master-subject-course','cal-course','wp-course','enq-course'];
   const batchSelects = ['adm-batch','es-batch','att-batch','abs-batch','ar-batch','mk-batch','cal-batch','wp-batch'];
   courseSelects.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
     const prev = sel.value;
     const placeholder = (id==='student-filter-course'||id==='ar-course') ? '<option value="">All Courses</option>' :
-                         (id==='adm-course'||id==='att-course'||id==='abs-course'||id==='mk-course'||id==='cal-course'||id==='wp-course') ? '<option value="">Select course</option>' : '';
+                         (id==='adm-course'||id==='att-course'||id==='abs-course'||id==='mk-course'||id==='cal-course'||id==='wp-course'||id==='enq-course') ? '<option value="">Select course</option>' : '';
     sel.innerHTML = placeholder + masterData.courses.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
     if (prev && [...sel.options].some(o=>o.value===prev)) sel.value = prev;
   });
@@ -7882,6 +8073,432 @@ function renderPlacementList() {
     </tr>`).join('') : '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px;">No placed students found for the selected filters.</td></tr>';
 }
 window.renderPlacementList = renderPlacementList;
+
+// ============================================================
+// ENQUIRY / CRM — Admin, Manager, HR Manager, Office
+// Walk-in / phone enquiries, follow-up tracking, and conversion into
+// admissions. Each enquiry document embeds its own follow-up history
+// (followups[]) rather than using a separate collection, since they're
+// always read/written together.
+// ============================================================
+let enqEditingId = null;   // set when the New/Edit modal is editing an existing enquiry
+let enqViewingId = null;   // enquiry currently open in the View modal (for the Follow-up shortcut button)
+
+function getNextEnquiryNo() {
+  const existing = (window.enquiries || [])
+    .map(e => (e.enquiryNo || '').toUpperCase())
+    .filter(id => id.startsWith('ENQ'))
+    .map(id => parseInt(id.slice(3)))
+    .filter(n => !isNaN(n));
+  const next = (existing.length ? Math.max(...existing) : 0) + 1;
+  return 'ENQ' + String(next).padStart(4, '0');
+}
+
+// An enquiry counts as having a follow-up "due" if it has a next-followup
+// date on or before today and hasn't already been resolved (Converted/Lost).
+function isFollowupPending(e) {
+  if (!e.nextFollowupDate) return false;
+  if (e.stage === 'Converted' || e.stage === 'Lost') return false;
+  return e.nextFollowupDate <= todayStr();
+}
+
+function renderEnquiryDashboard() {
+  const list = window.enquiries || [];
+  document.getElementById('enq-stat-total').textContent = list.length;
+  document.getElementById('enq-stat-new').textContent = list.filter(e => e.stage === 'New' || !e.followups || !e.followups.length).length;
+  document.getElementById('enq-stat-pending').textContent = list.filter(isFollowupPending).length;
+  document.getElementById('enq-stat-converted').textContent = list.filter(e => e.stage === 'Converted').length;
+  const newBtn = document.getElementById('enq-new-btn');
+  if (newBtn) newBtn.style.display = canManageEnquiry() ? '' : 'none';
+  populateEnquiryFilterOptions();
+  renderEnquiryTable();
+}
+window.renderEnquiryDashboard = renderEnquiryDashboard;
+
+// Fills the Course / Place / Referral filter dropdowns from whatever
+// values actually exist across current enquiries, so the filters never
+// show empty/irrelevant options and always stay in sync with real data.
+function populateEnquiryFilterOptions() {
+  const list = window.enquiries || [];
+  const fill = (id, values, allLabel) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const prev = sel.value;
+    const unique = [...new Set(values.filter(v => v && v.trim()))].sort((a, b) => a.localeCompare(b));
+    sel.innerHTML = `<option value="">${allLabel}</option>` + unique.map(v => `<option value="${v}">${v}</option>`).join('');
+    if (prev && unique.includes(prev)) sel.value = prev;
+  };
+  fill('enq-filter-course', list.map(e => e.courseInterested), 'All Courses');
+  fill('enq-filter-place', list.map(e => e.place), 'All Places');
+  fill('enq-filter-referral', list.map(e => e.referralName), 'All Referrals');
+}
+window.populateEnquiryFilterOptions = populateEnquiryFilterOptions;
+
+// Period preset → concrete From/To dates. Picking a preset clears the
+// Month field (they'd otherwise fight each other); editing From/To/Month
+// manually clears the preset back to "All Time" via enqDateFilterChanged().
+function enqPeriodChanged() {
+  const period = document.getElementById('enq-filter-period').value;
+  const fromEl = document.getElementById('enq-filter-from');
+  const toEl = document.getElementById('enq-filter-to');
+  const monthEl = document.getElementById('enq-filter-month');
+  monthEl.value = '';
+  const today = new Date();
+  const toStr = (d) => d.toISOString().slice(0, 10);
+  if (period === 'today') {
+    fromEl.value = toEl.value = toStr(today);
+  } else if (period === 'week') {
+    const day = today.getDay(); // 0=Sun
+    const start = new Date(today); start.setDate(today.getDate() - day);
+    fromEl.value = toStr(start); toEl.value = toStr(today);
+  } else if (period === 'month') {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    fromEl.value = toStr(start); toEl.value = toStr(today);
+  } else if (period === 'year') {
+    const start = new Date(today.getFullYear(), 0, 1);
+    fromEl.value = toStr(start); toEl.value = toStr(today);
+  } else {
+    fromEl.value = ''; toEl.value = '';
+  }
+  renderEnquiryTable();
+}
+window.enqPeriodChanged = enqPeriodChanged;
+
+// Manually changing Month or From/To means the Period preset no longer
+// applies — reset it to "All Time" so the two controls don't conflict.
+function enqDateFilterChanged() {
+  const monthEl = document.getElementById('enq-filter-month');
+  const fromEl = document.getElementById('enq-filter-from');
+  const toEl = document.getElementById('enq-filter-to');
+  // If Month was just set, it takes priority — clear the explicit range.
+  if (document.activeElement === monthEl && monthEl.value) {
+    fromEl.value = ''; toEl.value = '';
+  } else if (monthEl.value) {
+    // A From/To edit while Month was set — Month now takes a back seat.
+    monthEl.value = '';
+  }
+  document.getElementById('enq-filter-period').value = '';
+  renderEnquiryTable();
+}
+window.enqDateFilterChanged = enqDateFilterChanged;
+
+function clearEnquiryFilters() {
+  document.getElementById('enq-search').value = '';
+  document.getElementById('enq-filter-stage').value = '';
+  document.getElementById('enq-filter-course').value = '';
+  document.getElementById('enq-filter-place').value = '';
+  document.getElementById('enq-filter-referral').value = '';
+  document.getElementById('enq-filter-period').value = '';
+  document.getElementById('enq-filter-month').value = '';
+  document.getElementById('enq-filter-from').value = '';
+  document.getElementById('enq-filter-to').value = '';
+  renderEnquiryTable();
+}
+window.clearEnquiryFilters = clearEnquiryFilters;
+
+function enquiryStageChip(e) {
+  if (e.stage === 'Converted') return '<span class="chip chip-green">Converted</span>';
+  if (e.stage === 'Lost') return '<span class="chip chip-red">Lost</span>';
+  if (!e.followups || !e.followups.length) return '<span class="chip chip-blue">New</span>';
+  return '<span class="chip chip-amber">In Progress</span>';
+}
+
+function renderEnquiryTable() {
+  const tbody = document.getElementById('enquiry-table-body');
+  if (!tbody) return;
+  const q = (document.getElementById('enq-search').value || '').toLowerCase().trim();
+  const stageFilter = document.getElementById('enq-filter-stage').value;
+  const courseFilter = document.getElementById('enq-filter-course').value;
+  const placeFilter = document.getElementById('enq-filter-place').value;
+  const referralFilter = document.getElementById('enq-filter-referral').value;
+  const monthFilter = document.getElementById('enq-filter-month').value; // 'YYYY-MM'
+  const fromFilter = document.getElementById('enq-filter-from').value;   // 'YYYY-MM-DD'
+  const toFilter = document.getElementById('enq-filter-to').value;
+
+  let list = [...(window.enquiries || [])];
+  if (q) list = list.filter(e =>
+    (e.name || '').toLowerCase().includes(q) ||
+    (e.mobile || '').toLowerCase().includes(q) ||
+    (e.enquiryNo || '').toLowerCase().includes(q)
+  );
+  if (stageFilter) list = list.filter(e => (e.stage || (e.followups && e.followups.length ? 'In Progress' : 'New')) === stageFilter);
+  if (courseFilter) list = list.filter(e => e.courseInterested === courseFilter);
+  if (placeFilter) list = list.filter(e => e.place === placeFilter);
+  if (referralFilter) list = list.filter(e => e.referralName === referralFilter);
+  if (monthFilter) list = list.filter(e => (e.createdAt || '').slice(0, 7) === monthFilter);
+  if (fromFilter) list = list.filter(e => (e.createdAt || '').slice(0, 10) >= fromFilter);
+  if (toFilter) list = list.filter(e => (e.createdAt || '').slice(0, 10) <= toFilter);
+  list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+  const canManage = canManageEnquiry();
+  tbody.innerHTML = list.length ? list.map(e => {
+    const pendingTag = isFollowupPending(e) ? ' <span class="chip chip-red" style="font-size:9.5px;">Due</span>' : '';
+    const followupBtn = canManage && e.stage !== 'Converted'
+      ? `<button class="btn btn-outline" onclick="openFollowupModal('${e.id}')" style="padding:4px 10px;font-size:12px;color:var(--teal);border-color:var(--teal);">📞 Follow-up</button>`
+      : '';
+    return `<tr>
+      <td><strong>${e.enquiryNo}</strong></td>
+      <td>${e.name}</td>
+      <td>${e.mobile}</td>
+      <td>${e.courseInterested || '—'}</td>
+      <td>${enquiryStageChip(e)}</td>
+      <td>${e.nextFollowupDate || '—'}${pendingTag}</td>
+      <td>
+        <button class="btn btn-outline" onclick="viewEnquiry('${e.id}')" style="padding:4px 10px;font-size:12px;">👁 View</button>
+        ${followupBtn}
+      </td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">No enquiries match these filters.</td></tr>';
+}
+window.renderEnquiryTable = renderEnquiryTable;
+
+function openEnquiryModal(id) {
+  if (!canManageEnquiry()) { showAlert('enquiry-alert', 'error', '❌ Your account does not have permission to add enquiries.'); return; }
+  enqEditingId = id || null;
+  document.getElementById('enquiry-modal-alert').innerHTML = '';
+  const e = id ? (window.enquiries || []).find(x => x.id === id) : null;
+  document.getElementById('enquiry-modal-title').textContent = e ? 'Edit Enquiry' : 'New Enquiry';
+  document.getElementById('enq-no').value = e ? e.enquiryNo : getNextEnquiryNo();
+  document.getElementById('enq-name').value = e ? e.name || '' : '';
+  document.getElementById('enq-mobile').value = e ? e.mobile || '' : '';
+  document.getElementById('enq-email').value = e ? e.email || '' : '';
+  document.getElementById('enq-qualification').value = e ? e.qualification || '' : '';
+  document.getElementById('enq-qualstatus').value = e ? e.qualStatus || '' : '';
+  document.getElementById('enq-school').value = e ? e.schoolName || '' : '';
+  document.getElementById('enq-place').value = e ? e.place || '' : '';
+  document.getElementById('enq-course').value = e ? e.courseInterested || '' : '';
+  document.getElementById('enq-nextfollowup').value = e ? e.nextFollowupDate || '' : '';
+  document.getElementById('enq-referral').value = e ? e.referralName || '' : '';
+  document.getElementById('enq-source').value = e ? e.source || '' : '';
+  document.getElementById('enq-remarks').value = e ? e.remarks || '' : '';
+  document.getElementById('enquiry-modal').classList.add('open');
+}
+window.openEnquiryModal = openEnquiryModal;
+
+async function saveEnquiry() {
+  const name = document.getElementById('enq-name').value.trim();
+  const mobile = document.getElementById('enq-mobile').value.trim();
+  const courseInterested = document.getElementById('enq-course').value;
+  if (!name || !mobile || !courseInterested) {
+    showAlert('enquiry-modal-alert', 'error', '❌ Name, Mobile, and Course Interested are required.'); return;
+  }
+  if (!/^\d{10}$/.test(mobile)) { showAlert('enquiry-modal-alert', 'error', '❌ Mobile must be 10 digits.'); return; }
+
+  const existing = enqEditingId ? (window.enquiries || []).find(x => x.id === enqEditingId) : null;
+  const record = {
+    id: existing ? existing.id : 'ENQ' + Date.now(),
+    enquiryNo: document.getElementById('enq-no').value,
+    name, mobile,
+    email: document.getElementById('enq-email').value.trim(),
+    qualification: document.getElementById('enq-qualification').value.trim(),
+    qualStatus: document.getElementById('enq-qualstatus').value,
+    schoolName: document.getElementById('enq-school').value.trim(),
+    place: document.getElementById('enq-place').value.trim(),
+    courseInterested,
+    nextFollowupDate: document.getElementById('enq-nextfollowup').value,
+    referralName: document.getElementById('enq-referral').value.trim(),
+    source: document.getElementById('enq-source').value,
+    remarks: document.getElementById('enq-remarks').value.trim(),
+    stage: existing ? existing.stage : 'New',
+    followups: existing ? existing.followups || [] : [],
+    convertedRollNo: existing ? existing.convertedRollNo || '' : '',
+    convertedAt: existing ? existing.convertedAt || '' : '',
+    createdBy: existing ? existing.createdBy : currentUser.name,
+    createdAt: existing ? existing.createdAt : new Date().toISOString()
+  };
+
+  if (existing) {
+    const idx = window.enquiries.findIndex(x => x.id === existing.id);
+    window.enquiries[idx] = record;
+  } else {
+    window.enquiries.push(record);
+  }
+  await DB.set('enquiries', window.enquiries);
+  closeModal('enquiry-modal');
+  renderEnquiryDashboard();
+  showAlert('enquiry-alert', 'success', '✅ Enquiry ' + (existing ? 'updated' : 'saved') + ': ' + record.enquiryNo + '.');
+}
+window.saveEnquiry = saveEnquiry;
+
+function viewEnquiry(id) {
+  const e = (window.enquiries || []).find(x => x.id === id);
+  if (!e) return;
+  enqViewingId = id;
+  document.getElementById('enq-view-body').innerHTML = `
+    <div class="pl-info-grid">
+      <div><span style="color:var(--muted);">Enquiry No:</span> <strong>${e.enquiryNo}</strong></div>
+      <div><span style="color:var(--muted);">Name:</span> <strong>${e.name}</strong></div>
+      <div><span style="color:var(--muted);">Mobile:</span> <strong>${e.mobile}</strong></div>
+      <div><span style="color:var(--muted);">Email:</span> <strong>${e.email || '—'}</strong></div>
+      <div><span style="color:var(--muted);">Qualification:</span> <strong>${e.qualification || '—'}</strong></div>
+      <div><span style="color:var(--muted);">Qualification Status:</span> <strong>${e.qualStatus || '—'}</strong></div>
+      <div><span style="color:var(--muted);">School / College:</span> <strong>${e.schoolName || '—'}</strong></div>
+      <div><span style="color:var(--muted);">Place:</span> <strong>${e.place || '—'}</strong></div>
+      <div><span style="color:var(--muted);">Course Interested:</span> <strong>${e.courseInterested}</strong></div>
+      <div><span style="color:var(--muted);">Referral Name:</span> <strong>${e.referralName || '—'}</strong></div>
+      <div><span style="color:var(--muted);">How They Knew Us:</span> <strong>${e.source || '—'}</strong></div>
+      <div><span style="color:var(--muted);">Next Follow-up:</span> <strong>${e.nextFollowupDate || '—'}</strong></div>
+      <div><span style="color:var(--muted);">Stage:</span> ${enquiryStageChip(e)}</div>
+      ${e.stage === 'Converted' ? `<div><span style="color:var(--muted);">Converted To Roll No:</span> <strong>${e.convertedRollNo || '—'}</strong></div>` : ''}
+      <div style="grid-column:1/-1;"><span style="color:var(--muted);">Remarks:</span> ${e.remarks || '—'}</div>
+    </div>`;
+  document.getElementById('enq-view-followups').innerHTML = (e.followups && e.followups.length)
+    ? [...e.followups].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+        .map(f => `<tr><td>${(f.date||'').slice(0,10)}</td><td>${f.status}</td><td>${f.nextFollowupDate || '—'}</td><td>${f.notes || '—'}</td><td>${f.by || '—'}</td></tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px;">No follow-ups recorded yet.</td></tr>';
+  const fuBtn = document.getElementById('enq-view-followup-btn');
+  fuBtn.style.display = (canManageEnquiry() && e.stage !== 'Converted') ? '' : 'none';
+  document.getElementById('enquiry-view-modal').classList.add('open');
+}
+window.viewEnquiry = viewEnquiry;
+
+function openFollowupModalFromView() {
+  if (!enqViewingId) return;
+  closeModal('enquiry-view-modal');
+  openFollowupModal(enqViewingId);
+}
+window.openFollowupModalFromView = openFollowupModalFromView;
+
+let fuEnquiryId = null;
+function openFollowupModal(id) {
+  if (!canManageEnquiry()) { showAlert('enquiry-alert', 'error', '❌ Your account does not have permission to record follow-ups.'); return; }
+  const e = (window.enquiries || []).find(x => x.id === id);
+  if (!e) return;
+  fuEnquiryId = id;
+  document.getElementById('followup-modal-alert').innerHTML = '';
+  document.getElementById('followup-modal-subtitle').textContent = `${e.name} — ${e.enquiryNo} — ${e.mobile}`;
+  document.getElementById('fu-status').value = '';
+  document.getElementById('fu-nextdate').value = e.nextFollowupDate || '';
+  document.getElementById('fu-rollno').value = e.convertedRollNo || '';
+  document.getElementById('fu-notes').value = '';
+  toggleFollowupNextDate();
+  document.getElementById('followup-modal').classList.add('open');
+}
+window.openFollowupModal = openFollowupModal;
+
+function toggleFollowupNextDate() {
+  const status = document.getElementById('fu-status').value;
+  const wrap = document.getElementById('fu-nextdate-wrap');
+  const rollWrap = document.getElementById('fu-rollno-wrap');
+  // A next follow-up date isn't meaningful once resolved (Converted or Not Interested).
+  wrap.style.display = (status === 'Not Interested' || status === 'Converted') ? 'none' : '';
+  rollWrap.style.display = status === 'Converted' ? '' : 'none';
+}
+window.toggleFollowupNextDate = toggleFollowupNextDate;
+
+async function saveFollowup() {
+  const status = document.getElementById('fu-status').value;
+  if (!status) { showAlert('followup-modal-alert', 'error', '❌ Please select a status.'); return; }
+  const nextDate = (status === 'Not Interested' || status === 'Converted') ? '' : document.getElementById('fu-nextdate').value;
+  const notes = document.getElementById('fu-notes').value.trim();
+  const rollNo = status === 'Converted' ? document.getElementById('fu-rollno').value.trim() : '';
+
+  const idx = (window.enquiries || []).findIndex(x => x.id === fuEnquiryId);
+  if (idx < 0) return;
+  const e = window.enquiries[idx];
+  const followupRecord = { date: new Date().toISOString(), status, nextFollowupDate: nextDate, notes, by: currentUser.name };
+  const updated = {
+    ...e,
+    followups: [...(e.followups || []), followupRecord],
+    nextFollowupDate: nextDate,
+    stage: status === 'Not Interested' ? 'Lost' : status === 'Converted' ? 'Converted' : 'In Progress',
+    // Marking Converted here closes the enquiry the same way linking it
+    // from the Admission form does — no roll no is required (it may be
+    // filled in later, or was already admitted through a separate flow).
+    convertedRollNo: status === 'Converted' ? (rollNo || e.convertedRollNo || '') : e.convertedRollNo,
+    convertedAt: status === 'Converted' ? new Date().toISOString() : e.convertedAt
+  };
+  window.enquiries[idx] = updated;
+  await DB.set('enquiries', window.enquiries);
+  closeModal('followup-modal');
+  renderEnquiryDashboard();
+  showAlert('enquiry-alert', 'success', status === 'Converted'
+    ? '✅ ' + e.name + ' marked as Converted — this enquiry is now closed.'
+    : '✅ Follow-up recorded for ' + e.name + '.');
+}
+window.saveFollowup = saveFollowup;
+
+// ---- Admission form integration: search + autofill from an enquiry ----
+function searchEnquiryForAdmission() {
+  const q = document.getElementById('adm-enq-search').value.toLowerCase().trim();
+  const box = document.getElementById('adm-enq-suggest-box');
+  if (!q) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  // Only enquiries not already converted make sense to link here.
+  const matches = (window.enquiries || []).filter(e =>
+    e.stage !== 'Converted' &&
+    ((e.enquiryNo || '').toLowerCase().includes(q) || (e.name || '').toLowerCase().includes(q))
+  ).slice(0, 8);
+  if (!matches.length) {
+    box.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:12.5px;">No matching enquiries found</div>';
+    box.style.display = 'block';
+    return;
+  }
+  box.innerHTML = matches.map(e => `
+    <div class="pl-suggest-item" onclick="loadEnquiryIntoAdmission('${e.id}')">
+      <strong>${e.name}</strong> <span style="color:var(--muted);">— ${e.enquiryNo} · ${e.mobile} · ${e.courseInterested || ''}</span>
+    </div>`).join('');
+  box.style.display = 'block';
+}
+window.searchEnquiryForAdmission = searchEnquiryForAdmission;
+
+function loadEnquiryIntoAdmission(id) {
+  const e = (window.enquiries || []).find(x => x.id === id);
+  if (!e) return;
+  document.getElementById('adm-enq-suggest-box').style.display = 'none';
+  document.getElementById('adm-enq-suggest-box').innerHTML = '';
+  document.getElementById('adm-enq-search').value = e.name + ' (' + e.enquiryNo + ')';
+
+  const nameParts = (e.name || '').trim().split(/\s+/);
+  document.getElementById('adm-fname').value = nameParts[0] || '';
+  document.getElementById('adm-lname').value = nameParts.slice(1).join(' ') || '';
+  document.getElementById('adm-mobile').value = e.mobile || '';
+  document.getElementById('adm-email').value = e.email || '';
+  document.getElementById('adm-qual').value = e.qualification || '';
+  const courseSel = document.getElementById('adm-course');
+  if (e.courseInterested && [...courseSel.options].some(o => o.value === e.courseInterested)) {
+    courseSel.value = e.courseInterested;
+  }
+
+  window._admLinkedEnquiryNo = e.enquiryNo;
+  window._admLinkedEnquiryId = e.id;
+  refreshEnquiryLinkBanner();
+}
+window.loadEnquiryIntoAdmission = loadEnquiryIntoAdmission;
+
+function refreshEnquiryLinkBanner() {
+  const banner = document.getElementById('adm-enq-linked-banner');
+  if (!banner) return;
+  if (window._admLinkedEnquiryNo) {
+    banner.style.display = 'flex';
+    document.getElementById('adm-enq-linked-text').textContent = '🔗 Linked to enquiry ' + window._admLinkedEnquiryNo + ' — it will be marked Converted once this admission is saved.';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+window.refreshEnquiryLinkBanner = refreshEnquiryLinkBanner;
+
+function clearEnquiryAdmissionLink() {
+  window._admLinkedEnquiryNo = null;
+  window._admLinkedEnquiryId = null;
+  const search = document.getElementById('adm-enq-search');
+  if (search) search.value = '';
+  const box = document.getElementById('adm-enq-suggest-box');
+  if (box) { box.innerHTML = ''; box.style.display = 'none'; }
+  refreshEnquiryLinkBanner();
+}
+window.clearEnquiryAdmissionLink = clearEnquiryAdmissionLink;
+
+// Called from finalizeAdmission() right after a new student is saved
+// successfully, so the linked enquiry (if any) gets marked Converted.
+async function markLinkedEnquiryConverted(rollNo) {
+  if (!window._admLinkedEnquiryId) return;
+  const idx = (window.enquiries || []).findIndex(x => x.id === window._admLinkedEnquiryId);
+  if (idx < 0) { clearEnquiryAdmissionLink(); return; }
+  window.enquiries[idx] = { ...window.enquiries[idx], stage: 'Converted', convertedRollNo: rollNo, convertedAt: new Date().toISOString() };
+  await DB.set('enquiries', window.enquiries);
+  clearEnquiryAdmissionLink();
+}
+window.markLinkedEnquiryConverted = markLinkedEnquiryConverted;
 
 // ============================================================
 // STAFF ATTENDANCE — Admin, Manager, HR Manager
