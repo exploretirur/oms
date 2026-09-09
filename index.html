@@ -1131,7 +1131,11 @@ tr:hover td { background: #f8fafd; }
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">📜</span> Issue / Update Certificate</div></div>
         <div class="form-grid">
-          <div class="form-group"><label>Student Roll No / Name <span class="required">*</span></label><input id="cert-search" type="text" placeholder="Type roll no or name..." data-no-enter-submit="true" oninput="searchStudentForCert()"></div>
+          <div class="form-group" style="position:relative;">
+            <label>Student Roll No / Name <span class="required">*</span></label>
+            <input id="cert-search" type="text" placeholder="Type roll no or name..." autocomplete="off" data-no-enter-submit="true" oninput="searchStudentForCert()" onfocus="searchStudentForCert()" onblur="setTimeout(()=>{const d=document.getElementById('cert-search-dropdown'); if(d) d.style.display='none';},150)">
+            <div id="cert-search-dropdown" class="autocomplete-dropdown" style="display:none;"></div>
+          </div>
           <div class="form-group"><label>Course</label><input id="cert-course" type="text" readonly style="background:#f8fafd;"></div>
           <div class="form-group"><label>Certificate Number</label><input id="cert-number" type="text" placeholder="e.g. CERT-2026-001"></div>
           <div class="form-group"><label>Given Date</label><input id="cert-givendate" type="date"></div>
@@ -1471,7 +1475,11 @@ tr:hover td { background: #f8fafd; }
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">🔍</span> Student Lookup</div></div>
         <div class="form-grid">
-          <div class="form-group"><label>Roll No / Name</label><input id="sd-search" type="text" placeholder="Enter roll no or name..."></div>
+          <div class="form-group" style="position:relative;">
+            <label>Roll No / Name</label>
+            <input id="sd-search" type="text" placeholder="Enter roll no or name..." autocomplete="off" data-no-enter-submit="true" oninput="searchStudentForDashboard()" onfocus="searchStudentForDashboard()" onblur="setTimeout(()=>{const d=document.getElementById('sd-search-dropdown'); if(d) d.style.display='none';},150)">
+            <div id="sd-search-dropdown" class="autocomplete-dropdown" style="display:none;"></div>
+          </div>
           <div class="form-group" style="justify-content:flex-end;padding-top:20px;"><button class="btn btn-primary" onclick="loadStudentDashboard()">View Dashboard</button></div>
         </div>
       </div>
@@ -5094,7 +5102,7 @@ function loadAttStudents() {
   );
 
   const filtered = students.filter(s =>
-    s.batch === batch && s.course === course && (s.status||'Active') === 'Active'
+    looseMatch(s.batch, batch) && looseMatch(s.course, course) && (s.status||'Active') === 'Active'
   );
   const listEl  = document.getElementById('att-student-list');
   const emptyEl = document.getElementById('att-empty');
@@ -5227,11 +5235,29 @@ async function finalizeAttendance(date, batch, course, records) {
 // ABSENT LIST — Office/Admin select course & batch, see students
 // (ID no., name, mobile) from the database, tick absentees + reason
 // ============================================================
+// Loose match for batch/course strings: a student's saved value should
+// still count as a match even if Master Data's "Name (Time)" formatting
+// has since changed slightly (batch time edited, extra spacing, case
+// differences, or the value came in via Excel import without the exact
+// "(time)" suffix) — otherwise a genuinely Active student can silently
+// vanish from lists like Absent List even though Student Records shows
+// them fine.
+function looseMatch(a, b) {
+  if (!a || !b) return false;
+  const norm = (s) => s.trim().toLowerCase();
+  if (norm(a) === norm(b)) return true;
+  // Compare just the name portion before " (" — handles batch strings
+  // like "Morning (8:00 AM - 10:00 AM)" vs a plain "Morning".
+  const base = (s) => norm(s.split('(')[0]);
+  return base(a) === base(b);
+}
+window.looseMatch = looseMatch;
+
 function loadAbsentStudents() {
   const batch = document.getElementById('abs-batch').value;
   const course = document.getElementById('abs-course').value;
   if (!batch||!course) return;
-  const filtered = students.filter(s=>s.batch===batch&&s.course===course&&(s.status||'Active')==='Active');
+  const filtered = students.filter(s=>looseMatch(s.batch,batch)&&looseMatch(s.course,course)&&(s.status||'Active')==='Active');
   const listEl = document.getElementById('abs-student-list');
   const emptyEl = document.getElementById('abs-empty');
   if (!filtered.length) { listEl.style.display='none'; emptyEl.style.display='block'; return; }
@@ -5443,10 +5469,51 @@ async function saveAttendanceEditConfirmed(id, idx, status) {
 // ============================================================
 // STUDENT DASHBOARD
 // ============================================================
+// Live autocomplete for the Student Lookup box — same prefix-match
+// dropdown as Fee Collection/Certificates/Placement. Picking a result
+// fills the box and loads that student's dashboard immediately; typing
+// "View Dashboard" manually still works as a fallback (matches by exact
+// roll no or full name).
+function searchStudentForDashboard() {
+  const q = document.getElementById('sd-search').value.toLowerCase().trim();
+  const dropdown = document.getElementById('sd-search-dropdown');
+  if (!q) { dropdown.style.display = 'none'; dropdown.innerHTML = ''; return; }
+  const matches = students.filter(s =>
+    (s.rollNo||'').toLowerCase().startsWith(q) ||
+    (s.fname||'').toLowerCase().startsWith(q) ||
+    (s.lname||'').toLowerCase().startsWith(q) ||
+    (s.fname+' '+s.lname).toLowerCase().startsWith(q)
+  ).slice(0, 8);
+
+  if (!matches.length) {
+    dropdown.innerHTML = '<div class="autocomplete-empty">No matching students</div>';
+    dropdown.style.display = 'block';
+    return;
+  }
+  dropdown.innerHTML = matches.map(s => `
+    <div class="autocomplete-item" onmousedown="selectDashboardStudent('${s.rollNo}')">
+      <div>
+        <div class="ac-name">${s.fname} ${s.lname}</div>
+        <div class="ac-meta">${s.rollNo} • ${s.course}</div>
+      </div>
+      <span class="chip ${s.status==='Inactive'?'chip-red':'chip-green'}" style="font-size:10px;">${s.status||'Active'}</span>
+    </div>
+  `).join('');
+  dropdown.style.display = 'block';
+}
+window.searchStudentForDashboard = searchStudentForDashboard;
+
+function selectDashboardStudent(rollNo) {
+  document.getElementById('sd-search').value = rollNo;
+  document.getElementById('sd-search-dropdown').style.display = 'none';
+  loadStudentDashboard();
+}
+window.selectDashboardStudent = selectDashboardStudent;
+
 function loadStudentDashboard() {
   const q=document.getElementById('sd-search').value.trim().toLowerCase();
-  const s=students.find(st=>st.rollNo.toLowerCase()===q||(st.fname+' '+st.lname).toLowerCase().includes(q));
-  if (!s) { alert('Student not found. Check the roll number or name.'); return; }
+  const s=students.find(st=>st.rollNo.toLowerCase()===q||(st.fname+' '+st.lname).toLowerCase()===q);
+  if (!s) { alert('Student not found. Pick a student from the dropdown, or check the roll number / full name.'); return; }
 
   const isTeacher = currentUser && currentUser.role === 'teacher';
 
@@ -7598,8 +7665,8 @@ function mkLoadStudents() {
   const sel    = document.getElementById('mk-student');
   if (!course) { sel.innerHTML='<option value="">— Select course first —</option>'; sel.disabled=true; return; }
   const filtered = students.filter(s =>
-    s.course===course &&
-    (!batch || s.batch===batch) &&
+    looseMatch(s.course, course) &&
+    (!batch || looseMatch(s.batch, batch)) &&
     (s.status||'Active')==='Active'
   );
   if (!filtered.length) {
@@ -7954,23 +8021,56 @@ function renderFinance() {
 // ============================================================
 // CERTIFICATES
 // ============================================================
+// Live autocomplete: same prefix-match "type the first letters" behavior
+// as Fee Collection's search — shows a dropdown of matching students
+// (name + roll no + course), narrowing as you keep typing. Selecting one
+// fills in the certificate fields; nothing auto-fills on a partial match.
 function searchStudentForCert() {
   const q = document.getElementById('cert-search').value.toLowerCase().trim();
-  if (!q) { document.getElementById('cert-course').value=''; document.getElementById('cert-roll').value=''; return; }
-  const s = students.find(st=>st.rollNo.toLowerCase()===q||(st.fname+' '+st.lname).toLowerCase().includes(q));
-  if (s) {
-    document.getElementById('cert-course').value = s.course;
-    document.getElementById('cert-roll').value = s.rollNo;
-    document.getElementById('cert-search').value = s.fname+' '+s.lname+' ('+s.rollNo+')';
-    const existing = certificates.find(c=>c.rollNo===s.rollNo);
-    document.getElementById('cert-number').value = existing ? existing.certNo||'' : '';
-    document.getElementById('cert-givendate').value = existing ? existing.givenDate||'' : todayStr();
-    document.getElementById('cert-givenby').value = existing ? existing.givenBy||'' : currentUser.name;
-    document.getElementById('cert-status').value = existing ? existing.status : 'Not Issued';
-  } else {
-    document.getElementById('cert-course').value=''; document.getElementById('cert-roll').value='';
+  const dropdown = document.getElementById('cert-search-dropdown');
+  if (!q) {
+    dropdown.style.display = 'none'; dropdown.innerHTML = '';
+    document.getElementById('cert-course').value = ''; document.getElementById('cert-roll').value = '';
+    return;
   }
+  const matches = students.filter(s =>
+    (s.rollNo||'').toLowerCase().startsWith(q) ||
+    (s.fname||'').toLowerCase().startsWith(q) ||
+    (s.lname||'').toLowerCase().startsWith(q) ||
+    (s.fname+' '+s.lname).toLowerCase().startsWith(q)
+  ).slice(0, 8);
+
+  if (!matches.length) {
+    dropdown.innerHTML = '<div class="autocomplete-empty">No matching students</div>';
+    dropdown.style.display = 'block';
+    return;
+  }
+  dropdown.innerHTML = matches.map(s => `
+    <div class="autocomplete-item" onmousedown="selectCertStudent('${s.rollNo}')">
+      <div>
+        <div class="ac-name">${s.fname} ${s.lname}</div>
+        <div class="ac-meta">${s.rollNo} • ${s.course}</div>
+      </div>
+    </div>
+  `).join('');
+  dropdown.style.display = 'block';
 }
+window.searchStudentForCert = searchStudentForCert;
+
+function selectCertStudent(rollNo) {
+  const s = students.find(st => st.rollNo === rollNo);
+  if (!s) return;
+  document.getElementById('cert-course').value = s.course;
+  document.getElementById('cert-roll').value = s.rollNo;
+  document.getElementById('cert-search').value = s.fname+' '+s.lname+' ('+s.rollNo+')';
+  const existing = certificates.find(c=>c.rollNo===s.rollNo);
+  document.getElementById('cert-number').value = existing ? existing.certNo||'' : '';
+  document.getElementById('cert-givendate').value = existing ? existing.givenDate||'' : todayStr();
+  document.getElementById('cert-givenby').value = existing ? existing.givenBy||'' : currentUser.name;
+  document.getElementById('cert-status').value = existing ? existing.status : 'Not Issued';
+  document.getElementById('cert-search-dropdown').style.display = 'none';
+}
+window.selectCertStudent = selectCertStudent;
 
 async function saveCertificate() {
   const roll = document.getElementById('cert-roll').value;
@@ -8047,7 +8147,10 @@ function searchStudentForPlacement() {
   const box = document.getElementById('pl-suggest-box');
   if (!q) { box.innerHTML = ''; box.style.display = 'none'; return; }
   const matches = (window.students||[]).filter(s =>
-    s.rollNo.toLowerCase().includes(q) || (s.fname+' '+s.lname).toLowerCase().includes(q)
+    (s.rollNo||'').toLowerCase().startsWith(q) ||
+    (s.fname||'').toLowerCase().startsWith(q) ||
+    (s.lname||'').toLowerCase().startsWith(q) ||
+    (s.fname+' '+s.lname).toLowerCase().startsWith(q)
   ).slice(0, 8);
   if (!matches.length) {
     box.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:12.5px;">No students found</div>';
@@ -8619,7 +8722,7 @@ function searchEnquiryForAdmission() {
   // must still be searchable/linkable here, not hidden just because it's
   // marked Converted.
   const matches = (window.enquiries || []).filter(e =>
-    (e.enquiryNo || '').toLowerCase().includes(q) || (e.name || '').toLowerCase().includes(q)
+    (e.enquiryNo || '').toLowerCase().includes(q) || (e.name || '').toLowerCase().startsWith(q)
   ).slice(0, 8);
   if (!matches.length) {
     box.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:12.5px;">No matching enquiries found</div>';
