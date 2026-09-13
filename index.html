@@ -520,7 +520,7 @@ tr:hover td { background: #f8fafd; }
   <div class="nav-item" onclick="openChangePasswordModal()" style="margin:0 12px 10px;">🔑 Change Password</div>
 
   <div id="staff-nav-groups">
-  <div class="sidebar-section">Front Office</div>
+  <div class="sidebar-section" id="sec-front-office">Front Office</div>
   <div class="nav-item active" id="nav-dashboard" onclick="navTo('dashboard',this)">
     <span class="icon">📊</span> Dashboard
   </div>
@@ -539,6 +539,9 @@ tr:hover td { background: #f8fafd; }
   <div class="nav-item" id="nav-fees" onclick="navTo('fees',this)">
     <span class="icon">💳</span> Fees & Payments
   </div>
+  <div class="nav-item" id="nav-budget-planner" onclick="navTo('budget-planner',this)">
+    <span class="icon">📅</span> Monthly Budget Planner
+  </div>
   <div class="nav-item" id="nav-receipt" onclick="navTo('receipt',this)">
     <span class="icon">🧾</span> Payment Receipt
   </div>
@@ -549,7 +552,7 @@ tr:hover td { background: #f8fafd; }
     <span class="icon">📜</span> Certificates
   </div>
 
-  <div class="sidebar-section">Class Management</div>
+  <div class="sidebar-section" id="sec-class-management">Class Management</div>
   <div class="nav-item" id="nav-calendar" onclick="navTo('calendar',this)">
     <span class="icon">🗓️</span> Calendar
   </div>
@@ -566,7 +569,7 @@ tr:hover td { background: #f8fafd; }
     <span class="icon">🎓</span> Student Dashboard
   </div>
 
-  <div class="sidebar-section">Academics</div>
+  <div class="sidebar-section" id="sec-academics">Academics</div>
   <div class="nav-item" id="nav-weekly-planner" onclick="navTo('weekly-planner',this)">
     <span class="icon">🗓️</span> Weekly Planner
   </div>
@@ -831,8 +834,15 @@ tr:hover td { background: #f8fafd; }
             <label>Monthly Due Date <span style="font-size:11px;color:var(--muted);">(day of month)</span></label>
             <input id="adm-duedate" type="number" min="1" max="28" placeholder="e.g. 10 means due on 10th every month">
           </div>
-          <div class="form-group"><label>Total Fees (₹) <span class="required">*</span></label><input id="adm-totalfees" type="number" placeholder="0"></div>
-          <div class="form-group"><label>Concession (₹)</label><input id="adm-concession" type="number" placeholder="0" value="0"></div>
+          <div class="form-group"><label>Total Fees (₹) <span class="required">*</span></label><input id="adm-totalfees" type="number" placeholder="0" oninput="updateAdmDownpaymentHint()"></div>
+          <div class="form-group"><label>Concession (₹)</label><input id="adm-concession" type="number" placeholder="0" value="0" oninput="updateAdmDownpaymentHint()"></div>
+          <div class="form-group">
+            <label>Down Payment (₹)</label>
+            <input id="adm-downpayment" type="number" placeholder="0" value="0" oninput="updateAdmDownpaymentHint()">
+            <p id="adm-downpayment-hint" style="font-size:11px;color:var(--muted);margin-top:4px;">Collected now, at admission. Remaining balance is split into monthly installments.</p>
+          </div>
+          <div class="form-group"><label>Down Payment Mode</label><select id="adm-downpayment-mode" onchange="toggleAdmDownpaymentRefField()"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option></select></div>
+          <div class="form-group" id="adm-downpayment-ref-wrap" style="display:none;"><label>Down Payment Reference No</label><input id="adm-downpayment-ref" type="text" placeholder="UPI / cheque ref"></div>
         </div>
       </div>
       <div class="card">
@@ -975,12 +985,24 @@ tr:hover td { background: #f8fafd; }
               <div><div class="stat-label">Balance</div><div id="fee-sbalance" style="font-weight:600;color:var(--red);"></div></div>
             </div>
           </div>
+
+          <div id="fee-installment-info" style="display:none;margin-top:16px;">
+            <div class="divider"></div>
+            <div style="font-weight:600;font-size:13.5px;margin-bottom:4px;">📅 Down Payment &amp; Installment Schedule</div>
+            <div id="fee-installment-note" style="font-size:11.5px;color:var(--muted);margin-bottom:10px;"></div>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Month</th><th>Planned Amount</th><th>Paid So Far</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="fee-installment-body"></tbody>
+            </table></div>
+          </div>
+
           <div id="fee-payment-form" style="display:none;margin-top:16px;">
             <div class="divider"></div>
+            <div style="font-weight:600;font-size:13.5px;margin-bottom:10px;">➕ Record Other Payment <span style="font-weight:400;color:var(--muted);font-size:11.5px;">(fees outside the installment schedule above — e.g. exam fee, material fee, late fee)</span></div>
             <div class="form-grid">
               <div class="form-group"><label>Amount (₹) <span class="required">*</span></label><input id="fee-amount" type="number" placeholder="Enter amount"></div>
-              <div class="form-group"><label>Payment Mode <span class="required">*</span></label><select id="fee-mode"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option></select></div>
-              <div class="form-group"><label>Reference No</label><input id="fee-ref" type="text" placeholder="UPI / cheque ref"></div>
+              <div class="form-group"><label>Payment Mode <span class="required">*</span></label><select id="fee-mode" onchange="toggleFeeRefField()"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option></select></div>
+              <div class="form-group" id="fee-ref-wrap"><label>Reference No</label><input id="fee-ref" type="text" placeholder="UPI / cheque ref"></div>
               <div class="form-group"><label>Remarks</label><input id="fee-remarks" type="text" placeholder="Optional"></div>
             </div>
             <div class="action-bar" id="fee-actions">
@@ -996,9 +1018,33 @@ tr:hover td { background: #f8fafd; }
           <div class="card-header"><div class="card-title"><span class="icon">📋</span> Payment History</div></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Sl.No</th><th>Receipt No</th><th>Date</th><th>Student</th><th>Course</th><th>Amount</th><th>Mode</th><th>Action</th></tr></thead>
-              <tbody id="payments-table-body"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">No payments recorded yet</td></tr></tbody>
+              <thead><tr><th>Sl.No</th><th>Receipt No</th><th>Date</th><th>Student</th><th>Course</th><th>Category</th><th>Amount</th><th>Mode</th><th>Action</th></tr></thead>
+              <tbody id="payments-table-body"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px;">No payments recorded yet</td></tr></tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Edit Modal (Admin / Manager / HR only) -->
+      <div class="modal-backdrop" id="payment-edit-modal">
+        <div class="modal" style="max-width:460px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+            <h3>Edit Payment</h3>
+            <button class="btn btn-outline" onclick="closeModal('payment-edit-modal')" style="padding:4px 12px;font-size:16px;">✕</button>
+          </div>
+          <div id="payment-edit-alert"></div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Receipt <strong id="pe-receiptno"></strong> — <span id="pe-student"></span> · <span id="pe-category"></span></p>
+          <div class="form-grid">
+            <div class="form-group"><label>Date <span class="required">*</span></label><input id="pe-date" type="date"></div>
+            <div class="form-group"><label>Amount (₹) <span class="required">*</span></label><input id="pe-amount" type="number"></div>
+            <div class="form-group"><label>Payment Mode <span class="required">*</span></label><select id="pe-mode" onchange="togglePaymentEditRefField()"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option></select></div>
+            <div class="form-group" id="pe-ref-wrap" style="display:none;"><label>Reference No</label><input id="pe-ref" type="text" placeholder="UPI / cheque ref"></div>
+            <div class="form-group full"><label>Remarks</label><input id="pe-remarks" type="text"></div>
+          </div>
+          <input type="hidden" id="pe-receiptno-val">
+          <div class="action-bar">
+            <button class="btn btn-outline" onclick="closeModal('payment-edit-modal')">Cancel</button>
+            <button class="btn btn-teal" onclick="savePaymentEdit()">💾 Save Changes</button>
           </div>
         </div>
       </div>
@@ -1051,6 +1097,56 @@ tr:hover td { background: #f8fafd; }
               <tbody id="fr-results-body"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MONTHLY BUDGET PLANNER ===== -->
+    <div id="page-budget-planner" class="page">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">📅</span> Select Month</div></div>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label>Month <span class="required">*</span></label>
+            <input id="bp-month" type="month" onchange="renderBudgetPlanner()">
+          </div>
+          <div class="form-group">
+            <label>Course (optional)</label>
+            <select id="bp-course-filter" onchange="renderBudgetPlanner()"><option value="">All Courses</option></select>
+          </div>
+          <div class="form-group" style="display:flex;align-items:flex-end;">
+            <button class="btn btn-teal" onclick="renderBudgetPlanner()" style="width:100%;">🔍 Show</button>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-top:6px;">Due amount for the selected month is each active student's monthly installment (Total Fees − Concession − Down Payment, split across the course duration). Click any summary card below to filter the student list.</p>
+      </div>
+
+      <div id="bp-alert"></div>
+
+      <div class="stats-grid" style="margin-bottom:20px;">
+        <div class="stat-card teal" id="bp-card-due" onclick="filterBudgetPlannerList('due')" style="cursor:pointer;">
+          <div class="stat-label">Total To Collect</div><div class="stat-value" id="bp-total-due">₹0</div><div class="stat-sub">Due this month</div>
+        </div>
+        <div class="stat-card green" id="bp-card-collected" onclick="filterBudgetPlannerList('collected')" style="cursor:pointer;">
+          <div class="stat-label">Total Collected</div><div class="stat-value" id="bp-total-collected">₹0</div><div class="stat-sub">Received so far</div>
+        </div>
+        <div class="stat-card red" id="bp-card-pending" onclick="filterBudgetPlannerList('pending')" style="cursor:pointer;">
+          <div class="stat-label">Balance (Pending)</div><div class="stat-value" id="bp-total-balance">₹0</div><div class="stat-sub">Still to collect</div>
+        </div>
+        <div class="stat-card amber" id="bp-card-all" onclick="filterBudgetPlannerList('all')" style="cursor:pointer;">
+          <div class="stat-label">Students Due This Month</div><div class="stat-value" id="bp-total-students">0</div><div class="stat-sub">Active with an installment</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="icon">📋</span> <span id="bp-list-title">Pending Students</span></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Roll No</th><th>Student</th><th>Course</th><th>Phone</th><th>Due Amount</th><th>Collected</th><th>Balance</th><th>Status</th></tr></thead>
+            <tbody id="bp-student-list-body"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">Select a month above to see the collection summary.</td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1112,16 +1208,63 @@ tr:hover td { background: #f8fafd; }
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">📊</span> Income History</div></div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Date</th><th>Source</th><th>Amount</th><th>Remarks</th><th>Entered By</th></tr></thead>
-          <tbody id="income-table-body"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">No income records yet</td></tr></tbody>
+          <thead><tr><th>Date</th><th>Source</th><th>Amount</th><th>Remarks</th><th>Entered By</th><th>Actions</th></tr></thead>
+          <tbody id="income-table-body"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">No income records yet</td></tr></tbody>
         </table></div>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">📊</span> Expense History</div></div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Paid To</th><th>Remarks</th><th>Entered By</th></tr></thead>
-          <tbody id="expense-table-body"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">No expense records yet</td></tr></tbody>
+          <thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Paid To</th><th>Remarks</th><th>Entered By</th><th>Actions</th></tr></thead>
+          <tbody id="expense-table-body"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">No expense records yet</td></tr></tbody>
         </table></div>
+      </div>
+    </div>
+
+    <!-- Income Edit Modal -->
+    <div class="modal-backdrop" id="income-edit-modal">
+      <div class="modal" style="max-width:460px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <h3>Edit Income</h3>
+          <button class="btn btn-outline" onclick="closeModal('income-edit-modal')" style="padding:4px 12px;font-size:16px;">✕</button>
+        </div>
+        <div id="income-edit-alert"></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Date <span class="required">*</span></label><input id="inc-edit-date" type="date"></div>
+          <div class="form-group"><label>Source / Type <span class="required">*</span></label><input id="inc-edit-source" type="text"></div>
+          <div class="form-group"><label>Amount (₹) <span class="required">*</span></label><input id="inc-edit-amount" type="number"></div>
+          <div class="form-group full"><label>Remarks</label><input id="inc-edit-remarks" type="text"></div>
+        </div>
+        <input type="hidden" id="inc-edit-id">
+        <div class="action-bar">
+          <button class="btn btn-outline" onclick="closeModal('income-edit-modal')">Cancel</button>
+          <button class="btn btn-teal" onclick="saveIncomeEdit()">💾 Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expense Edit Modal -->
+    <div class="modal-backdrop" id="expense-edit-modal">
+      <div class="modal" style="max-width:460px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <h3>Edit Expense</h3>
+          <button class="btn btn-outline" onclick="closeModal('expense-edit-modal')" style="padding:4px 12px;font-size:16px;">✕</button>
+        </div>
+        <div id="expense-edit-alert"></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Date <span class="required">*</span></label><input id="exp-edit-date" type="date"></div>
+          <div class="form-group"><label>Category <span class="required">*</span></label>
+            <select id="exp-edit-category"><option value="">Select category</option><option>Rent</option><option>Electricity</option><option>Internet</option><option>Stationery</option><option>Maintenance</option><option>Staff Salary</option><option>Marketing</option><option>Other</option></select>
+          </div>
+          <div class="form-group"><label>Amount (₹) <span class="required">*</span></label><input id="exp-edit-amount" type="number"></div>
+          <div class="form-group"><label>Paid To</label><input id="exp-edit-paidto" type="text"></div>
+          <div class="form-group full"><label>Remarks</label><input id="exp-edit-remarks" type="text"></div>
+        </div>
+        <input type="hidden" id="exp-edit-id">
+        <div class="action-bar">
+          <button class="btn btn-outline" onclick="closeModal('expense-edit-modal')">Cancel</button>
+          <button class="btn btn-teal" onclick="saveExpenseEdit()">💾 Save Changes</button>
+        </div>
       </div>
     </div>
 
@@ -1761,7 +1904,7 @@ tr:hover td { background: #f8fafd; }
     <div class="modal-backdrop" id="notification-modal">
       <div class="modal" style="max-width:460px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-          <h3>New Notification</h3>
+          <h3 id="notification-modal-title">New Notification</h3>
           <button class="btn btn-outline" onclick="closeModal('notification-modal')" style="padding:4px 12px;font-size:16px;">✕</button>
         </div>
         <div id="notification-modal-alert"></div>
@@ -1772,9 +1915,10 @@ tr:hover td { background: #f8fafd; }
             <select id="nf-audience"><option value="all">All Students</option></select>
           </div>
         </div>
+        <input type="hidden" id="nf-edit-id">
         <div class="action-bar">
           <button class="btn btn-outline" onclick="closeModal('notification-modal')">Cancel</button>
-          <button class="btn btn-teal" onclick="saveNotification()">📣 Send Notification</button>
+          <button class="btn btn-teal" onclick="saveNotification()" id="nf-submit-btn">📣 Send Notification</button>
         </div>
       </div>
     </div>
@@ -1783,7 +1927,7 @@ tr:hover td { background: #f8fafd; }
     <div class="modal-backdrop" id="resource-modal">
       <div class="modal" style="max-width:460px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-          <h3>Add Study Material</h3>
+          <h3 id="resource-modal-title">Add Study Material</h3>
           <button class="btn btn-outline" onclick="closeModal('resource-modal')" style="padding:4px 12px;font-size:16px;">✕</button>
         </div>
         <div id="resource-modal-alert"></div>
@@ -1795,9 +1939,10 @@ tr:hover td { background: #f8fafd; }
           <div class="form-group"><label>Course <span class="required">*</span></label><select id="rf-course"><option value="">Select course</option></select></div>
           <div class="form-group full"><label>Link (URL) <span class="required">*</span></label><input id="rf-url" type="url" placeholder="https://..."><div style="font-size:11px;color:var(--muted);margin-top:4px;">YouTube and Google Drive links open in a built-in preview for students — no new tab needed. Make sure Drive files are shared as "Anyone with the link".</div></div>
         </div>
+        <input type="hidden" id="rf-edit-id">
         <div class="action-bar">
           <button class="btn btn-outline" onclick="closeModal('resource-modal')">Cancel</button>
-          <button class="btn btn-teal" onclick="saveResource()">💾 Save Material</button>
+          <button class="btn btn-teal" onclick="saveResource()" id="rf-submit-btn">💾 Save Material</button>
         </div>
       </div>
     </div>
@@ -1840,6 +1985,48 @@ tr:hover td { background: #f8fafd; }
         <div class="action-bar">
           <button class="btn btn-outline" onclick="closeModal('weekly-planner-modal')">Cancel</button>
           <button class="btn btn-teal" id="wp-save-btn" onclick="saveWeeklyPlannerEntry()">💾 Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: pay a specific Down Payment / Installment row from the Fee
+         Collection installment schedule -->
+    <div class="modal-backdrop" id="fee-pay-modal">
+      <div class="modal" style="max-width:460px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <h3 id="fee-pay-modal-title">Pay Installment</h3>
+          <button class="btn btn-outline" onclick="closeModal('fee-pay-modal')" style="padding:4px 12px;">✕</button>
+        </div>
+        <div id="fee-pay-modal-alert"></div>
+        <div style="background:#f8fafd;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;">
+          <div><span class="stat-label">Planned Amount</span> <strong id="fee-pay-planned">₹0</strong></div>
+          <div style="margin-top:4px;"><span class="stat-label">Balance Remaining</span> <strong id="fee-pay-balance" style="color:var(--red);">₹0</strong></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Amount (₹) <span class="required">*</span></label><input id="fee-pay-amount" type="number" placeholder="Enter amount"></div>
+          <div class="form-group"><label>Payment Status <span class="required">*</span></label>
+            <select id="fee-pay-status">
+              <option value="Partially Paid">Partially Paid</option>
+              <option value="Fully Paid">Fully Paid</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Payment Mode <span class="required">*</span></label>
+            <select id="fee-pay-mode" onchange="toggleFeePayRefField()">
+              <option>Cash</option>
+              <option>UPI</option>
+              <option>Bank Transfer</option>
+              <option>Cheque</option>
+            </select>
+          </div>
+          <div class="form-group" id="fee-pay-ref-wrap" style="display:none;">
+            <label>UPI Reference Number <span class="required">*</span></label>
+            <input id="fee-pay-ref" type="text" placeholder="Enter UPI reference number">
+          </div>
+          <div class="form-group full"><label>Remarks</label><input id="fee-pay-remarks" type="text" placeholder="Optional"></div>
+        </div>
+        <div class="action-bar">
+          <button class="btn btn-outline" onclick="closeModal('fee-pay-modal')">Cancel</button>
+          <button class="btn btn-teal" id="fee-pay-submit-btn" onclick="submitInstallmentPayment()">💾 Record Payment</button>
         </div>
       </div>
     </div>
@@ -3241,15 +3428,15 @@ window.fbSignOut = signOut;
 // canEnter = can submit new records (admission, payments, attendance)
 // canModify = can edit or delete existing records (admin/manager)
 const PERMISSIONS = {
-  admin:   { pages: ['dashboard','enquiry','admission','admission-report','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
+  admin:   { pages: ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
   // Manager: sees and can enter/edit/delete everything an Admin can, EXCEPT
   // the Student Admission and Fee Collection processes, which are view-only
   // (enforced via canManageAdmissions() / canManageFees() below, not here).
-  manager: { pages: ['dashboard','enquiry','admission','admission-report','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
+  manager: { pages: ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
   // HR Manager: full access, identical to Admin — plus the HR-specific
   // Job Placement Report and Staff Attendance sections.
-  hrmanager: { pages: ['dashboard','enquiry','admission','admission-report','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
-  office:  { pages: ['dashboard','enquiry','admission','admission-report','students','fees','receipt','certificates','absent-list','student-dashboard','calendar','resources'],                                                                               canEnter: true, canModify: false },
+  hrmanager: { pages: ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
+  office:  { pages: ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','certificates','absent-list','student-dashboard','calendar','resources'],                                                                               canEnter: true, canModify: false },
   teacher: { pages: ['dashboard','attendance','absent-list','attendance-report','student-dashboard','marks','calendar','resources','weekly-planner'],                                                                              canEnter: true, canModify: false },
   // Academic Head: owns the Weekly Planner (creates/edits the schedule);
   // sees the Dashboard/Calendar/Study Materials for context, same as a
@@ -3318,22 +3505,19 @@ function applyRoleUI() {
   document.getElementById('readonly-banner').classList.remove('visible');
   if (role === 'student') return;
 
-  // Nav items — lock inaccessible pages
-  const allPages = ['dashboard','enquiry','admission','admission-report','students','fees','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'];
+  // Nav items — for a clean, uncluttered sidebar, pages a role can't access
+  // are hidden entirely rather than shown greyed-out/locked. Admin, Manager
+  // and HR Manager have every page in their PERMISSIONS list, so this is a
+  // no-op for them and they always see everything; Office, Teacher and
+  // Academic Head simply won't see the nav items (or empty section headers)
+  // for pages that don't apply to their role at all.
+  const allPages = ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'];
   allPages.forEach(p => {
     const nav = document.getElementById('nav-' + p);
     if (!nav) return;
-    if (perm.pages.includes(p)) {
-      nav.classList.remove('locked');
-      nav.querySelector('.lock-badge') && nav.querySelector('.lock-badge').remove();
-    } else {
-      nav.classList.add('locked');
-      if (!nav.querySelector('.lock-badge')) {
-        const lb = document.createElement('span');
-        lb.className = 'lock-badge'; lb.textContent = '🔒';
-        nav.appendChild(lb);
-      }
-    }
+    nav.classList.remove('locked');
+    nav.querySelector('.lock-badge') && nav.querySelector('.lock-badge').remove();
+    nav.style.display = perm.pages.includes(p) ? '' : 'none';
   });
 
   // Admin-only section visibility (Admin + Manager share full back-office access)
@@ -3347,6 +3531,20 @@ function applyRoleUI() {
   // Dashboard split: admin/manager vs restricted
   document.getElementById('admin-stats-row').style.display = isAdminLevel() ? '' : 'none';
   document.getElementById('restricted-stats-row').style.display = isAdminLevel() ? 'none' : '';
+
+  // Hide any section header ("Front Office", "Class Management", etc.) whose
+  // nav items are now all hidden, so a role like Teacher or Office doesn't
+  // see stray empty headings — keeps their sidebar tidy, not just individual
+  // items.
+  document.querySelectorAll('#staff-nav-groups .sidebar-section').forEach(header => {
+    let el = header.nextElementSibling;
+    let anyVisible = false;
+    while (el && !el.classList.contains('sidebar-section')) {
+      if (el.classList.contains('nav-item') && el.style.display !== 'none') { anyVisible = true; break; }
+      el = el.nextElementSibling;
+    }
+    header.style.display = anyVisible ? '' : 'none';
+  });
 
   // Show edit-restriction notice for non-admin users
   const banner = document.getElementById('readonly-banner');
@@ -3464,6 +3662,7 @@ function navTo(page, el) {
   const titles = {
     dashboard:'Dashboard', enquiry:'Enquiry', admission:'Student Admission', 'admission-report':'Admission Report', students:'Student Records',
     fees:'Fees & Payments', receipt:'Payment Receipt', finance:'Income & Expenses',
+    'budget-planner':'Monthly Budget Planner',
     certificates:'Certificates', attendance:'Attendance Entry', 'absent-list':'Absent List',
     'attendance-report':'Attendance Report', 'student-dashboard':'Student Dashboard',
     marks:'Marks Entry', master:'Master Data', salary:'Staff Salary',
@@ -3478,6 +3677,7 @@ function navTo(page, el) {
   if (page === 'students') renderStudentsTable();
   if (page === 'receipt') refreshReceiptDropdown();
   if (page === 'finance') renderFinance();
+  if (page === 'budget-planner') renderBudgetPlanner();
   if (page === 'certificates') renderCertificates();
   if (page === 'settings') loadSettings();
   if (page === 'users') renderUsersPage();
@@ -3505,6 +3705,7 @@ function navTo(page, el) {
     }
   }
   if (page === 'fees') {
+    toggleFeeRefField();
     const btn = document.getElementById('fee-collect-btn');
     const readOnly = !canManageFees();
     if (btn) { btn.disabled = readOnly; btn.style.opacity = readOnly ? '0.5' : ''; btn.style.cursor = readOnly ? 'not-allowed' : ''; }
@@ -4211,6 +4412,9 @@ async function submitAdmission() {
     customDueDate: document.getElementById('adm-duedate').value ? String(parseInt(document.getElementById('adm-duedate').value)) : null,
     totalFees: parseFloat(document.getElementById('adm-totalfees').value) || 0,
     concession: parseFloat(document.getElementById('adm-concession').value) || 0,
+    downPayment: parseFloat(document.getElementById('adm-downpayment').value) || 0,
+    downPaymentMode: document.getElementById('adm-downpayment-mode').value,
+    downPaymentRef: document.getElementById('adm-downpayment-ref').value.trim(),
     guardian: document.getElementById('adm-guardian').value.trim(),
     guardianMobile: document.getElementById('adm-gmobile').value.trim(),
     qual: document.getElementById('adm-qual').value.trim(),
@@ -4225,6 +4429,12 @@ async function submitAdmission() {
   if (!/^\d{10}$/.test(fields.mobile)) { showAlert('admission-alert','error','❌ Mobile must be 10 digits.'); return; }
   if (students.some(s => (s.rollNo||'').toLowerCase() === fields.rollNo.toLowerCase())) {
     showAlert('admission-alert','error','❌ Roll No "' + fields.rollNo + '" is already used by another student. Please enter a different roll no.'); return;
+  }
+  const admNetFees = fields.totalFees - fields.concession;
+  if (fields.downPayment < 0) { showAlert('admission-alert','error','❌ Down payment cannot be negative.'); return; }
+  if (fields.downPayment > admNetFees) { showAlert('admission-alert','error','❌ Down payment (₹'+fields.downPayment.toLocaleString('en-IN')+') cannot be more than the net payable fees (₹'+admNetFees.toLocaleString('en-IN')+').'); return; }
+  if (fields.downPayment > 0 && (fields.downPaymentMode === 'UPI' || fields.downPaymentMode === 'Cheque') && !fields.downPaymentRef) {
+    showAlert('admission-alert','error','❌ Enter the down payment '+(fields.downPaymentMode==='UPI'?'UPI':'cheque')+' reference number.'); return;
   }
 
   confirmAction(
@@ -4244,12 +4454,35 @@ async function finalizeAdmission(fields) {
   students.push(newStudent);
   await DB.set('students', students);
 
+  // If a down payment was entered, record it immediately as a fee payment
+  // tagged 'Down Payment' — the Fees & Payments section (paid total, balance,
+  // and the installment breakdown) picks this up automatically since it just
+  // sums the shared `payments` array, exactly like a payment collected there.
+  let downPaymentReceipt = '';
+  if (fields.downPayment > 0) {
+    downPaymentReceipt = 'RCP' + String(Date.now()).slice(-6);
+    const dpPayment = {
+      id: downPaymentReceipt, receiptNo: downPaymentReceipt,
+      date: fields.admDate || todayStr(),
+      rollNo: roll, studentName: fields.fname + ' ' + fields.lname,
+      course: fields.course, amount: fields.downPayment,
+      category: 'Down Payment', linkedInstallment: 'Down Payment', installmentStatus: 'Fully Paid',
+      mode: fields.downPaymentMode || 'Cash', reference: fields.downPaymentRef || '',
+      remarks: 'Down payment collected at admission', recordedBy: currentUser.name
+    };
+    payments.push(dpPayment);
+    await DB.set('payments', payments);
+  }
+
   // If this admission was loaded from an Enquiry, mark that enquiry Converted now.
   await markLinkedEnquiryConverted(roll);
 
   btn.disabled = false; txt.innerHTML = '💾 Save Student';
 
   let msg = '✅ Admitted! Roll No: <strong>' + roll + '</strong>' + (firebaseInitialized ? ' — Saved to Firebase!' : ' (Local — connect Firebase in Settings for cloud sync)');
+  if (downPaymentReceipt) {
+    msg += `<br>💰 Down payment of ₹${fields.downPayment.toLocaleString('en-IN')} recorded. Receipt: <strong>${downPaymentReceipt}</strong>`;
+  }
 
   // Auto-create the student's portal login: username = email, password =
   // mobile number, exactly as entered on this form. Requires an email —
@@ -4337,6 +4570,11 @@ function clearAdmissionForm() {
   ['adm-gender','adm-course','adm-batch','adm-idtype','adm-coursetype','adm-mode'].forEach(id => document.getElementById(id).selectedIndex=0);
   document.getElementById('adm-date').value = todayStr();
   document.getElementById('adm-concession').value = '0';
+  document.getElementById('adm-downpayment').value = '0';
+  document.getElementById('adm-downpayment-mode').selectedIndex = 0;
+  document.getElementById('adm-downpayment-ref').value = '';
+  toggleAdmDownpaymentRefField();
+  updateAdmDownpaymentHint();
   const photoInput = document.getElementById('adm-photo');
   if (photoInput) photoInput.value = '';
   admPhotoData = '';
@@ -4344,6 +4582,29 @@ function clearAdmissionForm() {
   if (preview) preview.innerHTML = '';
   clearEnquiryAdmissionLink();
 }
+
+// Shows/hides the reference-number field for the admission down payment,
+// mirroring the same UPI/Cheque behaviour used in Fee Collection.
+function toggleAdmDownpaymentRefField() {
+  const mode = document.getElementById('adm-downpayment-mode').value;
+  document.getElementById('adm-downpayment-ref-wrap').style.display = (mode === 'UPI' || mode === 'Cheque') ? '' : 'none';
+}
+window.toggleAdmDownpaymentRefField = toggleAdmDownpaymentRefField;
+
+// Keeps the down-payment helper text in sync with Total Fees / Concession so
+// staff can see the resulting net payable and remaining balance as they type.
+function updateAdmDownpaymentHint() {
+  const hint = document.getElementById('adm-downpayment-hint');
+  if (!hint) return;
+  const total = parseFloat(document.getElementById('adm-totalfees').value) || 0;
+  const concession = parseFloat(document.getElementById('adm-concession').value) || 0;
+  const dp = parseFloat(document.getElementById('adm-downpayment').value) || 0;
+  const net = total - concession;
+  if (!total) { hint.textContent = 'Collected now, at admission. Remaining balance is split into monthly installments.'; return; }
+  const remaining = Math.max(net - dp, 0);
+  hint.textContent = `Net payable: ₹${net.toLocaleString('en-IN')} · Down payment: ₹${dp.toLocaleString('en-IN')} · Remaining balance after admission: ₹${remaining.toLocaleString('en-IN')}`;
+}
+window.updateAdmDownpaymentHint = updateAdmDownpaymentHint;
 
 // Reads the chosen photo file and stores it as a base64 data URL (admPhotoData)
 // so it can be saved with the student record on submit.
@@ -4815,7 +5076,8 @@ function selectFeeStudent(rollNo) {
 function refreshFeeStudentInfo() {
   const s = selectedStudentForFee;
   if (!s) return;
-  const paid = payments.filter(p=>p.rollNo===s.rollNo).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+  const studentPayments = payments.filter(p=>p.rollNo===s.rollNo);
+  const paid = studentPayments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
   const net = parseFloat(s.totalFees||0)-parseFloat(s.concession||0);
   document.getElementById('fee-sname').textContent = s.fname+' '+s.lname;
   document.getElementById('fee-scourse').textContent = s.course;
@@ -4824,7 +5086,146 @@ function refreshFeeStudentInfo() {
   document.getElementById('fee-sbalance').textContent = '₹'+(net-paid).toLocaleString('en-IN');
   document.getElementById('fee-student-info').style.display='block';
   document.getElementById('fee-payment-form').style.display='block';
+  renderFeeInstallmentBreakdown(s, studentPayments, net);
 }
+
+// Installment-wise breakdown: (Total Fee − Down Payment) ÷ Course Duration
+// (in months), listed one row per month starting from the student's
+// admission/joining month, plus a Down Payment row at the top. Each row
+// tracks its own payments (tagged via linkedInstallment on the payment
+// record) so partial payments accumulate correctly and each row gets its
+// own Pay button, Planned/Paid/Balance, and Status.
+let _feeInstallmentRows = [];
+
+function renderFeeInstallmentBreakdown(s, studentPayments, net) {
+  const wrap = document.getElementById('fee-installment-info');
+  const course = (masterData.courses||[]).find(c => c.name === s.course);
+  const duration = course ? parseInt(course.duration) : 0;
+  if (!duration || duration <= 0 || !s.admDate) { wrap.style.display = 'none'; _feeInstallmentRows = []; return; }
+
+  const paidFor = (label) => studentPayments
+    .filter(p => p.linkedInstallment === label)
+    .reduce((a,p) => a + parseFloat(p.amount||0), 0);
+  const statusFor = (label) => {
+    const tagged = studentPayments.filter(p => p.linkedInstallment === label);
+    if (!tagged.length) return 'Pending';
+    return tagged[tagged.length - 1].installmentStatus === 'Fully Paid' ? 'Paid' : 'Partially Paid';
+  };
+
+  const downPaymentLabel = 'Down Payment';
+  const downPaymentPaid = paidFor(downPaymentLabel);
+  const remaining = Math.max(net - downPaymentPaid, 0);
+  const monthlyAmount = remaining / duration;
+
+  const admDate = new Date(s.admDate + 'T00:00:00');
+  const note = document.getElementById('fee-installment-note');
+  note.textContent = `(₹${net.toLocaleString('en-IN')} Total − ₹${downPaymentPaid.toLocaleString('en-IN')} Down Payment) ÷ ${duration} month${duration>1?'s':''} = ₹${monthlyAmount.toLocaleString('en-IN',{maximumFractionDigits:2})} / month`;
+
+  _feeInstallmentRows = [];
+  _feeInstallmentRows.push({ label: downPaymentLabel, category: 'Down Payment', planned: null });
+  for (let i = 0; i < duration; i++) {
+    const m = new Date(admDate.getFullYear(), admDate.getMonth() + i, 1);
+    const label = m.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    _feeInstallmentRows.push({ label, category: 'Installment', planned: monthlyAmount });
+  }
+
+  const canPay = canManageFees();
+  document.getElementById('fee-installment-body').innerHTML = _feeInstallmentRows.map((row, idx) => {
+    const paid = paidFor(row.label);
+    const planned = row.planned === null ? (paid || null) : row.planned; // Down Payment has no fixed target
+    const balance = planned === null ? null : Math.max(planned - paid, 0);
+    const status = statusFor(row.label);
+    const statusChip = status === 'Paid' ? '<span class="chip chip-green">✅ Paid</span>'
+      : status === 'Partially Paid' ? '<span class="chip chip-amber">⚠️ Partially Paid</span>'
+      : '<span class="chip" style="background:#e2e8f0;color:#475569;">Pending</span>';
+    const payBtn = canPay && status !== 'Paid'
+      ? `<button class="btn btn-teal" onclick="openFeePayModal(${idx})" style="padding:4px 12px;font-size:12px;">💰 Pay</button>`
+      : '';
+    return `<tr>
+      <td><strong>${row.label}</strong></td>
+      <td>${planned === null ? '—' : '₹'+planned.toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
+      <td style="color:var(--green);">₹${paid.toLocaleString('en-IN')}</td>
+      <td style="color:var(--red);">${balance === null ? '—' : '₹'+balance.toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
+      <td>${statusChip}</td>
+      <td>${payBtn}</td>
+    </tr>`;
+  }).join('');
+  wrap.style.display = 'block';
+}
+
+function toggleFeePayRefField() {
+  const mode = document.getElementById('fee-pay-mode').value;
+  document.getElementById('fee-pay-ref-wrap').style.display = (mode === 'UPI' || mode === 'Cheque') ? '' : 'none';
+}
+window.toggleFeePayRefField = toggleFeePayRefField;
+
+function openFeePayModal(rowIndex) {
+  if (!canManageFees()) { showAlert('fees-alert','error','❌ Your account has view-only access to the Fee process.'); return; }
+  const row = _feeInstallmentRows[rowIndex];
+  if (!row) return;
+  const s = selectedStudentForFee;
+  const studentPayments = payments.filter(p => p.rollNo === s.rollNo);
+  const paid = studentPayments.filter(p => p.linkedInstallment === row.label).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+  const planned = row.planned === null ? null : row.planned;
+  const balance = planned === null ? null : Math.max(planned - paid, 0);
+
+  document.getElementById('fee-pay-modal-title').textContent = 'Pay — ' + row.label;
+  document.getElementById('fee-pay-modal-alert').innerHTML = '';
+  document.getElementById('fee-pay-planned').textContent = planned === null ? 'Not fixed — enter amount below' : '₹'+planned.toLocaleString('en-IN',{maximumFractionDigits:2});
+  document.getElementById('fee-pay-balance').textContent = balance === null ? '—' : '₹'+balance.toLocaleString('en-IN',{maximumFractionDigits:2});
+  document.getElementById('fee-pay-amount').value = balance !== null && balance > 0 ? balance.toFixed(2) : '';
+  document.getElementById('fee-pay-status').value = 'Partially Paid';
+  document.getElementById('fee-pay-mode').value = 'Cash';
+  document.getElementById('fee-pay-ref').value = '';
+  document.getElementById('fee-pay-remarks').value = '';
+  toggleFeePayRefField();
+  document.getElementById('fee-pay-submit-btn').dataset.rowIndex = rowIndex;
+  document.getElementById('fee-pay-modal').classList.add('open');
+}
+window.openFeePayModal = openFeePayModal;
+
+async function submitInstallmentPayment() {
+  const alertBox = document.getElementById('fee-pay-modal-alert');
+  const rowIndex = parseInt(document.getElementById('fee-pay-submit-btn').dataset.rowIndex);
+  const row = _feeInstallmentRows[rowIndex];
+  if (!row || !selectedStudentForFee) return;
+
+  const amount = parseFloat(document.getElementById('fee-pay-amount').value);
+  const status = document.getElementById('fee-pay-status').value;
+  const mode = document.getElementById('fee-pay-mode').value;
+  const reference = document.getElementById('fee-pay-ref').value.trim();
+  const remarks = document.getElementById('fee-pay-remarks').value.trim();
+
+  if (!amount || amount <= 0) { alertBox.innerHTML = '<div class="alert alert-error">❌ Enter a valid amount.</div>'; return; }
+  if ((mode === 'UPI' || mode === 'Cheque') && !reference) { alertBox.innerHTML = '<div class="alert alert-error">❌ Enter the ' + (mode==='UPI'?'UPI':'cheque') + ' reference number.</div>'; return; }
+
+  const btn = document.getElementById('fee-pay-submit-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Recording...';
+
+  const rcptNo = 'RCP'+String(Date.now()).slice(-6);
+  const pd = {
+    receiptNo: rcptNo, date: todayStr(),
+    rollNo: selectedStudentForFee.rollNo, studentName: selectedStudentForFee.fname+' '+selectedStudentForFee.lname,
+    course: selectedStudentForFee.course, amount,
+    category: row.category, linkedInstallment: row.label, installmentStatus: status,
+    mode, reference, remarks, recordedBy: currentUser.name
+  };
+  pd.id = rcptNo;
+  payments.push(pd);
+  await DB.set('payments', payments);
+
+  btn.disabled = false; btn.innerHTML = '💾 Record Payment';
+  closeModal('fee-pay-modal');
+  refreshFeeStudentInfo();
+  showAlert('fees-alert','success','✅ ₹'+amount.toLocaleString('en-IN')+' recorded for '+row.label+'. Receipt: <strong>'+rcptNo+'</strong>');
+}
+window.submitInstallmentPayment = submitInstallmentPayment;
+
+function toggleFeeRefField() {
+  const mode = document.getElementById('fee-mode').value;
+  document.getElementById('fee-ref-wrap').style.display = (mode === 'UPI' || mode === 'Cheque') ? '' : 'none';
+}
+window.toggleFeeRefField = toggleFeeRefField;
 
 async function collectFee() {
   if (!canManageFees()) { showAlert('fees-alert','error','❌ Your account has view-only access to the Fee process.'); return; }
@@ -4848,6 +5249,7 @@ async function finalizeCollectFee(amount) {
     receiptNo: rcptNo, date: document.getElementById('fee-date').value,
     rollNo: selectedStudentForFee.rollNo, studentName: selectedStudentForFee.fname+' '+selectedStudentForFee.lname,
     course: selectedStudentForFee.course, amount,
+    category: 'Other',
     mode: document.getElementById('fee-mode').value,
     reference: document.getElementById('fee-ref').value,
     remarks: document.getElementById('fee-remarks').value,
@@ -4873,11 +5275,13 @@ function clearFeeForm() {
   if (dropdown) { dropdown.style.display='none'; dropdown.innerHTML=''; }
   selectedStudentForFee = null;
   document.getElementById('fee-student-info').style.display='none';
+  document.getElementById('fee-installment-info').style.display='none';
   document.getElementById('fee-payment-form').style.display='none';
   document.getElementById('fee-amount').value='';
   document.getElementById('fee-ref').value='';
   document.getElementById('fee-remarks').value='';
   document.getElementById('fee-mode').selectedIndex=0;
+  toggleFeeRefField();
   document.getElementById('fee-date').value = todayStr();
   const alertBox = document.getElementById('fees-alert');
   if (alertBox) { alertBox.innerHTML=''; alertBox.style.display='none'; }
@@ -4892,16 +5296,240 @@ function goToReceipt() {
 
 function renderPaymentsTable() {
   const tbody = document.getElementById('payments-table-body');
-  if (!payments.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">No payments yet</td></tr>'; return; }
+  if (!payments.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px;">No payments yet</td></tr>'; return; }
+  const canEditPayments = isAdminLevel();
   tbody.innerHTML = [...payments].reverse().map((p,pIdx)=>`
     <tr>
       <td>${pIdx + 1}</td>
       <td><strong>${p.receiptNo}</strong></td><td>${p.date}</td><td>${p.studentName}</td><td>${p.course}</td>
+      <td><span class="chip ${p.category==='Down Payment'?'chip-amber':p.category==='Installment'?'chip-blue':'chip-green'}" style="font-size:10.5px;">${p.category||'—'}</span></td>
       <td><strong>₹${parseFloat(p.amount).toLocaleString('en-IN')}</strong></td>
       <td><span class="chip chip-blue">${p.mode}</span></td>
-      <td><button class="btn btn-outline" onclick="printReceipt('${p.receiptNo}')" style="padding:4px 10px;font-size:12px;">Print</button></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-outline" onclick="printReceipt('${p.receiptNo}')" style="padding:4px 10px;font-size:12px;">Print</button>
+        ${canEditPayments ? `<button class="btn btn-outline" onclick="editPayment('${p.receiptNo}')" style="padding:4px 10px;font-size:12px;" title="Edit">✏️</button>
+        <button class="btn btn-outline" onclick="deletePayment('${p.receiptNo}')" style="padding:4px 10px;font-size:12px;color:var(--red);border-color:var(--red);" title="Delete">🗑️</button>` : ''}
+      </td>
     </tr>`).join('');
 }
+
+// ---- Edit / Delete an existing fee payment (Admin, Manager, HR Manager only) ----
+// Payments feed every fee figure across the app (student balance, installment
+// breakdown, dashboard stats, finance income) purely by being summed live from
+// the shared `payments` array, so editing/removing one here is enough — every
+// other screen recalculates itself the next time it renders.
+function togglePaymentEditRefField() {
+  const mode = document.getElementById('pe-mode').value;
+  document.getElementById('pe-ref-wrap').style.display = (mode === 'UPI' || mode === 'Cheque') ? '' : 'none';
+}
+window.togglePaymentEditRefField = togglePaymentEditRefField;
+
+function editPayment(receiptNo) {
+  if (!isAdminLevel()) return;
+  const p = payments.find(x => x.receiptNo === receiptNo);
+  if (!p) return;
+  document.getElementById('payment-edit-alert').innerHTML = '';
+  document.getElementById('pe-receiptno').textContent = p.receiptNo;
+  document.getElementById('pe-student').textContent = p.studentName + ' (' + p.rollNo + ')';
+  document.getElementById('pe-category').textContent = p.linkedInstallment || p.category || '';
+  document.getElementById('pe-receiptno-val').value = p.receiptNo;
+  document.getElementById('pe-date').value = p.date || '';
+  document.getElementById('pe-amount').value = p.amount || '';
+  document.getElementById('pe-mode').value = p.mode || 'Cash';
+  document.getElementById('pe-ref').value = p.reference || '';
+  document.getElementById('pe-remarks').value = p.remarks || '';
+  togglePaymentEditRefField();
+  document.getElementById('payment-edit-modal').classList.add('open');
+}
+window.editPayment = editPayment;
+
+function savePaymentEdit() {
+  const receiptNo = document.getElementById('pe-receiptno-val').value;
+  const p = payments.find(x => x.receiptNo === receiptNo);
+  if (!p) return;
+  const date = document.getElementById('pe-date').value;
+  const amount = parseFloat(document.getElementById('pe-amount').value) || 0;
+  const mode = document.getElementById('pe-mode').value;
+  const reference = document.getElementById('pe-ref').value.trim();
+  const remarks = document.getElementById('pe-remarks').value.trim();
+  if (!date || amount <= 0) { showAlert('payment-edit-alert','error','❌ Date and a valid amount are required.'); return; }
+  if ((mode === 'UPI' || mode === 'Cheque') && !reference) { showAlert('payment-edit-alert','error','❌ Enter the '+(mode==='UPI'?'UPI':'cheque')+' reference number.'); return; }
+
+  confirmAction(
+    `Save changes to receipt ${receiptNo}? The amount will change from ₹${parseFloat(p.amount).toLocaleString('en-IN')} to ₹${amount.toLocaleString('en-IN')}, which updates this student's fee balance immediately.`,
+    () => savePaymentEditConfirmed(receiptNo, { date, amount, mode, reference, remarks }),
+    { title: 'Confirm Payment Changes', confirmLabel: 'Yes, Save Changes' }
+  );
+}
+window.savePaymentEdit = savePaymentEdit;
+
+async function savePaymentEditConfirmed(receiptNo, updates) {
+  const idx = payments.findIndex(x => x.receiptNo === receiptNo);
+  if (idx === -1) return;
+  payments[idx] = { ...payments[idx], ...updates, editedBy: currentUser.name, editedAt: new Date().toISOString() };
+  await DB.set('payments', payments);
+  closeModal('payment-edit-modal');
+  renderPaymentsTable();
+  if (selectedStudentForFee && selectedStudentForFee.rollNo === payments[idx].rollNo) refreshFeeStudentInfo();
+  showAlert('fees-alert','success','✅ Payment ' + receiptNo + ' updated.');
+}
+
+// Deleting a payment is destructive and immediately changes a student's fee
+// balance and the school's income totals, so this requires TWO separate
+// confirmations before anything is removed.
+function deletePayment(receiptNo) {
+  if (!isAdminLevel()) return;
+  const p = payments.find(x => x.receiptNo === receiptNo);
+  if (!p) return;
+  confirmAction(
+    `Delete receipt ${p.receiptNo} — ₹${parseFloat(p.amount).toLocaleString('en-IN')} (${p.category||'Payment'}) paid by ${p.studentName} (${p.rollNo})? This will reduce their recorded fee payments and increase their pending balance.`,
+    () => confirmAction(
+      `This is your final confirmation. Deleting receipt ${p.receiptNo} is permanent and cannot be undone — it will also affect income totals in the Finance section. Proceed?`,
+      () => deletePaymentConfirmed(receiptNo),
+      { title: 'Final Confirmation', confirmLabel: 'Yes, Permanently Delete', danger: true }
+    ),
+    { title: 'Delete Payment', confirmLabel: 'Continue', danger: true }
+  );
+}
+window.deletePayment = deletePayment;
+
+async function deletePaymentConfirmed(receiptNo) {
+  const p = payments.find(x => x.receiptNo === receiptNo);
+  payments = payments.filter(x => x.receiptNo !== receiptNo);
+  await DB.set('payments', payments);
+  renderPaymentsTable();
+  if (selectedStudentForFee && p && selectedStudentForFee.rollNo === p.rollNo) refreshFeeStudentInfo();
+  showAlert('fees-alert','success','🗑️ Payment receipt ' + receiptNo + ' deleted.');
+}
+
+// ============================================================
+// MONTHLY BUDGET PLANNER — Admin / Manager / HR Manager / Office
+// For a selected month, shows how much is due (each active student's
+// monthly installment — Total Fees − Concession − Down Payment, split
+// across the course duration, same formula as the Fees > Payment
+// installment breakdown), how much of that has actually been collected,
+// and the remaining balance. Clicking a summary card filters the list of
+// students below to that view, each with amount and phone number.
+// ============================================================
+let _bpRows = [];          // computed {s, planned, paid, balance, status} rows for the selected month
+let _bpFilter = 'pending'; // 'due' | 'collected' | 'pending' | 'all' — which card is active
+
+// Works out this student's due amount for one specific month label (e.g.
+// "March 2026") by walking the same installment schedule the Fees page
+// builds, so the two always agree. Returns null if that month isn't part
+// of this student's schedule (no admission date, no course duration, or
+// the month falls outside/before/after their installment period).
+function getStudentDueForMonth(s, targetLabel) {
+  const course = (masterData.courses||[]).find(c => c.name === s.course);
+  const duration = course ? parseInt(course.duration) : 0;
+  if (!duration || duration <= 0 || !s.admDate) return null;
+
+  const studentPayments = payments.filter(p => p.rollNo === s.rollNo);
+  const net = parseFloat(s.totalFees||0) - parseFloat(s.concession||0);
+  const downPaymentPaid = studentPayments.filter(p => p.linkedInstallment === 'Down Payment').reduce((a,p) => a + parseFloat(p.amount||0), 0);
+  const remaining = Math.max(net - downPaymentPaid, 0);
+  const monthlyAmount = remaining / duration;
+
+  const admDate = new Date(s.admDate + 'T00:00:00');
+  for (let i = 0; i < duration; i++) {
+    const m = new Date(admDate.getFullYear(), admDate.getMonth() + i, 1);
+    const label = m.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    if (label === targetLabel) {
+      const paid = studentPayments.filter(p => p.linkedInstallment === label).reduce((a,p) => a + parseFloat(p.amount||0), 0);
+      const balance = Math.max(monthlyAmount - paid, 0);
+      const status = paid <= 0 ? 'Pending' : (paid >= monthlyAmount ? 'Paid' : 'Partially Paid');
+      return { planned: monthlyAmount, paid, balance, status };
+    }
+  }
+  return null;
+}
+window.getStudentDueForMonth = getStudentDueForMonth;
+
+function populateBudgetPlannerCourseFilter() {
+  const sel = document.getElementById('bp-course-filter');
+  if (!sel || sel.dataset.filled) return;
+  (masterData.courses||[]).forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.name; o.textContent = c.name;
+    sel.appendChild(o);
+  });
+  sel.dataset.filled = '1';
+}
+
+function renderBudgetPlanner() {
+  populateBudgetPlannerCourseFilter();
+  const monthInput = document.getElementById('bp-month');
+  if (!monthInput.value) {
+    const now = new Date();
+    monthInput.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  }
+  const [y, m] = monthInput.value.split('-').map(Number);
+  const targetLabel = new Date(y, m - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+  const courseFilter = document.getElementById('bp-course-filter').value;
+
+  const activeStudents = (window.students || []).filter(s => s.status !== 'Inactive' && (!courseFilter || s.course === courseFilter));
+
+  _bpRows = [];
+  activeStudents.forEach(s => {
+    const row = getStudentDueForMonth(s, targetLabel);
+    if (row) _bpRows.push({ s, ...row });
+  });
+
+  const totalDue = _bpRows.reduce((a, r) => a + r.planned, 0);
+  const totalCollected = _bpRows.reduce((a, r) => a + r.paid, 0);
+  const totalBalance = _bpRows.reduce((a, r) => a + r.balance, 0);
+
+  document.getElementById('bp-total-due').textContent = '₹' + totalDue.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  document.getElementById('bp-total-collected').textContent = '₹' + totalCollected.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  document.getElementById('bp-total-balance').textContent = '₹' + totalBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  document.getElementById('bp-total-students').textContent = _bpRows.length;
+
+  const alertBox = document.getElementById('bp-alert');
+  alertBox.innerHTML = _bpRows.length ? '' : `<div class="alert alert-info">ℹ️ No active students have an installment due in ${targetLabel}${courseFilter ? ' for ' + courseFilter : ''}.</div>`;
+
+  filterBudgetPlannerList(_bpFilter);
+}
+window.renderBudgetPlanner = renderBudgetPlanner;
+
+// Filters/re-renders the student list below the summary cards. 'due' shows
+// everyone with an installment this month, 'collected' shows who's paid
+// something, 'pending' (the default) shows who still owes a balance, and
+// 'all' is the same full list as 'due' with a neutral title.
+function filterBudgetPlannerList(filter) {
+  _bpFilter = filter;
+  const cardIds = { due: 'bp-card-due', collected: 'bp-card-collected', pending: 'bp-card-pending', all: 'bp-card-all' };
+  Object.entries(cardIds).forEach(([f, id]) => {
+    const card = document.getElementById(id);
+    if (card) card.style.outline = (f === filter) ? '3px solid var(--navy)' : 'none';
+  });
+
+  let rows = _bpRows;
+  let title = 'All Students Due This Month';
+  if (filter === 'collected') { rows = _bpRows.filter(r => r.paid > 0); title = 'Students Who Have Paid'; }
+  else if (filter === 'pending') { rows = _bpRows.filter(r => r.balance > 0); title = 'Pending / Due Students'; }
+  document.getElementById('bp-list-title').textContent = title;
+
+  const tbody = document.getElementById('bp-student-list-body');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">No students match this filter. Select a month above first.</td></tr>'; return; }
+
+  rows = [...rows].sort((a, b) => b.balance - a.balance);
+  tbody.innerHTML = rows.map(r => {
+    const statusChip = r.status === 'Paid' ? '<span class="chip chip-green">✅ Paid</span>'
+      : r.status === 'Partially Paid' ? '<span class="chip chip-amber">⚠️ Partially Paid</span>'
+      : '<span class="chip" style="background:#e2e8f0;color:#475569;">Pending</span>';
+    return `<tr>
+      <td><strong>${r.s.rollNo}</strong></td>
+      <td>${r.s.fname} ${r.s.lname}</td>
+      <td>${r.s.course}</td>
+      <td>${r.s.mobile ? `<a href="tel:${r.s.mobile}" style="color:var(--teal);text-decoration:none;">📞 ${r.s.mobile}</a>` : '—'}</td>
+      <td>₹${r.planned.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+      <td style="color:var(--green);">₹${r.paid.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+      <td style="color:var(--red);font-weight:600;">₹${r.balance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+      <td>${statusChip}</td>
+    </tr>`;
+  }).join('');
+}
+window.filterBudgetPlannerList = filterBudgetPlannerList;
 
 // ============================================================
 // FEE COLLECTION REPORT — daily / range / monthly, both Admin and Office
@@ -6539,7 +7167,7 @@ function renderResourcesPage() {
         <div class="notif-msg">${n.message}</div>
         <div class="notif-meta">${n.audience==='all'?'All Students':n.audience} · ${n.date||''} · by ${n.createdBy||''}</div>
       </div>
-      ${isAdminLevel() || (currentUser && currentUser.role==='office') ? `<button class="btn btn-outline" onclick="deleteNotification('${n.id}')" style="padding:4px 10px;font-size:11px;height:fit-content;">🗑️</button>` : ''}
+      ${isAdminLevel() || (currentUser && currentUser.role==='office') ? `<button class="btn btn-outline" onclick="editNotification('${n.id}')" style="padding:4px 10px;font-size:11px;height:fit-content;" title="Edit">✏️</button> <button class="btn btn-outline" onclick="deleteNotification('${n.id}')" style="padding:4px 10px;font-size:11px;height:fit-content;" title="Delete">🗑️</button>` : ''}
     </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No notifications yet.</p>';
 
   // ---- Study materials grid ----
@@ -6553,7 +7181,8 @@ function renderResourcesPage() {
       <div class="resource-meta">${r.course} · ${r.type==='video'?'Recorded Video':'E-Book'}</div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-outline" style="padding:5px 12px;font-size:12px;" onclick='openResourceViewer(${jsAttr(r.url)}, ${jsAttr(r.title)}, ${jsAttr(r.type)})'>Preview</button>
-        <button class="btn btn-outline" onclick="deleteResource('${r.id}')" style="padding:5px 10px;font-size:12px;">🗑️</button>
+        <button class="btn btn-outline" onclick="editResource('${r.id}')" style="padding:5px 10px;font-size:12px;" title="Edit">✏️</button>
+        <button class="btn btn-outline" onclick="deleteResource('${r.id}')" style="padding:5px 10px;font-size:12px;" title="Delete">🗑️</button>
       </div>
     </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No study materials added yet.</p>';
 }
@@ -6561,17 +7190,47 @@ window.renderResourcesPage = renderResourcesPage;
 
 function openNotificationModal() {
   document.getElementById('notification-modal-alert').innerHTML = '';
+  document.getElementById('notification-modal-title').textContent = 'New Notification';
+  document.getElementById('nf-submit-btn').innerHTML = '📣 Send Notification';
+  document.getElementById('nf-edit-id').value = '';
   document.getElementById('nf-title').value = '';
   document.getElementById('nf-message').value = '';
+  document.getElementById('nf-audience').selectedIndex = 0;
   document.getElementById('notification-modal').classList.add('open');
 }
 window.openNotificationModal = openNotificationModal;
 
+// Opens the same modal pre-filled for editing an existing notification.
+// Restricted to Admin/Manager/HR/office, matching the delete permission.
+function editNotification(id) {
+  if (!(isAdminLevel() || (currentUser && currentUser.role==='office'))) return;
+  const n = (window.notifications||[]).find(x=>x.id===id);
+  if (!n) return;
+  document.getElementById('notification-modal-alert').innerHTML = '';
+  document.getElementById('notification-modal-title').textContent = 'Edit Notification';
+  document.getElementById('nf-submit-btn').innerHTML = '💾 Save Changes';
+  document.getElementById('nf-edit-id').value = n.id;
+  document.getElementById('nf-title').value = n.title || '';
+  document.getElementById('nf-message').value = n.message || '';
+  document.getElementById('nf-audience').value = n.audience || 'all';
+  document.getElementById('notification-modal').classList.add('open');
+}
+window.editNotification = editNotification;
+
 async function saveNotification() {
+  const editId = document.getElementById('nf-edit-id').value;
   const title = document.getElementById('nf-title').value.trim();
   const message = document.getElementById('nf-message').value.trim();
   const audience = document.getElementById('nf-audience').value;
   if (!title || !message) { showAlert('notification-modal-alert','error','❌ Title and message are required.'); return; }
+  if (editId) {
+    confirmAction(
+      'Save changes to this notification?',
+      () => saveNotificationEditConfirmed(editId, title, message, audience),
+      { title: 'Confirm Changes', confirmLabel: 'Yes, Save' }
+    );
+    return;
+  }
   confirmAction(
     `Send this notification to ${audience === 'all' ? 'everyone' : audience}?`,
     () => saveNotificationConfirmed(title, message, audience),
@@ -6583,6 +7242,15 @@ window.saveNotification = saveNotification;
 async function saveNotificationConfirmed(title, message, audience) {
   const rec = { id:'NOTIF'+Date.now(), title, message, audience, date: todayStr(), createdBy: currentUser.name, createdAt: new Date().toISOString() };
   notifications = [...notifications, rec];
+  await DB.set('notifications', notifications);
+  closeModal('notification-modal');
+  renderResourcesPage();
+}
+
+async function saveNotificationEditConfirmed(id, title, message, audience) {
+  const idx = notifications.findIndex(n=>n.id===id);
+  if (idx === -1) return;
+  notifications[idx] = { ...notifications[idx], title, message, audience };
   await DB.set('notifications', notifications);
   closeModal('notification-modal');
   renderResourcesPage();
@@ -6605,6 +7273,9 @@ async function deleteNotificationConfirmed(id) {
 
 function openResourceModal() {
   document.getElementById('resource-modal-alert').innerHTML = '';
+  document.getElementById('resource-modal-title').textContent = 'Add Study Material';
+  document.getElementById('rf-submit-btn').innerHTML = '💾 Save Material';
+  document.getElementById('rf-edit-id').value = '';
   document.getElementById('rf-title').value = '';
   document.getElementById('rf-url').value = '';
   document.getElementById('rf-type').selectedIndex = 0;
@@ -6613,13 +7284,38 @@ function openResourceModal() {
 }
 window.openResourceModal = openResourceModal;
 
+// Opens the same modal pre-filled for editing an existing study material.
+function editResource(id) {
+  const r = (window.resources||[]).find(x=>x.id===id);
+  if (!r) return;
+  document.getElementById('resource-modal-alert').innerHTML = '';
+  document.getElementById('resource-modal-title').textContent = 'Edit Study Material';
+  document.getElementById('rf-submit-btn').innerHTML = '💾 Save Changes';
+  document.getElementById('rf-edit-id').value = r.id;
+  document.getElementById('rf-title').value = r.title || '';
+  document.getElementById('rf-type').value = r.type || 'ebook';
+  document.getElementById('rf-course').value = r.course || '';
+  document.getElementById('rf-url').value = r.url || '';
+  document.getElementById('resource-modal').classList.add('open');
+}
+window.editResource = editResource;
+
 async function saveResource() {
+  const editId = document.getElementById('rf-edit-id').value;
   const title = document.getElementById('rf-title').value.trim();
   const type = document.getElementById('rf-type').value;
   const course = document.getElementById('rf-course').value;
   const url = document.getElementById('rf-url').value.trim();
   if (!title || !course || !url) { showAlert('resource-modal-alert','error','❌ Title, course and link are required.'); return; }
   if (!/^https?:\/\//i.test(url)) { showAlert('resource-modal-alert','error','❌ Link must start with http:// or https://'); return; }
+  if (editId) {
+    confirmAction(
+      `Save changes to "${title}"?`,
+      () => saveResourceEditConfirmed(editId, title, type, course, url),
+      { title: 'Confirm Changes', confirmLabel: 'Yes, Save' }
+    );
+    return;
+  }
   confirmAction(
     `Add study material "${title}" for ${course}?`,
     () => saveResourceConfirmed(title, type, course, url),
@@ -6631,6 +7327,15 @@ window.saveResource = saveResource;
 async function saveResourceConfirmed(title, type, course, url) {
   const rec = { id:'RES'+Date.now(), title, type, course, url, addedBy: currentUser.name, addedAt: new Date().toISOString() };
   resources = [...resources, rec];
+  await DB.set('resources', resources);
+  closeModal('resource-modal');
+  renderResourcesPage();
+}
+
+async function saveResourceEditConfirmed(id, title, type, course, url) {
+  const idx = resources.findIndex(r=>r.id===id);
+  if (idx === -1) return;
+  resources[idx] = { ...resources[idx], title, type, course, url };
   await DB.set('resources', resources);
   closeModal('resource-modal');
   renderResourcesPage();
@@ -7999,23 +8704,131 @@ function renderFinance() {
   document.getElementById('fin-total-expense').textContent = '₹'+totalExpense.toLocaleString('en-IN');
   document.getElementById('fin-net').textContent = '₹'+(totalIncome-totalExpense).toLocaleString('en-IN');
 
-  // Income history — merge fee income + manual income, most recent first
+  // Income history — merge fee income (view-only here; managed from Fees &
+  // Payments) + manual "other income" entries, which Admin/Manager/HR can
+  // edit or delete right from this table. Most recent first.
+  const canEditFinance = isAdminLevel();
   const feeRows = payments.map(p=>{
     const s = students.find(st=>st.rollNo===p.rollNo);
-    return { date: p.date, source: 'Student Fee — '+(s?s.fname+' '+s.lname+' ('+p.rollNo+')':p.rollNo), amount: parseFloat(p.amount||0), remarks: p.remarks||'', enteredBy: p.collectedBy||'—' };
+    return { type:'fee', date: p.date, source: 'Student Fee — '+(s?s.fname+' '+s.lname+' ('+p.rollNo+')':p.rollNo), amount: parseFloat(p.amount||0), remarks: p.remarks||'', enteredBy: p.collectedBy||p.recordedBy||'—' };
   });
-  const otherRows = incomes.map(i=>({ date:i.date, source:i.source, amount:i.amount, remarks:i.remarks, enteredBy:i.enteredBy }));
+  const otherRows = incomes.map(i=>({ type:'other', id:i.id, date:i.date, source:i.source, amount:parseFloat(i.amount||0), remarks:i.remarks, enteredBy:i.enteredBy }));
   const allIncome = [...feeRows, ...otherRows].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
   const incBody = document.getElementById('income-table-body');
-  incBody.innerHTML = allIncome.length ? allIncome.map(r=>`
-    <tr><td>${r.date||'—'}</td><td>${r.source}</td><td style="color:var(--green);font-weight:600;">₹${r.amount.toLocaleString('en-IN')}</td><td>${r.remarks||'—'}</td><td>${r.enteredBy||'—'}</td></tr>
-  `).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">No income records yet</td></tr>';
+  incBody.innerHTML = allIncome.length ? allIncome.map(r=>{
+    const actions = (r.type==='other' && canEditFinance)
+      ? `<button class="btn btn-outline" onclick="editIncome('${r.id}')" style="padding:4px 8px;font-size:11px;" title="Edit">✏️</button> <button class="btn btn-outline" onclick="deleteIncome('${r.id}')" style="padding:4px 8px;font-size:11px;color:var(--red);border-color:var(--red);" title="Delete">🗑️</button>`
+      : '—';
+    return `<tr><td>${r.date||'—'}</td><td>${r.source}</td><td style="color:var(--green);font-weight:600;">₹${r.amount.toLocaleString('en-IN')}</td><td>${r.remarks||'—'}</td><td>${r.enteredBy||'—'}</td><td>${actions}</td></tr>`;
+  }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">No income records yet</td></tr>';
 
   const expBody = document.getElementById('expense-table-body');
   const sortedExp = [...expenses].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  expBody.innerHTML = sortedExp.length ? sortedExp.map(e=>`
-    <tr><td>${e.date}</td><td>${e.category}</td><td style="color:var(--red);font-weight:600;">₹${parseFloat(e.amount||0).toLocaleString('en-IN')}</td><td>${e.paidTo||'—'}</td><td>${e.remarks||'—'}</td><td>${e.enteredBy||'—'}</td></tr>
-  `).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">No expense records yet</td></tr>';
+  expBody.innerHTML = sortedExp.length ? sortedExp.map(e=>{
+    const actions = canEditFinance
+      ? `<button class="btn btn-outline" onclick="editExpense('${e.id}')" style="padding:4px 8px;font-size:11px;" title="Edit">✏️</button> <button class="btn btn-outline" onclick="deleteExpense('${e.id}')" style="padding:4px 8px;font-size:11px;color:var(--red);border-color:var(--red);" title="Delete">🗑️</button>`
+      : '—';
+    return `<tr><td>${e.date}</td><td>${e.category}</td><td style="color:var(--red);font-weight:600;">₹${parseFloat(e.amount||0).toLocaleString('en-IN')}</td><td>${e.paidTo||'—'}</td><td>${e.remarks||'—'}</td><td>${e.enteredBy||'—'}</td><td>${actions}</td></tr>`;
+  }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">No expense records yet</td></tr>';
+}
+
+// ---- Income / Expense edit & delete (Admin, Manager, HR Manager only) ----
+function editIncome(id) {
+  if (!isAdminLevel()) return;
+  const inc = incomes.find(i=>i.id===id);
+  if (!inc) return;
+  document.getElementById('income-edit-alert').innerHTML = '';
+  document.getElementById('inc-edit-id').value = inc.id;
+  document.getElementById('inc-edit-date').value = inc.date || '';
+  document.getElementById('inc-edit-source').value = inc.source || '';
+  document.getElementById('inc-edit-amount').value = inc.amount || '';
+  document.getElementById('inc-edit-remarks').value = inc.remarks || '';
+  document.getElementById('income-edit-modal').classList.add('open');
+}
+window.editIncome = editIncome;
+
+async function saveIncomeEdit() {
+  const id = document.getElementById('inc-edit-id').value;
+  const date = document.getElementById('inc-edit-date').value;
+  const source = document.getElementById('inc-edit-source').value.trim();
+  const amount = parseFloat(document.getElementById('inc-edit-amount').value) || 0;
+  const remarks = document.getElementById('inc-edit-remarks').value.trim();
+  if (!date || !source || amount<=0) { showAlert('income-edit-alert','error','❌ Date, source and a valid amount are required.'); return; }
+  const idx = incomes.findIndex(i=>i.id===id);
+  if (idx === -1) return;
+  incomes[idx] = { ...incomes[idx], date, source, amount, remarks };
+  await DB.set('incomes', incomes);
+  closeModal('income-edit-modal');
+  renderFinance();
+  showAlert('finance-alert','success','✅ Income record updated.');
+}
+window.saveIncomeEdit = saveIncomeEdit;
+
+async function deleteIncome(id) {
+  if (!isAdminLevel()) return;
+  confirmAction(
+    'Delete this income record? This cannot be undone.',
+    () => deleteIncomeConfirmed(id),
+    { title: 'Delete Income', confirmLabel: 'Yes, Delete', danger: true }
+  );
+}
+window.deleteIncome = deleteIncome;
+
+async function deleteIncomeConfirmed(id) {
+  incomes = incomes.filter(i=>i.id!==id);
+  await DB.set('incomes', incomes);
+  renderFinance();
+  showAlert('finance-alert','success','🗑️ Income record deleted.');
+}
+
+function editExpense(id) {
+  if (!isAdminLevel()) return;
+  const exp = expenses.find(e=>e.id===id);
+  if (!exp) return;
+  document.getElementById('expense-edit-alert').innerHTML = '';
+  document.getElementById('exp-edit-id').value = exp.id;
+  document.getElementById('exp-edit-date').value = exp.date || '';
+  document.getElementById('exp-edit-category').value = exp.category || '';
+  document.getElementById('exp-edit-amount').value = exp.amount || '';
+  document.getElementById('exp-edit-paidto').value = exp.paidTo || '';
+  document.getElementById('exp-edit-remarks').value = exp.remarks || '';
+  document.getElementById('expense-edit-modal').classList.add('open');
+}
+window.editExpense = editExpense;
+
+async function saveExpenseEdit() {
+  const id = document.getElementById('exp-edit-id').value;
+  const date = document.getElementById('exp-edit-date').value;
+  const category = document.getElementById('exp-edit-category').value;
+  const amount = parseFloat(document.getElementById('exp-edit-amount').value) || 0;
+  const paidTo = document.getElementById('exp-edit-paidto').value.trim();
+  const remarks = document.getElementById('exp-edit-remarks').value.trim();
+  if (!date || !category || amount<=0) { showAlert('expense-edit-alert','error','❌ Date, category and a valid amount are required.'); return; }
+  const idx = expenses.findIndex(e=>e.id===id);
+  if (idx === -1) return;
+  expenses[idx] = { ...expenses[idx], date, category, amount, paidTo, remarks };
+  await DB.set('expenses', expenses);
+  closeModal('expense-edit-modal');
+  renderFinance();
+  showAlert('finance-alert','success','✅ Expense record updated.');
+}
+window.saveExpenseEdit = saveExpenseEdit;
+
+async function deleteExpense(id) {
+  if (!isAdminLevel()) return;
+  confirmAction(
+    'Delete this expense record? This cannot be undone.',
+    () => deleteExpenseConfirmed(id),
+    { title: 'Delete Expense', confirmLabel: 'Yes, Delete', danger: true }
+  );
+}
+window.deleteExpense = deleteExpense;
+
+async function deleteExpenseConfirmed(id) {
+  expenses = expenses.filter(e=>e.id!==id);
+  await DB.set('expenses', expenses);
+  renderFinance();
+  showAlert('finance-alert','success','🗑️ Expense record deleted.');
 }
 
 // ============================================================
@@ -8294,6 +9107,25 @@ function clearPlacementFilters() {
 }
 window.clearPlacementFilters = clearPlacementFilters;
 
+async function deletePlacement(id) {
+  if (!isAdminLevel()) return;
+  const p = (window.placements||[]).find(x=>x.id===id);
+  if (!p) return;
+  confirmAction(
+    `Delete the placement record for ${p.studentName} (${p.rollNo}) at "${p.company}"? This cannot be undone.`,
+    () => deletePlacementConfirmed(id),
+    { title: 'Delete Placement Record', confirmLabel: 'Yes, Delete', danger: true }
+  );
+}
+window.deletePlacement = deletePlacement;
+
+async function deletePlacementConfirmed(id) {
+  window.placements = (window.placements||[]).filter(p => p.id !== id);
+  await DB.set('placements', window.placements);
+  renderPlacementList();
+  showAlert('pl-alert','success','🗑️ Placement record deleted.');
+}
+
 function renderPlacementList() {
   const tbody = document.getElementById('placement-table-body');
   if (!tbody) return;
@@ -8316,7 +9148,10 @@ function renderPlacementList() {
       <td><strong>${p.rollNo}</strong></td><td>${p.studentName}</td><td>${p.course}</td>
       <td>${p.company}</td><td>${p.designation||'—'}</td><td>${p.address||'—'}</td>
       <td>${p.interviewDate||'—'}</td><td>${statusChip(p.status)}</td><td>${p.joinDate||'—'}</td>
-      <td><button class="btn btn-outline" onclick="selectPlacementStudent('${p.rollNo}'); window.scrollTo({top:0,behavior:'smooth'});" style="padding:4px 10px;font-size:12px;">✏️ Edit</button></td>
+      <td>
+        <button class="btn btn-outline" onclick="selectPlacementStudent('${p.rollNo}'); window.scrollTo({top:0,behavior:'smooth'});" style="padding:4px 10px;font-size:12px;">✏️ Edit</button>
+        ${isAdminLevel() ? `<button class="btn btn-outline" onclick="deletePlacement('${p.id}')" style="padding:4px 10px;font-size:12px;color:var(--red);border-color:var(--red);">🗑️ Delete</button>` : ''}
+      </td>
     </tr>`).join('') : '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px;">No placed students found for the selected filters.</td></tr>';
 }
 window.renderPlacementList = renderPlacementList;
