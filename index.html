@@ -3438,7 +3438,7 @@ const PERMISSIONS = {
   // Job Placement Report and Staff Attendance sections.
   hrmanager: { pages: ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
   office:  { pages: ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','certificates','absent-list','student-dashboard','calendar','resources'],                                                                               canEnter: true, canModify: false },
-  teacher: { pages: ['dashboard','attendance','absent-list','attendance-report','student-dashboard','marks','calendar','resources','weekly-planner'],                                                                              canEnter: true, canModify: false },
+  teacher: { pages: ['dashboard','students','attendance','absent-list','attendance-report','student-dashboard','marks','calendar','resources','weekly-planner'],                                                                              canEnter: true, canModify: false },
   // Academic Head: owns the Weekly Planner (creates/edits the schedule);
   // sees the Dashboard/Calendar/Study Materials for context, same as a
   // Teacher, but doesn't get the back-office (Fees/Admin/Users) pages.
@@ -4813,7 +4813,9 @@ function renderStudentsTable(filtered) {
     const loginCell = s.hasLogin
       ? '<span class="chip chip-green">Active</span>'
       : (s.email
-          ? `<button class="btn btn-outline" onclick="createLoginForExistingStudent('${s.rollNo}')" style="padding:4px 10px;font-size:11px;">+ Create Login</button>`
+          ? (currentUser.role === 'teacher'
+              ? '<span class="chip chip-amber">No Login</span>'
+              : `<button class="btn btn-outline" onclick="createLoginForExistingStudent('${s.rollNo}')" style="padding:4px 10px;font-size:11px;">+ Create Login</button>`)
           : '<span class="chip chip-red" title="No email on file">No Email</span>');
     return `<tr>
       <td>${slIdx + 1}</td>
