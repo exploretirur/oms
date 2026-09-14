@@ -2657,6 +2657,7 @@ tr:hover td { background: #f8fafd; }
         <div id="es-photo-preview" style="margin-top:8px;"></div>
       </div>
       <div class="form-group full"><label>Address</label><textarea id="es-address" placeholder="Full address"></textarea></div>
+      <div class="form-group"><label>Admission Date <span style="font-size:11px;color:var(--muted);">(fixes "Unknown" in Admission Report)</span></label><input id="es-admdate" type="date"></div>
       <div class="form-group"><label>Course</label><select id="es-course"></select></div>
       <div class="form-group"><label>Batch</label><select id="es-batch"></select></div>
       <div class="form-group"><label>Course Type</label><select id="es-coursetype"><option value="Regular">Regular</option><option value="Fast Track">Fast Track</option></select></div>
@@ -3744,6 +3745,47 @@ function showPage(page) {
 }
 
 function todayStr() { return new Date().toISOString().slice(0,10); }
+
+// Global date display formatter — every date shown to the user (tables,
+// lists, cards, receipts) should read dd-mm-yyyy consistently, regardless
+// of what format the underlying data happens to be in. Accepts an ISO
+// date ('YYYY-MM-DD'), an ISO datetime ('YYYY-MM-DDTHH:mm:ss...'), or a
+// Date object. Returns '—' for anything empty/invalid instead of throwing
+// or showing "Invalid Date".
+function formatDateDMY(input) {
+  if (!input) return '—';
+  let d;
+  if (input instanceof Date) {
+    d = input;
+  } else {
+    const isoDatePart = String(input).slice(0, 10);
+    // Parsing as local time (not UTC) avoids the "off by one day" bug
+    // that `new Date('YYYY-MM-DD')` causes near midnight in IST.
+    const parts = isoDatePart.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else {
+      d = new Date(input);
+    }
+  }
+  if (isNaN(d.getTime())) return '—';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+}
+window.formatDateDMY = formatDateDMY;
+
+// Same idea but for a 'YYYY-MM' month key → "September 2026", and sorts
+// correctly since the key itself is still chronological.
+function formatMonthLabel(monthKey) {
+  if (!monthKey || monthKey.length < 7) return 'Unknown';
+  const [y, m] = monthKey.split('-').map(Number);
+  const d = new Date(y, m - 1, 1);
+  if (isNaN(d.getTime())) return 'Unknown';
+  return d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+}
+window.formatMonthLabel = formatMonthLabel;
 document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'short', year:'numeric', month:'short', day:'numeric'});
 
 // Firebase connects automatically inside the module script above —
@@ -3991,6 +4033,30 @@ function buildMappingUI() {
   document.getElementById('import-mapping-card').style.display='block';
 }
 
+// Normalizes messy date text from Excel imports (native Date cells are
+// already handled separately) into clean ISO 'YYYY-MM-DD' — handles
+// DD/MM/YYYY and DD-MM-YYYY (Indian convention, used when a spreadsheet
+// column wasn't formatted as an actual date type and came through as
+// plain text), already-ISO strings, and falls back to native Date
+// parsing for anything else (e.g. "7 Sep 2026"). This is what keeps
+// Admission Date consistent regardless of how the source file was typed.
+function parseFlexibleDate(v) {
+  if (!v) return '';
+  if (v instanceof Date) return isNaN(v.getTime()) ? '' : v.toISOString().slice(0,10);
+  const str = String(v).trim();
+  if (!str) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0,10);
+  const m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) {
+    let [, d, mo, y] = m;
+    if (y.length === 2) y = (parseInt(y) > 50 ? '19' : '20') + y;
+    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  }
+  const parsed = new Date(str);
+  return isNaN(parsed.getTime()) ? str : parsed.toISOString().slice(0,10);
+}
+window.parseFlexibleDate = parseFlexibleDate;
+
 function previewImport() {
   const colMap={};
   _importHeaders.forEach((_,ci)=>{ const s=document.getElementById('map-col-'+ci); if(s&&s.value) colMap[ci]=s.value; });
@@ -4002,7 +4068,11 @@ function previewImport() {
     const s={};
     Object.entries(colMap).forEach(([ci,key]) => {
       let v = row[parseInt(ci)];
-      s[key] = (v instanceof Date) ? v.toISOString().slice(0,10) : String(v||'').trim();
+      if (key === 'admDate' || key === 'dob') {
+        s[key] = parseFlexibleDate(v);
+      } else {
+        s[key] = (v instanceof Date) ? v.toISOString().slice(0,10) : String(v||'').trim();
+      }
     });
     return s;
   }).filter(s=>s.fname||s.lname||s.mobile);
@@ -4014,7 +4084,7 @@ function previewImport() {
     '<tr>'+fields.map(f=>'<th>'+f.label+'</th>').join('')+'</tr>';
   document.getElementById('import-preview-body').innerHTML =
     _importMapped.slice(0,10).map(s=>
-      '<tr>'+fields.map(f=>'<td style="white-space:nowrap;">'+(s[f.key]||'—')+'</td>').join('')+'</tr>'
+      '<tr>'+fields.map(f=>'<td style="white-space:nowrap;">'+((f.key==='admDate'||f.key==='dob') && s[f.key] ? formatDateDMY(s[f.key]) : (s[f.key]||'—'))+'</td>').join('')+'</tr>'
     ).join('');
 
   const dupes = _importMapped.filter(s=>s.mobile && (window.students||[]).some(ex=>ex.mobile===s.mobile));
@@ -4690,10 +4760,32 @@ function renderAdmissionReport() {
   renderRows('adrep-course-body', countBy(s => s.course, '— No course —'), 'No admissions match these filters.');
   renderRows('adrep-batch-body', countBy(s => s.batch, '— No batch —'), 'No admissions match these filters.');
   renderRows('adrep-through-body', countBy(s => s.admissionThrough, 'Not Recorded'), 'No admissions match these filters.');
-  renderRows('adrep-month-body', countBy(s => (s.admDate || '').slice(0, 7), 'Unknown'), 'No admissions match these filters.');
 
-  // Day-wise: most recent first
-  const dayRows = countBy(s => s.admDate, 'Unknown').sort((a, b) => (b[0] || '').localeCompare(a[0] || ''));
+  // Month-wise: group by the raw 'YYYY-MM' key (so it sorts correctly
+  // and identically-named months from different years don't merge), then
+  // relabel each key as a readable month name — newest month first.
+  const monthCounts = {};
+  list.forEach(s => {
+    const key = (s.admDate || '').slice(0, 7) || 'Unknown';
+    monthCounts[key] = (monthCounts[key] || 0) + 1;
+  });
+  const monthRows = Object.entries(monthCounts)
+    .sort((a, b) => (b[0] || '').localeCompare(a[0] || ''))
+    .map(([key, count]) => [key === 'Unknown' ? 'Unknown' : formatMonthLabel(key), count]);
+  renderRows('adrep-month-body', monthRows, 'No admissions match these filters.');
+
+  // Day-wise: sort chronologically on the raw ISO date first, THEN format
+  // each label as dd-mm-yyyy for display — every row uses the same format
+  // regardless of how that student's admission date was originally entered
+  // or imported.
+  const dayCounts = {};
+  list.forEach(s => {
+    const key = s.admDate || 'Unknown';
+    dayCounts[key] = (dayCounts[key] || 0) + 1;
+  });
+  const dayRows = Object.entries(dayCounts)
+    .sort((a, b) => (b[0] || '').localeCompare(a[0] || ''))
+    .map(([key, count]) => [key === 'Unknown' ? 'Unknown' : formatDateDMY(key), count]);
   renderRows('adrep-day-body', dayRows, 'No admissions match these filters.');
 }
 window.renderAdmissionReport = renderAdmissionReport;
@@ -4769,7 +4861,7 @@ function viewStudent(rollNo) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:1;">
           <div><span style="color:var(--muted);">Roll No:</span> <strong>${s.rollNo}</strong></div>
           <div><span style="color:var(--muted);">Gender:</span> <strong>${s.gender||'—'}</strong></div>
-          <div><span style="color:var(--muted);">DOB:</span> <strong>${s.dob||'—'}</strong></div>
+          <div><span style="color:var(--muted);">DOB:</span> <strong>${formatDateDMY(s.dob)}</strong></div>
           <div><span style="color:var(--muted);">Mobile:</span> <strong>${s.mobile}</strong></div>
           <div><span style="color:var(--muted);">Email:</span> <strong>${s.email||'—'}</strong></div>
           <div><span style="color:var(--muted);">Status:</span> <strong>${s.status||'Active'}</strong></div>
@@ -4778,7 +4870,7 @@ function viewStudent(rollNo) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
         <div><span style="color:var(--muted);">Course:</span> <strong>${s.course}</strong></div>
         <div><span style="color:var(--muted);">Batch:</span> <strong>${s.batch.split('(')[0].trim()}</strong></div>
-        <div><span style="color:var(--muted);">Admitted:</span> <strong>${s.admDate}</strong></div>
+        <div><span style="color:var(--muted);">Admitted:</span> <strong>${formatDateDMY(s.admDate)}</strong></div>
         <div><span style="color:var(--muted);">Duration:</span> <strong>${s.duration} months</strong></div>
         <div><span style="color:var(--muted);">Course Type:</span> <strong>${s.courseType||'Regular'}</strong></div>
         <div><span style="color:var(--muted);">Mode:</span> <strong>${s.mode||'Offline'}</strong></div>
@@ -4835,6 +4927,7 @@ function openEditStudent(rollNo) {
     ? `<img src="${s.photo}" style="width:84px;height:84px;border-radius:10px;object-fit:cover;border:1px solid var(--border);">`
     : '';
   document.getElementById('es-address').value = s.address||'';
+  document.getElementById('es-admdate').value = s.admDate||'';
   document.getElementById('es-course').value = s.course;
   document.getElementById('es-batch').value = s.batch;
   document.getElementById('es-coursetype').value = s.courseType||'Regular';
@@ -4898,6 +4991,7 @@ async function saveStudentEditConfirmed(roll, idx) {
     email: document.getElementById('es-email').value.trim(),
     photo: editStudentPhotoData,
     address: document.getElementById('es-address').value.trim(),
+    admDate: document.getElementById('es-admdate').value,
     course: document.getElementById('es-course').value,
     batch: document.getElementById('es-batch').value,
     courseType: document.getElementById('es-coursetype').value,
@@ -5301,7 +5395,7 @@ function renderPaymentsTable() {
   tbody.innerHTML = [...payments].reverse().map((p,pIdx)=>`
     <tr>
       <td>${pIdx + 1}</td>
-      <td><strong>${p.receiptNo}</strong></td><td>${p.date}</td><td>${p.studentName}</td><td>${p.course}</td>
+      <td><strong>${p.receiptNo}</strong></td><td>${formatDateDMY(p.date)}</td><td>${p.studentName}</td><td>${p.course}</td>
       <td><span class="chip ${p.category==='Down Payment'?'chip-amber':p.category==='Installment'?'chip-blue':'chip-green'}" style="font-size:10.5px;">${p.category||'—'}</span></td>
       <td><strong>₹${parseFloat(p.amount).toLocaleString('en-IN')}</strong></td>
       <td><span class="chip chip-blue">${p.mode}</span></td>
@@ -5581,7 +5675,7 @@ function generateFeeReport() {
   document.getElementById('fr-results-body').innerHTML = rows.length
     ? rows.map(p=>`
         <tr>
-          <td><strong>${p.receiptNo}</strong></td><td>${p.date}</td><td>${p.studentName}</td><td>${p.rollNo}</td><td>${p.course}</td>
+          <td><strong>${p.receiptNo}</strong></td><td>${formatDateDMY(p.date)}</td><td>${p.studentName}</td><td>${p.rollNo}</td><td>${p.course}</td>
           <td><strong>₹${parseFloat(p.amount).toLocaleString('en-IN')}</strong></td>
           <td><span class="chip chip-blue">${p.mode}</span></td>
           <td>${p.recordedBy||'—'}</td>
@@ -5598,7 +5692,7 @@ function printFeeReport() {
   if (!_lastFeeReport.rows.length) return;
   const instName = DB.cfg().instName || 'Explore Learning';
   const rowsHtml = _lastFeeReport.rows.map(p => `
-    <tr><td>${p.receiptNo}</td><td>${p.date}</td><td>${p.studentName}</td><td>${p.rollNo}</td><td>${p.course}</td><td>₹${parseFloat(p.amount).toLocaleString('en-IN')}</td><td>${p.mode}</td><td>${p.recordedBy||'—'}</td></tr>`).join('');
+    <tr><td>${p.receiptNo}</td><td>${formatDateDMY(p.date)}</td><td>${p.studentName}</td><td>${p.rollNo}</td><td>${p.course}</td><td>₹${parseFloat(p.amount).toLocaleString('en-IN')}</td><td>${p.mode}</td><td>${p.recordedBy||'—'}</td></tr>`).join('');
   const total = _lastFeeReport.rows.reduce((s,p)=>s+parseFloat(p.amount||0),0);
   const win = window.open('', '_blank');
   win.document.write(`
@@ -5690,7 +5784,7 @@ function loadReceipt() {
   document.getElementById('receipt-body').innerHTML=`
     <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
       <div><div class="stat-label">Receipt No</div><div style="font-weight:700;">${p.receiptNo}</div></div>
-      <div style="text-align:right;"><div class="stat-label">Date</div><div style="font-weight:700;">${p.date}</div></div>
+      <div style="text-align:right;"><div class="stat-label">Date</div><div style="font-weight:700;">${formatDateDMY(p.date)}</div></div>
     </div>
     <div style="background:#f8fafd;border-radius:8px;padding:12px;margin-bottom:16px;">
       <div class="receipt-row"><span style="color:var(--muted);">Student</span><span style="font-weight:600;">${p.studentName}</span></div>
@@ -5983,7 +6077,7 @@ function renderAbsentHistory() {
   tbody.innerHTML = sorted.map((a, aIdx) => `
     <tr>
       <td>${aIdx + 1}</td>
-      <td>${a.date}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.mobile||'—'}</td>
+      <td>${formatDateDMY(a.date)}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.mobile||'—'}</td>
       <td>${a.course}</td><td>${a.batch}</td><td>${a.reason}</td><td>${a.recordedBy}</td>
     </tr>`).join('');
 }
@@ -6019,7 +6113,7 @@ function generateAttReport() {
   if (!f.length) { tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px;">No records for the selected filters</td></tr>'; return; }
   tbody.innerHTML=f.map((a,i)=>`<tr>
     <td>${i+1}</td>
-    <td>${a.date}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.course}</td>
+    <td>${formatDateDMY(a.date)}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.course}</td>
     <td style="font-size:12px;">${(a.batch||'').split('(')[0].trim()}</td>
     <td><span class="chip ${a.status==='Present'?'chip-green':'chip-red'}">${a.status}</span></td>
     <td>${a.topic||'—'}</td><td>${a.software||'—'}</td>
@@ -6045,7 +6139,7 @@ function openEditAttendance(id) {
 
   const fields = `
     <div class="form-group full"><label>Student</label><input type="text" value="${a.studentName} (${a.rollNo})" disabled></div>
-    <div class="form-group"><label>Date</label><input type="text" value="${a.date}" disabled></div>
+    <div class="form-group"><label>Date</label><input type="text" value="${formatDateDMY(a.date)}" disabled></div>
     <div class="form-group"><label>Batch</label><input type="text" value="${(a.batch||'').split('(')[0].trim()}" disabled></div>
     <div class="form-group"><label>Status <span class="required">*</span></label>
       <select id="ea-status" onchange="toggleEditAttFields()">
@@ -6150,7 +6244,7 @@ function loadStudentDashboard() {
   document.getElementById('sd-course').textContent=s.course+' — '+s.batch.split('(')[0].trim();
   document.getElementById('sd-roll').textContent=s.rollNo;
   document.getElementById('sd-batch').textContent=s.batch.split('(')[0].trim();
-  document.getElementById('sd-admitted').textContent=s.admDate;
+  document.getElementById('sd-admitted').textContent=formatDateDMY(s.admDate);
   document.getElementById('sd-mobile').textContent=s.mobile;
 
   // --- Attendance stats ---
@@ -6183,7 +6277,7 @@ function loadStudentDashboard() {
     document.getElementById('sd-pay-log').innerHTML=payLog.length ? payLog.map(p=>{
       runBal-=parseFloat(p.amount||0);
       return `<tr>
-        <td><strong>${p.receiptNo}</strong></td><td>${p.date}</td>
+        <td><strong>${p.receiptNo}</strong></td><td>${formatDateDMY(p.date)}</td>
         <td style="color:var(--green);font-weight:600;">₹${parseFloat(p.amount).toLocaleString('en-IN')}</td>
         <td><span class="chip chip-blue">${p.mode}</span></td>
         <td style="color:${runBal<=0?'var(--green)':'var(--red)'};">₹${Math.max(0,runBal).toLocaleString('en-IN')}</td>
@@ -6211,7 +6305,7 @@ function loadStudentDashboard() {
     document.getElementById('sd-progress-body').innerHTML=`
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
         <div><div class="stat-label">Duration</div><div style="font-weight:600;">${duration} months</div></div>
-        <div><div class="stat-label">Start Date</div><div style="font-weight:600;">${s.admDate}</div></div>
+        <div><div class="stat-label">Start Date</div><div style="font-weight:600;">${formatDateDMY(s.admDate)}</div></div>
         <div><div class="stat-label">End Date</div><div style="font-weight:600;">${endDate.toISOString().slice(0,10)}</div></div>
       </div>
       <div style="margin-bottom:8px;">
@@ -6238,7 +6332,7 @@ function loadStudentDashboard() {
   // --- Attendance log (all roles) ---
   const attBody=document.getElementById('sd-att-log');
   attBody.innerHTML=attLog.length ? [...attLog].reverse().map(a=>`<tr>
-    <td>${a.date}</td>
+    <td>${formatDateDMY(a.date)}</td>
     <td><span class="chip ${a.status==='Present'?'chip-green':'chip-red'}">${a.status}</span></td>
     <td>${a.topic||'—'}</td><td>${a.software||'—'}</td>
   </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No attendance records</td></tr>';
@@ -6271,7 +6365,7 @@ function loadStudentDashboard() {
     certBody.innerHTML = `
       <div><span style="color:var(--muted);">Status:</span> ${badge}</div>
       <div><span style="color:var(--muted);">Certificate No:</span> <strong>${cert.certNo||'—'}</strong></div>
-      <div><span style="color:var(--muted);">Given Date:</span> <strong>${cert.givenDate||'—'}</strong></div>
+      <div><span style="color:var(--muted);">Given Date:</span> <strong>${formatDateDMY(cert.givenDate)}</strong></div>
       <div><span style="color:var(--muted);">Given By:</span> <strong>${cert.givenBy||'—'}</strong></div>`;
   } else {
     certBody.innerHTML = '<span class="chip chip-red">Not Issued</span> <span style="color:var(--muted);font-size:12px;">No certificate record found for this student.</span>';
@@ -6352,7 +6446,7 @@ function refreshDashboard() {
   recentEl.innerHTML=students.length ? [...students].reverse().slice(0,5).map(s=>`
     <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;">
       <div style="width:32px;height:32px;border-radius:50%;background:var(--navy);color:var(--teal-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${(s.fname||'?')[0]}${(s.lname||'')[0]||''}</div>
-      <div style="flex:1;"><div style="font-weight:500;font-size:13.5px;">${s.fname} ${s.lname}</div><div style="font-size:11px;color:var(--muted);">${s.course} — ${s.admDate}</div></div>
+      <div style="flex:1;"><div style="font-weight:500;font-size:13.5px;">${s.fname} ${s.lname}</div><div style="font-size:11px;color:var(--muted);">${s.course} — ${formatDateDMY(s.admDate)}</div></div>
       <span class="chip chip-blue">${s.rollNo}</span>
     </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No admissions yet.</p>';
 }
@@ -6985,7 +7079,7 @@ function renderWeeklyPlanner() {
       '<span class="chip chip-red">❌ Not Complete</span>';
     return `
     <tr>
-      <td>${r.date}</td>
+      <td>${formatDateDMY(r.date)}</td>
       <td>${r.batch}</td>
       <td>${r.course}</td>
       <td>${r.faculty}</td>
@@ -7165,7 +7259,7 @@ function renderResourcesPage() {
       <div style="flex:1;">
         <div class="notif-title">${n.title}</div>
         <div class="notif-msg">${n.message}</div>
-        <div class="notif-meta">${n.audience==='all'?'All Students':n.audience} · ${n.date||''} · by ${n.createdBy||''}</div>
+        <div class="notif-meta">${n.audience==='all'?'All Students':n.audience} · ${n.date?formatDateDMY(n.date):''} · by ${n.createdBy||''}</div>
       </div>
       ${isAdminLevel() || (currentUser && currentUser.role==='office') ? `<button class="btn btn-outline" onclick="editNotification('${n.id}')" style="padding:4px 10px;font-size:11px;height:fit-content;" title="Edit">✏️</button> <button class="btn btn-outline" onclick="deleteNotification('${n.id}')" style="padding:4px 10px;font-size:11px;height:fit-content;" title="Delete">🗑️</button>` : ''}
     </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No notifications yet.</p>';
@@ -7385,7 +7479,7 @@ function loadMyDashboard() {
   document.getElementById('md-course').textContent = s.course + ' — ' + (s.batch||'').split('(')[0].trim();
   document.getElementById('md-roll').textContent = s.rollNo;
   document.getElementById('md-batch').textContent = (s.batch||'').split('(')[0].trim();
-  document.getElementById('md-admitted').textContent = s.admDate || '—';
+  document.getElementById('md-admitted').textContent = formatDateDMY(s.admDate);
 
   const attLog = (window.attendance||[]).filter(a => a.rollNo === s.rollNo);
   const present = attLog.filter(a => a.status === 'Present').length;
@@ -7423,7 +7517,7 @@ function loadMyDashboard() {
       <div>
         <div class="notif-title">${n.title}</div>
         <div class="notif-msg">${n.message}</div>
-        <div class="notif-meta">${n.date||''}</div>
+        <div class="notif-meta">${n.date?formatDateDMY(n.date):''}</div>
       </div>
     </div>`).join('') : '<p style="color:var(--muted);font-size:13px;">No notifications yet.</p>';
 }
@@ -7564,7 +7658,7 @@ function loadMyProfile() {
   document.getElementById('mp-mobile').textContent = s.mobile || '—';
   document.getElementById('mp-email').textContent = s.email || '—';
   document.getElementById('mp-dob').textContent = s.dob || '—';
-  document.getElementById('mp-admitted').textContent = s.admDate || '—';
+  document.getElementById('mp-admitted').textContent = formatDateDMY(s.admDate);
 
   // Marks
   const studentMarks = (window.marks||[]).filter(m => m.rollNo === s.rollNo);
@@ -7815,7 +7909,7 @@ function calShowPresentList() {
   const records = window._calPresentRecords || [];
   document.getElementById('cal-present-modal-title').textContent = `Present Students — ${window._calSummaryLabel || ''}`;
   document.getElementById('cal-present-list-body').innerHTML = records.length
-    ? records.map(r => `<tr><td>${r.date}</td><td>${r.rollNo}</td><td>${r.studentName || ''}</td></tr>`).join('')
+    ? records.map(r => `<tr><td>${formatDateDMY(r.date)}</td><td>${r.rollNo}</td><td>${r.studentName || ''}</td></tr>`).join('')
     : `<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">No present records for this batch/course on this date.</td></tr>`;
   document.getElementById('cal-present-modal').classList.add('open');
 }
@@ -8315,7 +8409,7 @@ function viewSalaryHistory() {
   }
   tbody.innerHTML = [...salaries].reverse().map(s=>`
     <tr>
-      <td>${s.month}</td>
+      <td>${formatMonthLabel(s.month)}</td>
       <td><strong>${s.staffName}</strong></td>
       <td>₹${(s.basic||0).toLocaleString('en-IN')}</td>
       <td>${s.presentDays}/${s.workDays}</td>
@@ -8333,7 +8427,7 @@ function printSalarySlip(id) {
   w.document.write(`<!DOCTYPE html><html><head><title>Salary Slip</title>
   <style>body{font-family:sans-serif;padding:30px;font-size:13px;}h2{color:#0f1f3d;}table{width:100%;border-collapse:collapse;margin-top:16px;}td{padding:8px 12px;border-bottom:1px solid #eee;}td:last-child{text-align:right;font-weight:600;}.net{background:#0f1f3d;color:#96fbc4;font-size:16px;font-weight:700;}</style></head><body>
   <h2>${DB.cfg().instName||'Explore Learning'}</h2>
-  <p>Salary Slip — <strong>${s.month}</strong> &nbsp;|&nbsp; Staff: <strong>${s.staffName}</strong></p>
+  <p>Salary Slip — <strong>${formatMonthLabel(s.month)}</strong> &nbsp;|&nbsp; Staff: <strong>${s.staffName}</strong></p>
   <table>
     <tr><td>Basic Salary</td><td>₹${(s.basic||0).toLocaleString('en-IN')}</td></tr>
     <tr><td>Working Days</td><td>${s.workDays}</td></tr>
@@ -8719,7 +8813,7 @@ function renderFinance() {
     const actions = (r.type==='other' && canEditFinance)
       ? `<button class="btn btn-outline" onclick="editIncome('${r.id}')" style="padding:4px 8px;font-size:11px;" title="Edit">✏️</button> <button class="btn btn-outline" onclick="deleteIncome('${r.id}')" style="padding:4px 8px;font-size:11px;color:var(--red);border-color:var(--red);" title="Delete">🗑️</button>`
       : '—';
-    return `<tr><td>${r.date||'—'}</td><td>${r.source}</td><td style="color:var(--green);font-weight:600;">₹${r.amount.toLocaleString('en-IN')}</td><td>${r.remarks||'—'}</td><td>${r.enteredBy||'—'}</td><td>${actions}</td></tr>`;
+    return `<tr><td>${formatDateDMY(r.date)}</td><td>${r.source}</td><td style="color:var(--green);font-weight:600;">₹${r.amount.toLocaleString('en-IN')}</td><td>${r.remarks||'—'}</td><td>${r.enteredBy||'—'}</td><td>${actions}</td></tr>`;
   }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">No income records yet</td></tr>';
 
   const expBody = document.getElementById('expense-table-body');
@@ -8728,7 +8822,7 @@ function renderFinance() {
     const actions = canEditFinance
       ? `<button class="btn btn-outline" onclick="editExpense('${e.id}')" style="padding:4px 8px;font-size:11px;" title="Edit">✏️</button> <button class="btn btn-outline" onclick="deleteExpense('${e.id}')" style="padding:4px 8px;font-size:11px;color:var(--red);border-color:var(--red);" title="Delete">🗑️</button>`
       : '—';
-    return `<tr><td>${e.date}</td><td>${e.category}</td><td style="color:var(--red);font-weight:600;">₹${parseFloat(e.amount||0).toLocaleString('en-IN')}</td><td>${e.paidTo||'—'}</td><td>${e.remarks||'—'}</td><td>${e.enteredBy||'—'}</td><td>${actions}</td></tr>`;
+    return `<tr><td>${formatDateDMY(e.date)}</td><td>${e.category}</td><td style="color:var(--red);font-weight:600;">₹${parseFloat(e.amount||0).toLocaleString('en-IN')}</td><td>${e.paidTo||'—'}</td><td>${e.remarks||'—'}</td><td>${e.enteredBy||'—'}</td><td>${actions}</td></tr>`;
   }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">No expense records yet</td></tr>';
 }
 
@@ -8940,7 +9034,7 @@ function renderCertificates() {
     <tr>
       <td>${cIdx + 1}</td>
       <td><strong>${c.rollNo}</strong></td><td>${c.studentName}</td><td>${c.course}</td>
-      <td>${c.certNo||'—'}</td><td>${c.givenDate||'—'}</td><td>${c.givenBy||'—'}</td>
+      <td>${c.certNo||'—'}</td><td>${formatDateDMY(c.givenDate)}</td><td>${c.givenBy||'—'}</td>
       <td>${badge(c.status)}</td>
       <td><button class="btn btn-outline" onclick="editCertificate('${c.rollNo}')" style="padding:4px 10px;font-size:12px;">✏️ Edit</button></td>
     </tr>`).join('');
@@ -9008,7 +9102,7 @@ function renderPlacementStudentDetails(s) {
     <div><span style="color:var(--muted);">Name:</span> <strong>${s.fname} ${s.lname}</strong></div>
     <div><span style="color:var(--muted);">Roll No:</span> <strong>${s.rollNo}</strong></div>
     <div><span style="color:var(--muted);">Course:</span> <strong>${s.course}</strong></div>
-    <div><span style="color:var(--muted);">Date of Join:</span> <strong>${s.admDate||'—'}</strong></div>
+    <div><span style="color:var(--muted);">Date of Join:</span> <strong>${formatDateDMY(s.admDate)}</strong></div>
     <div><span style="color:var(--muted);">Mobile:</span> <strong>${s.mobile||'—'}</strong></div>
     <div><span style="color:var(--muted);">Certificate:</span> <span class="chip ${certChipClass}">${certLabel}</span></div>
     <div style="grid-column:1/-1;">
@@ -9147,7 +9241,7 @@ function renderPlacementList() {
     <tr>
       <td><strong>${p.rollNo}</strong></td><td>${p.studentName}</td><td>${p.course}</td>
       <td>${p.company}</td><td>${p.designation||'—'}</td><td>${p.address||'—'}</td>
-      <td>${p.interviewDate||'—'}</td><td>${statusChip(p.status)}</td><td>${p.joinDate||'—'}</td>
+      <td>${p.interviewDate?formatDateDMY(p.interviewDate):'—'}</td><td>${statusChip(p.status)}</td><td>${p.joinDate?formatDateDMY(p.joinDate):'—'}</td>
       <td>
         <button class="btn btn-outline" onclick="selectPlacementStudent('${p.rollNo}'); window.scrollTo({top:0,behavior:'smooth'});" style="padding:4px 10px;font-size:12px;">✏️ Edit</button>
         ${isAdminLevel() ? `<button class="btn btn-outline" onclick="deletePlacement('${p.id}')" style="padding:4px 10px;font-size:12px;color:var(--red);border-color:var(--red);">🗑️ Delete</button>` : ''}
@@ -9326,12 +9420,12 @@ function renderEnquiryTable() {
       : '';
     return `<tr>
       <td><strong>${e.enquiryNo}</strong></td>
-      <td>${(e.createdAt||'').slice(0,10) || '—'}</td>
+      <td>${formatDateDMY(e.createdAt)}</td>
       <td>${e.name}</td>
       <td>${e.mobile}</td>
       <td>${e.courseInterested || '—'}</td>
       <td>${enquiryStageChip(e)}</td>
-      <td>${e.nextFollowupDate || '—'}${pendingTag}</td>
+      <td>${e.nextFollowupDate ? formatDateDMY(e.nextFollowupDate) : '—'}${pendingTag}</td>
       <td>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="btn btn-outline" onclick="viewEnquiry('${e.id}')" style="padding:4px 10px;font-size:12px;">👁 View</button>
@@ -9437,7 +9531,7 @@ function viewEnquiry(id) {
   document.getElementById('enq-view-body').innerHTML = `
     <div class="pl-info-grid">
       <div><span style="color:var(--muted);">Enquiry No:</span> <strong>${e.enquiryNo}</strong></div>
-      <div><span style="color:var(--muted);">Enquiry Date:</span> <strong>${(e.createdAt||'').slice(0,10) || '—'}</strong></div>
+      <div><span style="color:var(--muted);">Enquiry Date:</span> <strong>${formatDateDMY(e.createdAt)}</strong></div>
       <div><span style="color:var(--muted);">Name:</span> <strong>${e.name}</strong></div>
       <div><span style="color:var(--muted);">Mobile:</span> <strong>${e.mobile}</strong></div>
       <div><span style="color:var(--muted);">Email:</span> <strong>${e.email || '—'}</strong></div>
@@ -9448,14 +9542,14 @@ function viewEnquiry(id) {
       <div><span style="color:var(--muted);">Course Interested:</span> <strong>${e.courseInterested}</strong></div>
       <div><span style="color:var(--muted);">Referral Name:</span> <strong>${e.referralName || '—'}</strong></div>
       <div><span style="color:var(--muted);">How They Knew Us:</span> <strong>${e.source || '—'}</strong></div>
-      <div><span style="color:var(--muted);">Next Follow-up:</span> <strong>${e.nextFollowupDate || '—'}</strong></div>
+      <div><span style="color:var(--muted);">Next Follow-up:</span> <strong>${e.nextFollowupDate ? formatDateDMY(e.nextFollowupDate) : '—'}</strong></div>
       <div><span style="color:var(--muted);">Stage:</span> ${enquiryStageChip(e)}</div>
       ${e.stage === 'Converted' ? `<div><span style="color:var(--muted);">Converted To Roll No:</span> <strong>${e.convertedRollNo || '—'}</strong></div>` : ''}
       <div style="grid-column:1/-1;"><span style="color:var(--muted);">Remarks:</span> ${e.remarks || '—'}</div>
     </div>`;
   document.getElementById('enq-view-followups').innerHTML = (e.followups && e.followups.length)
     ? [...e.followups].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-        .map(f => `<tr><td>${(f.date||'').slice(0,10)}</td><td>${f.status}</td><td>${f.nextFollowupDate || '—'}</td><td>${f.notes || '—'}</td><td>${f.by || '—'}</td></tr>`).join('')
+        .map(f => `<tr><td>${formatDateDMY(f.date)}</td><td>${f.status}</td><td>${f.nextFollowupDate ? formatDateDMY(f.nextFollowupDate) : '—'}</td><td>${f.notes || '—'}</td><td>${f.by || '—'}</td></tr>`).join('')
     : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px;">No follow-ups recorded yet.</td></tr>';
   const fuBtn = document.getElementById('enq-view-followup-btn');
   fuBtn.style.display = (canManageEnquiry() && e.stage !== 'Converted') ? '' : 'none';
