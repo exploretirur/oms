@@ -977,12 +977,15 @@ tr:hover td { background: #f8fafd; }
             <div class="form-group"><label>Payment Date <span class="required">*</span></label><input id="fee-date" type="date"></div>
           </div>
           <div id="fee-student-info" style="display:none;background:#f8fafd;border-radius:10px;padding:16px;margin-top:12px;">
-            <div class="form-grid-3">
-              <div><div class="stat-label">Student</div><div id="fee-sname" style="font-weight:600;"></div></div>
-              <div><div class="stat-label">Course</div><div id="fee-scourse" style="font-weight:600;"></div></div>
-              <div><div class="stat-label">Total Fees</div><div id="fee-stotal" style="font-weight:600;"></div></div>
-              <div><div class="stat-label">Paid</div><div id="fee-spaid" style="font-weight:600;color:var(--green);"></div></div>
-              <div><div class="stat-label">Balance</div><div id="fee-sbalance" style="font-weight:600;color:var(--red);"></div></div>
+            <div style="display:flex;gap:14px;align-items:flex-start;">
+              <div id="fee-sphoto" style="flex-shrink:0;"></div>
+              <div class="form-grid-3" style="flex:1;">
+                <div><div class="stat-label">Student</div><div id="fee-sname" style="font-weight:600;"></div></div>
+                <div><div class="stat-label">Course</div><div id="fee-scourse" style="font-weight:600;"></div></div>
+                <div><div class="stat-label">Total Fees</div><div id="fee-stotal" style="font-weight:600;"></div></div>
+                <div><div class="stat-label">Paid</div><div id="fee-spaid" style="font-weight:600;color:var(--green);"></div></div>
+                <div><div class="stat-label">Balance</div><div id="fee-sbalance" style="font-weight:600;color:var(--red);"></div></div>
+              </div>
             </div>
           </div>
 
@@ -1580,8 +1583,8 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Sl.No</th><th>Date</th><th>ID No.</th><th>Name</th><th>Mobile</th><th>Course</th><th>Batch</th><th>Reason</th><th>Recorded By</th></tr></thead>
-            <tbody id="abs-history-body"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px;">No absences recorded yet</td></tr></tbody>
+            <thead><tr><th>Sl.No</th><th>Photo</th><th>Date</th><th>ID No.</th><th>Name</th><th>Mobile</th><th>Course</th><th>Batch</th><th>Reason</th><th>Recorded By</th></tr></thead>
+            <tbody id="abs-history-body"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px;">No absences recorded yet</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1607,7 +1610,7 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div id="att-report-summary" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;"></div>
         <div class="table-wrap">
-          <table><thead><tr><th>Sl.No</th><th>Date</th><th>Roll No</th><th>Student</th><th>Course</th><th>Batch</th><th>Status</th><th>Topic</th><th>Software</th><th class="no-print">Action</th></tr></thead>
+          <table><thead><tr><th>Sl.No</th><th>Photo</th><th>Date</th><th>Roll No</th><th>Student</th><th>Course</th><th>Batch</th><th>Status</th><th>Topic</th><th>Software</th><th class="no-print">Action</th></tr></thead>
           <tbody id="att-report-body"></tbody></table>
         </div>
       </div>
@@ -4837,6 +4840,21 @@ function renderStudentsTable(filtered) {
   }).join('');
 }
 
+// Reusable student-photo thumbnail, used everywhere a student record is
+// shown (Fee & Payment, Attendance Entry, Absent List, Student Dashboard,
+// Attendance Report, Students table, etc). Falls back to a "No Photo" tile
+// when the student record has no photo saved from Admission.
+function studentPhotoHtml(s, size) {
+  size = size || 44;
+  const radius = size >= 60 ? 10 : 8;
+  const fontSize = size >= 60 ? 11 : 9;
+  if (s && s.photo) {
+    return `<img src="${s.photo}" alt="${(s.fname||'')+' '+(s.lname||'')}" style="width:${size}px;height:${size}px;border-radius:${radius}px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;">`;
+  }
+  return `<div style="width:${size}px;height:${size}px;border-radius:${radius}px;background:#f1f5f9;color:var(--muted);font-size:${fontSize}px;display:flex;align-items:center;justify-content:center;text-align:center;flex-shrink:0;line-height:1.2;">No Photo</div>`;
+}
+window.studentPhotoHtml = studentPhotoHtml;
+
 function filterStudents() {
   const q = document.getElementById('student-search').value.toLowerCase();
   const course = document.getElementById('student-filter-course').value;
@@ -5175,6 +5193,7 @@ function refreshFeeStudentInfo() {
   const studentPayments = payments.filter(p=>p.rollNo===s.rollNo);
   const paid = studentPayments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
   const net = parseFloat(s.totalFees||0)-parseFloat(s.concession||0);
+  document.getElementById('fee-sphoto').innerHTML = studentPhotoHtml(s, 64);
   document.getElementById('fee-sname').textContent = s.fname+' '+s.lname;
   document.getElementById('fee-scourse').textContent = s.course;
   document.getElementById('fee-stotal').textContent = '₹'+net.toLocaleString('en-IN');
@@ -5864,6 +5883,7 @@ function loadAttStudents() {
          data-roll="${s.rollNo}" data-name="${s.fname} ${s.lname}"
          style="${rowStyle}">
       <div style="width:60px;font-size:12px;font-weight:600;color:var(--muted);">${s.rollNo}</div>
+      ${studentPhotoHtml(s, 34)}
       <div class="att-name">
         ${s.fname} ${s.lname}
         ${isAbsent ? '<span style="font-size:11px;background:#fee2e2;color:#b91c1c;padding:1px 7px;border-radius:8px;margin-left:6px;">Office: Absent</span>' : ''}
@@ -5989,9 +6009,10 @@ function loadAbsentStudents() {
   const reasonRequired = currentUser && (currentUser.role === 'admin' || currentUser.role === 'office');
   document.getElementById('abs-rows').innerHTML = filtered.map(s=>`
     <div class="abs-student-row" id="abs-row-${s.rollNo}" data-roll="${s.rollNo}" data-name="${s.fname} ${s.lname}" data-mobile="${s.mobile||''}"
-         style="display:grid;grid-template-columns:50px 90px 1fr 130px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+         style="display:grid;grid-template-columns:50px 90px 40px 1fr 130px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
       <div><input type="checkbox" id="abs-check-${s.rollNo}" onchange="toggleAbsReason('${s.rollNo}')" style="width:18px;height:18px;"></div>
       <div style="font-size:12px;font-weight:600;color:var(--muted);">${s.rollNo}</div>
+      ${studentPhotoHtml(s, 34)}
       <div>${s.fname} ${s.lname}</div>
       <div style="font-size:13px;color:var(--muted);">${s.mobile||'—'}</div>
       <div><input type="text" id="abs-reason-${s.rollNo}" placeholder="${reasonRequired ? 'Reason for absence (required)' : 'Reason for absence'}" disabled style="width:100%;"></div>
@@ -6071,17 +6092,21 @@ function renderAbsentHistory() {
   let list = absences;
   if (onlySelected) list = list.filter(a => a.date === dateInput.value);
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px;">' +
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px;">' +
       (onlySelected ? 'No absences recorded for the selected date' : 'No absences recorded yet') + '</td></tr>';
     return;
   }
   const sorted = [...list].sort((a,b) => b.date.localeCompare(a.date)).slice(0, onlySelected ? list.length : 100);
-  tbody.innerHTML = sorted.map((a, aIdx) => `
+  tbody.innerHTML = sorted.map((a, aIdx) => {
+    const stu = students.find(st => st.rollNo === a.rollNo);
+    return `
     <tr>
       <td>${aIdx + 1}</td>
+      <td>${studentPhotoHtml(stu, 32)}</td>
       <td>${formatDateDMY(a.date)}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.mobile||'—'}</td>
       <td>${a.course}</td><td>${a.batch}</td><td>${a.reason}</td><td>${a.recordedBy}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 // ============================================================
@@ -6112,15 +6137,19 @@ function generateAttReport() {
   let f = statusFilter ? base.filter(a=>a.status===statusFilter) : base;
   f = [...f].sort((a,b)=>b.date.localeCompare(a.date));
   const tbody=document.getElementById('att-report-body');
-  if (!f.length) { tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px;">No records for the selected filters</td></tr>'; return; }
-  tbody.innerHTML=f.map((a,i)=>`<tr>
+  if (!f.length) { tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px;">No records for the selected filters</td></tr>'; return; }
+  tbody.innerHTML=f.map((a,i)=>{
+    const stu = students.find(st => st.rollNo === a.rollNo);
+    return `<tr>
     <td>${i+1}</td>
+    <td>${studentPhotoHtml(stu, 32)}</td>
     <td>${formatDateDMY(a.date)}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.course}</td>
     <td style="font-size:12px;">${(a.batch||'').split('(')[0].trim()}</td>
     <td><span class="chip ${a.status==='Present'?'chip-green':'chip-red'}">${a.status}</span></td>
     <td>${a.topic||'—'}</td><td>${a.software||'—'}</td>
     <td class="no-print">${canEditAttendanceRecord(a) ? `<button class="btn btn-outline" onclick="openEditAttendance('${a.id}')" style="padding:4px 10px;font-size:12px;color:var(--amber);border-color:var(--amber);">✏️ Edit</button>` : '—'}</td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
 // ============================================================
@@ -6241,7 +6270,16 @@ function loadStudentDashboard() {
 
   const isTeacher = currentUser && currentUser.role === 'teacher';
 
-  document.getElementById('sd-avatar').textContent=((s.fname||'?')[0]+((s.lname||'')[0]||'')).toUpperCase();
+  const sdAvatar = document.getElementById('sd-avatar');
+  if (s.photo) {
+    sdAvatar.textContent = '';
+    sdAvatar.style.backgroundImage = `url('${s.photo}')`;
+    sdAvatar.style.backgroundSize = 'cover';
+    sdAvatar.style.backgroundPosition = 'center';
+  } else {
+    sdAvatar.style.backgroundImage = 'none';
+    sdAvatar.textContent=((s.fname||'?')[0]+((s.lname||'')[0]||'')).toUpperCase();
+  }
   document.getElementById('sd-name').textContent=s.fname+' '+s.lname;
   document.getElementById('sd-course').textContent=s.course+' — '+s.batch.split('(')[0].trim();
   document.getElementById('sd-roll').textContent=s.rollNo;
