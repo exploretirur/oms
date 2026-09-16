@@ -1542,9 +1542,9 @@ tr:hover td { background: #f8fafd; }
     <!-- ===== ABSENT LIST ===== -->
     <div id="page-absent-list" class="page">
       <div id="abs-alert"></div>
-      <div class="card">
+      <div class="card" id="abs-mark-card">
         <div class="form-grid-3">
-          <div class="form-group"><label>Date</label><input id="abs-date" type="date" onchange="renderAbsentHistory()"></div>
+          <div class="form-group"><label>Date</label><input id="abs-date" type="date"></div>
           <div class="form-group"><label>Batch <span class="required">*</span></label>
             <select id="abs-batch" onchange="loadAbsentStudents()">
               <option value="">Select batch</option>
@@ -1560,10 +1560,10 @@ tr:hover td { background: #f8fafd; }
       <div class="card" id="abs-student-list" style="display:none;">
         <div class="card-header">
           <div class="card-title"><span class="icon">📋</span> Student List</div>
-          <div style="font-size:12px;color:var(--muted);">Tick students who are absent and add a reason</div>
+          <div style="font-size:12px;color:var(--muted);" id="abs-list-subtitle">Tick students who are absent and add a reason</div>
         </div>
-        <div style="display:grid;grid-template-columns:50px 90px 1fr 130px 1fr;gap:8px;padding:8px 0;border-bottom:1.5px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">
-          <span>Absent</span><span>ID No.</span><span>Name</span><span>Mobile</span><span id="abs-reason-header">Reason</span>
+        <div id="abs-header-row" style="display:grid;grid-template-columns:50px 90px 40px 1fr 130px 1fr;gap:8px;padding:8px 0;border-bottom:1.5px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">
+          <span>Absent</span><span>ID No.</span><span>Photo</span><span>Name</span><span>Mobile</span><span id="abs-reason-header">Reason</span>
         </div>
         <div id="abs-rows"></div>
         <div class="action-bar" style="margin-top:16px;" id="abs-actions">
@@ -1576,10 +1576,20 @@ tr:hover td { background: #f8fafd; }
       <div class="card" id="abs-history-card">
         <div class="card-header">
           <div class="card-title"><span class="icon">📜</span> Recent Absences</div>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);font-weight:500;cursor:pointer;">
-            <input type="checkbox" id="abs-only-selected-date" onchange="renderAbsentHistory()" style="width:15px;height:15px;">
-            Show only selected date
-          </label>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
+          <div class="form-group" style="margin:0;min-width:160px;">
+            <label style="font-size:11.5px;">Date</label>
+            <input id="abshist-date" type="date" onchange="renderAbsentHistory()">
+          </div>
+          <div class="form-group" style="margin:0;min-width:160px;">
+            <label style="font-size:11.5px;">Batch</label>
+            <select id="abshist-batch" onchange="renderAbsentHistory()"><option value="">All Batches</option></select>
+          </div>
+          <div class="form-group" style="margin:0;min-width:160px;">
+            <label style="font-size:11.5px;">Course</label>
+            <select id="abshist-course" onchange="renderAbsentHistory()"><option value="">All Courses</option></select>
+          </div>
         </div>
         <div class="table-wrap">
           <table>
@@ -3725,12 +3735,24 @@ function navTo(page, el) {
     }
   }
   if (page === 'absent-list') {
-    document.getElementById('abs-date').value = todayStr();
-    const reasonRequired = currentUser && (currentUser.role === 'admin' || currentUser.role === 'office');
-    const reasonHeader = document.getElementById('abs-reason-header');
-    if (reasonHeader) reasonHeader.innerHTML = reasonRequired ? 'Reason <span class="required">*</span>' : 'Reason';
-    const onlySelChk = document.getElementById('abs-only-selected-date');
-    if (onlySelChk) onlySelChk.checked = false;
+    const isTeacher = currentUser && currentUser.role === 'teacher';
+    const markCard = document.getElementById('abs-mark-card');
+    const studentListCard = document.getElementById('abs-student-list');
+    const emptyCard = document.getElementById('abs-empty');
+    if (markCard) markCard.style.display = isTeacher ? 'none' : '';
+    if (isTeacher) {
+      // Teachers only get the Recent Absences view (its own Date/Batch/
+      // Course filters) — no marking form, no student list.
+      if (studentListCard) studentListCard.style.display = 'none';
+      if (emptyCard) emptyCard.style.display = 'none';
+      const histDate = document.getElementById('abshist-date');
+      if (histDate && !histDate.value) histDate.value = todayStr();
+    } else {
+      document.getElementById('abs-date').value = todayStr();
+      const reasonRequired = currentUser && (currentUser.role === 'admin' || currentUser.role === 'office');
+      const reasonHeader = document.getElementById('abs-reason-header');
+      if (reasonHeader) reasonHeader.innerHTML = reasonRequired ? 'Reason <span class="required">*</span>' : 'Reason';
+    }
     renderAbsentHistory();
   }
   if (page === 'import-students') resetImport();
@@ -6006,22 +6028,33 @@ function loadAbsentStudents() {
   const emptyEl = document.getElementById('abs-empty');
   if (!filtered.length) { listEl.style.display='none'; emptyEl.style.display='block'; return; }
   listEl.style.display='block'; emptyEl.style.display='none';
+  const isTeacher = currentUser && currentUser.role === 'teacher';
   const reasonRequired = currentUser && (currentUser.role === 'admin' || currentUser.role === 'office');
+
+  // Teachers don't get a Reason field at all — only Admin/Office record why
+  // a student was absent. Keep the header row's columns in sync so it lines
+  // up whichever role is viewing.
+  const rowCols = isTeacher ? '50px 90px 40px 1fr 130px' : '50px 90px 40px 1fr 130px 1fr';
+  document.getElementById('abs-header-row').style.gridTemplateColumns = rowCols;
+  document.getElementById('abs-reason-header').style.display = isTeacher ? 'none' : '';
+  document.getElementById('abs-list-subtitle').textContent = isTeacher ? 'Tick students who are absent' : 'Tick students who are absent and add a reason';
+
   document.getElementById('abs-rows').innerHTML = filtered.map(s=>`
     <div class="abs-student-row" id="abs-row-${s.rollNo}" data-roll="${s.rollNo}" data-name="${s.fname} ${s.lname}" data-mobile="${s.mobile||''}"
-         style="display:grid;grid-template-columns:50px 90px 40px 1fr 130px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+         style="display:grid;grid-template-columns:${rowCols};gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
       <div><input type="checkbox" id="abs-check-${s.rollNo}" onchange="toggleAbsReason('${s.rollNo}')" style="width:18px;height:18px;"></div>
       <div style="font-size:12px;font-weight:600;color:var(--muted);">${s.rollNo}</div>
       ${studentPhotoHtml(s, 34)}
       <div>${s.fname} ${s.lname}</div>
       <div style="font-size:13px;color:var(--muted);">${s.mobile||'—'}</div>
-      <div><input type="text" id="abs-reason-${s.rollNo}" placeholder="${reasonRequired ? 'Reason for absence (required)' : 'Reason for absence'}" disabled style="width:100%;"></div>
+      ${isTeacher ? '' : `<div><input type="text" id="abs-reason-${s.rollNo}" placeholder="${reasonRequired ? 'Reason for absence (required)' : 'Reason for absence'}" disabled style="width:100%;"></div>`}
     </div>`).join('');
 }
 
 function toggleAbsReason(rollNo) {
   const checked = document.getElementById('abs-check-'+rollNo).checked;
   const reasonField = document.getElementById('abs-reason-'+rollNo);
+  if (!reasonField) return; // Teacher accounts have no reason field to toggle
   reasonField.disabled = !checked;
   if (!checked) reasonField.value = '';
 }
@@ -6041,7 +6074,8 @@ async function submitAbsentList() {
     const roll = row.dataset.roll;
     const checked = document.getElementById('abs-check-'+roll).checked;
     if (checked) {
-      const reason = document.getElementById('abs-reason-'+roll).value.trim();
+      const reasonEl = document.getElementById('abs-reason-'+roll);
+      const reason = reasonEl ? reasonEl.value.trim() : '';
       if (reasonRequired && !reason) missingReason = true;
       absentees.push({
         roll, name: row.dataset.name, mobile: row.dataset.mobile, reason
@@ -6086,17 +6120,31 @@ async function submitAbsentListConfirmed(date, batch, course, absentees) {
 function renderAbsentHistory() {
   const tbody = document.getElementById('abs-history-body');
   if (!tbody) return;
-  const onlySelChk = document.getElementById('abs-only-selected-date');
-  const dateInput = document.getElementById('abs-date');
-  const onlySelected = onlySelChk && onlySelChk.checked && dateInput && dateInput.value;
-  let list = absences;
-  if (onlySelected) list = list.filter(a => a.date === dateInput.value);
-  if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px;">' +
-      (onlySelected ? 'No absences recorded for the selected date' : 'No absences recorded yet') + '</td></tr>';
+  const dateInput = document.getElementById('abshist-date');
+  const dateFilter = dateInput ? dateInput.value : '';
+  const batchFilter = document.getElementById('abshist-batch') ? document.getElementById('abshist-batch').value : '';
+  const courseFilter = document.getElementById('abshist-course') ? document.getElementById('abshist-course').value : '';
+  const isTeacher = currentUser && currentUser.role === 'teacher';
+
+  if (isTeacher && (!dateFilter || !batchFilter || !courseFilter)) {
+    // Teachers only ever see one date + batch + course's absences at a
+    // time — nothing shows until all three are picked.
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px;">Select a date, batch and course above to view the absence list.</td></tr>';
     return;
   }
-  const sorted = [...list].sort((a,b) => b.date.localeCompare(a.date)).slice(0, onlySelected ? list.length : 100);
+
+  let list = absences;
+  if (dateFilter) list = list.filter(a => a.date === dateFilter);
+  if (batchFilter) list = list.filter(a => looseMatch(a.batch, batchFilter));
+  if (courseFilter) list = list.filter(a => a.course === courseFilter);
+
+  const anyFilter = dateFilter || batchFilter || courseFilter;
+  if (!list.length) {
+    const noneMsg = anyFilter ? 'No absences recorded for the selected filters' : 'No absences recorded yet';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px;">' + noneMsg + '</td></tr>';
+    return;
+  }
+  const sorted = [...list].sort((a,b) => b.date.localeCompare(a.date)).slice(0, anyFilter ? list.length : 100);
   tbody.innerHTML = sorted.map((a, aIdx) => {
     const stu = students.find(st => st.rollNo === a.rollNo);
     return `
@@ -7722,13 +7770,13 @@ window.loadMyProfile = loadMyProfile;
 // MASTER DATA
 // ============================================================
 function populateCourseBatchSelects() {
-  const courseSelects = ['adm-course','es-course','student-filter-course','ar-course','att-course','abs-course','mk-course','master-subject-course','cal-course','wp-course','enq-course','adrep-course'];
-  const batchSelects = ['adm-batch','es-batch','att-batch','abs-batch','ar-batch','mk-batch','cal-batch','wp-batch','adrep-batch'];
+  const courseSelects = ['adm-course','es-course','student-filter-course','ar-course','att-course','abs-course','mk-course','master-subject-course','cal-course','wp-course','enq-course','adrep-course','abshist-course'];
+  const batchSelects = ['adm-batch','es-batch','att-batch','abs-batch','ar-batch','mk-batch','cal-batch','wp-batch','adrep-batch','abshist-batch'];
   courseSelects.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
     const prev = sel.value;
-    const placeholder = (id==='student-filter-course'||id==='ar-course'||id==='adrep-course') ? '<option value="">All Courses</option>' :
+    const placeholder = (id==='student-filter-course'||id==='ar-course'||id==='adrep-course'||id==='abshist-course') ? '<option value="">All Courses</option>' :
                          (id==='adm-course'||id==='att-course'||id==='abs-course'||id==='mk-course'||id==='cal-course'||id==='wp-course'||id==='enq-course') ? '<option value="">Select course</option>' : '';
     sel.innerHTML = placeholder + masterData.courses.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
     if (prev && [...sel.options].some(o=>o.value===prev)) sel.value = prev;
@@ -7737,7 +7785,7 @@ function populateCourseBatchSelects() {
     const sel = document.getElementById(id);
     if (!sel) return;
     const prev = sel.value;
-    const placeholder = (id==='ar-batch'||id==='adrep-batch') ? '<option value="">All Batches</option>' :
+    const placeholder = (id==='ar-batch'||id==='adrep-batch'||id==='abshist-batch') ? '<option value="">All Batches</option>' :
                          (id==='adm-batch'||id==='att-batch'||id==='abs-batch'||id==='mk-batch'||id==='cal-batch'||id==='wp-batch') ? '<option value="">Select batch</option>' : '';
     sel.innerHTML = placeholder + masterData.batches.map(b=>`<option value="${b.name} (${b.time})">${b.name} (${b.time})</option>`).join('');
     if (prev && [...sel.options].some(o=>o.value===prev)) sel.value = prev;
