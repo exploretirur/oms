@@ -2401,7 +2401,7 @@ tr:hover td { background: #f8fafd; }
       <div id="import-alert"></div>
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">📦</span> What are you importing?</div></div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Choose the type of data first — students, or any of the other details you already export to Excel (attendance, absentees, payments, marks, salary, income &amp; expenses, certificates). Each one is added to Firebase without erasing what's already there.</p>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Choose the type of data first — students, or any of the other details you already export to Excel (attendance, absentees, payments, marks, salary, income &amp; expenses, certificates). Or pick <strong>📦 All Categories</strong> to restore everything from one workbook in a single go (e.g. after clearing Firebase). Each one is added to Firebase without erasing what's already there.</p>
         <div class="form-group" style="max-width:420px;">
           <label>Data Type</label>
           <select id="import-type-select" onchange="switchImportType(this.value)"></select>
@@ -4026,6 +4026,10 @@ const STUDENT_FIELDS = [
 ];
 let _importRows=[], _importHeaders=[], _importMapped=[];
 let currentImportType = 'students';
+// State for the "All Categories" full-workbook import:
+// _importAllData[key]  = { headers, rows, sheetName }  — raw sheet data found for that category
+// _importAllMapped[key] = { mapped, colMap }            — auto-mapped, validated rows ready to write
+let _importAllData = {}, _importAllMapped = {};
 
 // ------------------------------------------------------------------
 // IMPORT_TYPES — table-driven config for every data type that can be
@@ -4089,7 +4093,7 @@ const IMPORT_TYPES = {
     exampleRow:['01-07-2026','EL26101','Ravi Kumar','Tally with GST','Morning (8:00 AM - 10:00 AM)','Present','GST Returns','Tally Prime','Admin']
   },
   absences: {
-    label:'Absentees', icon:'🚫', collection:'absences', dbKey:'absences', linkStudent:true,
+    label:'Absences', icon:'🚫', collection:'absences', dbKey:'absences', linkStudent:true,
     dateFields:['date'],
     fields:[
       {key:'date', label:'Date', required:true},
@@ -4264,40 +4268,58 @@ const FIELD_HINTS = {
 const IMPORT_NUMERIC_FIELDS = new Set(['amount','maxMarks','obtainedMarks','basic','workDays','presentDays',
   'leaveDays','otHours','otDays','otAmount','advance','deductions','bonus','grossPay','netPay','totalFees','concession']);
 
+// Fixed processing order for the "All Categories" full-workbook import.
+// Students go first so every other sheet can link/auto-fill by Roll No
+// against students that were just imported in the same run.
+const IMPORT_ALL_ORDER = ['students','payments','attendance','absences','marks','salary','incomes','expenses','certificates'];
+
 function populateImportTypeSelect() {
   const sel = document.getElementById('import-type-select');
   if (!sel || sel.options.length) return; // already populated
-  sel.innerHTML = Object.entries(IMPORT_TYPES).map(([key,def]) =>
+  sel.innerHTML = '<option value="all">📦 All Categories (Full Import — one workbook, every sheet)</option>' +
+    Object.entries(IMPORT_TYPES).map(([key,def]) =>
     '<option value="'+key+'">'+def.icon+' '+def.label+'</option>').join('');
   sel.value = currentImportType;
 }
 
 function switchImportType(type) {
-  if (!IMPORT_TYPES[type]) return;
+  if (type !== 'all' && !IMPORT_TYPES[type]) return;
   currentImportType = type;
   resetImport();
-  const def = IMPORT_TYPES[type];
   const tb = document.getElementById('import-template-btn');
-  if (tb) tb.innerHTML = '⬇️ Download '+def.label+' Import Template (.xlsx)';
   const note = document.getElementById('import-type-note');
-  if (note) note.textContent = def.note || '';
   const viewBtn = document.getElementById('import-done-view-btn');
+  if (type === 'all') {
+    if (tb) tb.innerHTML = '⬇️ Download Full Import Template (.xlsx — all categories)';
+    if (note) note.textContent = 'Upload ONE Excel workbook with a separate sheet for each category — sheet names must match exactly: '
+      + IMPORT_ALL_ORDER.map(k=>IMPORT_TYPES[k].label).join(', ') + '. Use the template button above to get the correct sheet names and columns. '
+      + 'Missing sheets are simply skipped. Students are imported first so the rest can link to them by Roll No.';
+    if (viewBtn) { viewBtn.style.display=''; viewBtn.textContent='📊 Go to Dashboard'; viewBtn.onclick = function(){ navTo('dashboard',document.getElementById('nav-dashboard')); }; }
+    return;
+  }
+  const def = IMPORT_TYPES[type];
+  if (tb) tb.innerHTML = '⬇️ Download '+def.label+' Import Template (.xlsx)';
+  if (note) note.textContent = def.note || '';
   if (viewBtn) {
-    if (type === 'students') { viewBtn.style.display=''; viewBtn.onclick = function(){ navTo('students',document.getElementById('nav-students')); }; }
+    if (type === 'students') { viewBtn.style.display=''; viewBtn.textContent='👥 View Student Records'; viewBtn.onclick = function(){ navTo('students',document.getElementById('nav-students')); }; }
     else viewBtn.style.display='none';
   }
 }
 
 function resetImport() {
   _importRows=[]; _importHeaders=[]; _importMapped=[];
+  _importAllData={}; _importAllMapped={};
   const fn=document.getElementById('import-file-name');       if(fn) fn.textContent='';
   const fi=document.getElementById('import-file-input');      if(fi) fi.value='';
   const mc=document.getElementById('import-mapping-card');    if(mc) mc.style.display='none';
   const pc=document.getElementById('import-preview-card');    if(pc) pc.style.display='none';
   const dc=document.getElementById('import-done-card');       if(dc) dc.style.display='none';
   const al=document.getElementById('import-alert');           if(al) al.innerHTML='';
-  const def = IMPORT_TYPES[currentImportType];
-  const cb=document.getElementById('import-confirm-btn');     if(cb){ cb.disabled=false; cb.textContent='✅ Import All '+(def?def.label:''); }
+  const cb=document.getElementById('import-confirm-btn');
+  if (cb) {
+    cb.disabled=false;
+    cb.textContent = currentImportType==='all' ? '✅ Import All Categories' : '✅ Import All '+(IMPORT_TYPES[currentImportType]?IMPORT_TYPES[currentImportType].label:'');
+  }
 }
 
 async function downloadStudentTemplate() {
@@ -4314,6 +4336,7 @@ async function downloadStudentTemplate() {
 }
 
 async function downloadImportTemplate() {
+  if (currentImportType === 'all') { await downloadFullImportTemplate(); return; }
   if (currentImportType === 'students') { await downloadStudentTemplate(); return; }
   await loadXLSXLib();
   const XLSX = window.XLSX;
@@ -4324,6 +4347,25 @@ async function downloadImportTemplate() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, def.label);
   XLSX.writeFile(wb, def.label.replace(/\s+/g,'_') + '_Import_Template.xlsx');
+}
+
+// One workbook, one sheet per category, sheet names matching each
+// IMPORT_TYPES label exactly (that's how handleImportFileAll recognizes
+// them on the way back in). This is the counterpart to exportToExcel()'s
+// scope==='all' — fill it in (or replace it with your own real export)
+// and re-upload it via the "All Categories" import type.
+async function downloadFullImportTemplate() {
+  await loadXLSXLib();
+  const XLSX = window.XLSX;
+  const wb = XLSX.utils.book_new();
+  IMPORT_ALL_ORDER.forEach(key => {
+    const def = IMPORT_TYPES[key];
+    const headers = def.fields.map(f => f.label + (f.required?' *':''));
+    const ws = XLSX.utils.aoa_to_sheet([headers, def.exampleRow]);
+    ws['!cols'] = headers.map(()=>({wch:22}));
+    XLSX.utils.book_append_sheet(wb, ws, def.label);
+  });
+  XLSX.writeFile(wb, 'Full_Data_Import_Template.xlsx');
 }
 
 async function loadXLSXLib() {
@@ -4338,6 +4380,7 @@ async function loadXLSXLib() {
 
 async function handleImportFile(file) {
   if (!file) return;
+  if (currentImportType === 'all') { await handleImportFileAll(file); return; }
   resetImport();
   document.getElementById('import-file-name').innerHTML =
     '📄 <strong>' + file.name + '</strong> (' + (file.size/1024).toFixed(1) + ' KB)';
@@ -4354,6 +4397,132 @@ async function handleImportFile(file) {
       ' — <strong style="color:var(--green);">' + _importRows.length + ' rows found</strong>';
     buildMappingUI();
   } catch(err) { showAlert('import-alert','error','❌ Could not read file: ' + err.message); }
+}
+
+// ------------------------------------------------------------------
+// ALL-CATEGORIES FULL IMPORT
+// Reads every sheet in the uploaded workbook, matches each sheet name to
+// a category by its IMPORT_TYPES label (case/space/punctuation-insensitive,
+// same as exportToExcel() and downloadFullImportTemplate() sheet names),
+// and auto-maps each sheet's columns using the same FIELD_HINTS table the
+// single-category mapping screen uses — so there's no manual mapping step
+// for a full restore. Unrecognized or missing sheets are simply skipped.
+// ------------------------------------------------------------------
+async function handleImportFileAll(file) {
+  resetImport();
+  document.getElementById('import-file-name').innerHTML =
+    '📄 <strong>' + file.name + '</strong> (' + (file.size/1024).toFixed(1) + ' KB)';
+  try {
+    await loadXLSXLib();
+    const buf = await file.arrayBuffer();
+    const wb  = window.XLSX.read(buf, { type:'array', cellDates:true });
+    const normSheet = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+    const typeBySheet = {};
+    Object.entries(IMPORT_TYPES).forEach(([key,def]) => { typeBySheet[normSheet(def.label)] = key; });
+
+    _importAllData = {};
+    let sheetsMatched = 0, rowsTotal = 0;
+    wb.SheetNames.forEach(sheetName => {
+      const key = typeBySheet[normSheet(sheetName)];
+      if (!key) return; // e.g. a "Summary" sheet, or a name that doesn't match a category
+      const ws  = wb.Sheets[sheetName];
+      const raw = window.XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+      if (raw.length < 2) return;
+      const headers = raw[0].map(h => String(h).trim());
+      const rows = raw.slice(1).filter(r => r.some(c => String(c).trim() !== ''));
+      if (!rows.length) return;
+      _importAllData[key] = { headers, rows, sheetName };
+      sheetsMatched++; rowsTotal += rows.length;
+    });
+
+    if (!sheetsMatched) {
+      showAlert('import-alert','error','❌ No recognized sheet names found. Sheets must be named exactly like the categories ('
+        + IMPORT_ALL_ORDER.map(k=>IMPORT_TYPES[k].label).join(', ') + ') — use the Download Template button above to get a file in the correct format.');
+      return;
+    }
+    document.getElementById('import-file-name').innerHTML +=
+      ' — <strong style="color:var(--green);">' + sheetsMatched + ' sheet(s), ' + rowsTotal + ' row(s) found</strong>';
+    buildAllPreview();
+  } catch(err) { showAlert('import-alert','error','❌ Could not read file: ' + err.message); }
+}
+
+// Auto-matches a sheet's header row to a category's field keys using the
+// same normalized-substring matching buildMappingUI() uses for the manual
+// single-category screen, just without the user in the loop.
+function autoMapColumns(def, headers) {
+  const norm = h => String(h||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const colMap = {};
+  headers.forEach((h, ci) => {
+    const n = norm(h);
+    for (const f of def.fields) {
+      const hs = FIELD_HINTS[f.key] || [f.key.toLowerCase()];
+      if (colMap[f.key] === undefined && hs.some(hint => n.includes(norm(hint)) || norm(hint).includes(n))) {
+        colMap[f.key] = ci;
+      }
+    }
+  });
+  return colMap;
+}
+
+// Turns raw sheet rows into field-keyed objects using an already-built
+// colMap, applying the same date parsing / cell coercion the manual
+// mapping flow uses.
+function mapRowsWithColMap(def, rows, colMap) {
+  return rows.map(row => {
+    const s = {};
+    Object.entries(colMap).forEach(([key, ci]) => {
+      let v = row[ci];
+      if ((def.dateFields||[]).includes(key)) s[key] = parseFlexibleDate(v);
+      else s[key] = (v instanceof Date) ? v.toISOString().slice(0,10) : String(v||'').trim();
+    });
+    return s;
+  });
+}
+
+// Builds a per-category summary (rows found → rows ready to import) for
+// every sheet that was recognized, and populates _importAllMapped ready
+// for confirmAllImport() to actually write to Firebase.
+function buildAllPreview() {
+  _importAllMapped = {};
+  let anyValid = false;
+  let rowsHtml = '';
+
+  IMPORT_ALL_ORDER.forEach(key => {
+    const def  = IMPORT_TYPES[key];
+    const data = _importAllData[key];
+    if (!data) {
+      rowsHtml += '<tr><td>'+def.icon+' '+def.label+'</td><td colspan="3" style="color:var(--muted);">— no sheet found, skipped</td></tr>';
+      return;
+    }
+    const colMap = autoMapColumns(def, data.headers);
+    const mappedKeys = Object.keys(colMap);
+    const missingReq = def.fields.filter(f => f.required && !mappedKeys.includes(f.key));
+    if (missingReq.length) {
+      rowsHtml += '<tr><td>'+def.icon+' '+def.label+'</td><td colspan="3" style="color:var(--red);">⚠️ Missing required column(s): '+missingReq.map(f=>f.label).join(', ')+' — sheet "'+data.sheetName+'" skipped</td></tr>';
+      return;
+    }
+    let mapped = mapRowsWithColMap(def, data.rows, colMap);
+    mapped = (key === 'students')
+      ? mapped.filter(s => s.fname || s.lname || s.mobile)
+      : mapped.filter(s => def.fields.filter(f=>f.required).every(f=>s[f.key]));
+
+    _importAllMapped[key] = { mapped, colMap };
+    if (mapped.length) anyValid = true;
+    rowsHtml += '<tr><td>'+def.icon+' '+def.label+'</td><td>'+data.rows.length+' row(s) in sheet</td>'
+      + '<td style="color:var(--green);font-weight:600;">'+mapped.length+' ready to import</td>'
+      + '<td style="color:var(--muted);">from "'+data.sheetName+'"</td></tr>';
+  });
+
+  document.getElementById('import-preview-head').innerHTML =
+    '<tr><th>Category</th><th>Sheet Rows</th><th>Ready to Import</th><th>Source</th></tr>';
+  document.getElementById('import-preview-body').innerHTML = rowsHtml;
+  document.getElementById('import-preview-count').textContent = 'Full import preview — one row per category';
+  document.getElementById('import-preview-warn').innerHTML = anyValid ? ''
+    : '<div class="alert alert-error">❌ No valid, ready-to-import rows found in any recognized sheet. Check required columns are present and filled in.</div>';
+  document.getElementById('import-confirm-btn').disabled = !anyValid;
+  document.getElementById('import-confirm-btn').textContent = '✅ Import All Categories';
+  document.getElementById('import-preview-card').style.display = 'block';
+  document.getElementById('import-preview-card').scrollIntoView({behavior:'smooth'});
 }
 
 // Builds the "Your Excel Column → System Field" mapping grid for
@@ -4559,8 +4728,105 @@ function previewGenericImport() {
 }
 
 async function confirmImport() {
+  if (currentImportType === 'all') { await confirmAllImport(); return; }
   if (currentImportType !== 'students') { await confirmGenericImport(); return; }
   await confirmStudentImport();
+}
+
+// ------------------------------------------------------------------
+// Writes every category found by buildAllPreview() to Firebase in one
+// run: Students first (so Roll No links resolve for everything else),
+// then every other category using the same append + dedupe-skip logic
+// as confirmGenericImport(). Nothing existing in Firebase is deleted —
+// if you want a totally clean re-import, clear the relevant Firebase
+// collections yourself first, then run this import to repopulate them.
+// ------------------------------------------------------------------
+async function confirmAllImport() {
+  const btn = document.getElementById('import-confirm-btn');
+  btn.disabled = true; btn.textContent = '⏳ Importing all categories…';
+  try {
+    const resultMsgs = [];
+
+    // 1) Students first
+    const studentsBucket = _importAllMapped.students;
+    if (studentsBucket && studentsBucket.mapped.length) {
+      const today = todayStr();
+      const existingRolls = new Set((window.students||[]).map(s=>s.rollNo));
+      const seenInFile = new Set();
+      const newStudents = [];
+      let added = 0, skipped = 0;
+      studentsBucket.mapped.forEach(s => {
+        if (!s.rollNo || existingRolls.has(s.rollNo) || seenInFile.has(s.rollNo)) { skipped++; return; }
+        seenInFile.add(s.rollNo);
+        const statusRaw = (s.status||'').trim().toLowerCase();
+        newStudents.push({
+          rollNo:s.rollNo, id:s.rollNo,
+          fname:s.fname||'', lname:s.lname||'', mobile:s.mobile||'',
+          course:s.course||'', batch:s.batch||(window.masterData&&window.masterData.batches[0]?window.masterData.batches[0].name:''),
+          courseType:s.courseType||'Regular', mode:s.mode||'Offline',
+          admDate:s.admDate||today, duration:s.duration||'', dob:s.dob||'', gender:s.gender||'',
+          email:s.email||'', address:s.address||'', guardian:s.guardian||'', guardianMobile:s.guardianMobile||'',
+          totalFees:s.totalFees||'0', concession:s.concession||'0',
+          qual:s.qual||'', idType:s.idType||'', idNumber:s.idNumber||'', remarks:s.remarks||'',
+          customDueDate:null, status: statusRaw.startsWith('in') ? 'Inactive' : 'Active',
+          createdAt:new Date().toISOString(), importedAt:new Date().toISOString()
+        });
+        added++;
+      });
+      window.students = [...(window.students||[]), ...newStudents];
+      await DB.set('students', window.students);
+      resultMsgs.push('👥 Students: <strong>'+added+'</strong> imported'+(skipped?', '+skipped+' skipped (duplicate/blank Roll No)':''));
+    }
+
+    // 2) Every other category, in a fixed order, linking to students by Roll No where applicable
+    for (const key of IMPORT_ALL_ORDER) {
+      if (key === 'students') continue;
+      const bucket = _importAllMapped[key];
+      const def = IMPORT_TYPES[key];
+      if (!bucket || !bucket.mapped.length) continue;
+
+      if (def.linkStudent) {
+        bucket.mapped.forEach(s => {
+          const stu = (window.students||[]).find(x=>x.rollNo===s.rollNo);
+          if (stu) {
+            if (def.fields.some(f=>f.key==='studentName') && !s.studentName) s.studentName = (stu.fname+' '+stu.lname).trim();
+            if (def.fields.some(f=>f.key==='course') && !s.course) s.course = stu.course;
+            if (def.fields.some(f=>f.key==='batch') && !s.batch) s.batch = stu.batch;
+            if (def.fields.some(f=>f.key==='mobile') && !s.mobile) s.mobile = stu.mobile;
+          }
+        });
+      }
+
+      const existingArr = [...(window[def.collection]||[])];
+      let added = 0, skipped = 0;
+      bucket.mapped.forEach(row => {
+        const rec = {};
+        def.fields.forEach(f => { rec[f.key] = row[f.key] !== undefined ? row[f.key] : ''; });
+        IMPORT_NUMERIC_FIELDS.forEach(k => { if (rec[k] !== undefined && rec[k] !== '') rec[k] = parseFloat(rec[k]) || 0; });
+        rec.id = def.collection + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7);
+        rec.importedAt = new Date().toISOString();
+        const dupMsg = def.dedupe ? def.dedupe(rec, existingArr) : null;
+        if (dupMsg) { skipped++; return; }
+        existingArr.push(rec);
+        added++;
+      });
+      window[def.collection] = existingArr;
+      await DB.set(def.dbKey, existingArr);
+      resultMsgs.push(def.icon+' '+def.label+': <strong>'+added+'</strong> imported'+(skipped?', '+skipped+' skipped (duplicates)':''));
+    }
+
+    document.getElementById('import-done-msg').innerHTML =
+      '✅ Full import complete!<br><div style="text-align:left;display:inline-block;margin-top:12px;font-size:13px;font-weight:400;line-height:1.9;">'
+      + (resultMsgs.length ? resultMsgs.join('<br>') : 'Nothing was imported.') + '</div>';
+    document.getElementById('import-mapping-card').style.display='none';
+    document.getElementById('import-preview-card').style.display='none';
+    document.getElementById('import-done-card').style.display='block';
+    document.getElementById('import-done-card').scrollIntoView({behavior:'smooth'});
+    try { refreshDashboard(); } catch(refreshErr) { console.warn('Dashboard refresh after import had an issue (data was still saved):', refreshErr); }
+  } catch(err) {
+    btn.disabled=false; btn.textContent='✅ Import All Categories';
+    showAlert('import-alert','error','❌ Import failed: '+err.message);
+  }
 }
 
 async function confirmStudentImport() {
