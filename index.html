@@ -3997,16 +3997,22 @@ const STUDENT_FIELDS = [
   { key:'mobile',     label:'Mobile Number',         required:true  },
   { key:'course',     label:'Course',                required:true  },
   { key:'batch',      label:'Batch',                 required:false },
+  { key:'courseType', label:'Course Type',           required:false },
+  { key:'mode',       label:'Mode (Offline/Online)', required:false },
   { key:'admDate',    label:'Admission Date',        required:false },
+  { key:'duration',   label:'Duration (Months)',     required:false },
   { key:'dob',        label:'Date of Birth',         required:false },
+  { key:'gender',     label:'Gender',                required:false },
   { key:'email',      label:'Student Email',         required:false },
   { key:'address',    label:'Address',               required:false },
   { key:'guardian',   label:'Guardian Name',         required:false },
-  { key:'gmobile',    label:'Guardian Mobile',       required:false },
+  { key:'guardianMobile', label:'Guardian Mobile',   required:false },
   { key:'totalFees',  label:'Total Fees (₹)',        required:false },
   { key:'concession', label:'Concession (₹)',        required:false },
-  { key:'mode',       label:'Mode (Offline/Online)', required:false },
   { key:'qual',       label:'Qualification',         required:false },
+  { key:'idType',     label:'ID Type',               required:false },
+  { key:'idNumber',   label:'ID Number',             required:false },
+  { key:'status',     label:'Status (Active/Inactive)', required:false },
   { key:'remarks',    label:'Remarks',               required:false },
 ];
 let _importRows=[], _importHeaders=[], _importMapped=[];
@@ -4085,11 +4091,17 @@ function buildMappingUI() {
     email:     ['email','mail'],
     address:   ['address','addr'],
     guardian:  ['guardian','parent','father','mother'],
-    gmobile:   ['guardianmobile','parentmobile','parentphone'],
+    guardianMobile: ['guardianmobile','parentmobile','parentphone'],
     totalFees: ['fees','totalfees','fee','amount','total'],
     concession:['concession','discount'],
     mode:      ['mode','learning'],
     qual:      ['qualification','edu','degree'],
+    courseType:['coursetype','batchtype','track'],
+    duration:  ['duration','months','durationmonths'],
+    gender:    ['gender','sex'],
+    idType:    ['idtype','idproof','proof'],
+    idNumber:  ['idnumber','idno','proofnumber','proofno'],
+    status:    ['status','active'],
     remarks:   ['remarks','notes','comment'],
   };
   const autoMatch = {};
@@ -4217,15 +4229,17 @@ async function confirmImport() {
     // an existing student, so it's safe to use s.rollNo as-is here.
     const today = todayStr();
     const newStudents = _importMapped.map(s => {
+      const statusRaw = (s.status||'').trim().toLowerCase();
       return {
         rollNo:s.rollNo, id:s.rollNo,
         fname:s.fname||'', lname:s.lname||'', mobile:s.mobile||'',
         course:s.course||'', batch:s.batch||(window.masterData&&window.masterData.batches[0]?window.masterData.batches[0].name:''),
-        admDate:s.admDate||today, dob:s.dob||'', email:s.email||'',
-        address:s.address||'', guardian:s.guardian||'', gmobile:s.gmobile||'',
+        courseType:s.courseType||'Regular', mode:s.mode||'Offline',
+        admDate:s.admDate||today, duration:s.duration||'', dob:s.dob||'', gender:s.gender||'',
+        email:s.email||'', address:s.address||'', guardian:s.guardian||'', guardianMobile:s.guardianMobile||'',
         totalFees:s.totalFees||'0', concession:s.concession||'0',
-        mode:s.mode||'Offline', qual:s.qual||'', remarks:s.remarks||'',
-        customDueDate:null, status:'Active',
+        qual:s.qual||'', idType:s.idType||'', idNumber:s.idNumber||'', remarks:s.remarks||'',
+        customDueDate:null, status: statusRaw.startsWith('in') ? 'Inactive' : 'Active',
         createdAt:new Date().toISOString(), importedAt:new Date().toISOString()
       };
     });
