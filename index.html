@@ -612,7 +612,7 @@ tr:hover td { background: #f8fafd; }
     <span class="icon">👤</span> User Management
   </div>
   <div class="nav-item" id="nav-import-students" onclick="navTo('import-students',this)">
-    <span class="icon">📥</span> Import Students
+    <span class="icon">📥</span> Import Data
   </div>
   <div class="nav-item" id="nav-settings" onclick="navTo('settings',this)">
     <span class="icon">⚙️</span> Configuration
@@ -2386,7 +2386,7 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-success" onclick="exportToExcel()">⬇️ Download Excel Workbook (.xlsx)</button>
-          <button class="btn btn-outline" onclick="navTo('import-students',document.getElementById('nav-import-students'))">⬆️ Import Students from Excel</button>
+          <button class="btn btn-outline" onclick="navTo('import-students',document.getElementById('nav-import-students'))">⬆️ Import Data from Excel</button>
         </div>
         <div id="excel-status" style="margin-top:12px;"></div>
         <div class="alert alert-info" style="margin-top:16px;">
@@ -2396,13 +2396,22 @@ tr:hover td { background: #f8fafd; }
 
     </div>
 
-    <!-- ===== IMPORT STUDENTS ===== -->
+    <!-- ===== IMPORT DATA ===== -->
     <div id="page-import-students" class="page">
       <div id="import-alert"></div>
       <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">📦</span> What are you importing?</div></div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Choose the type of data first — students, or any of the other details you already export to Excel (attendance, absentees, payments, marks, salary, income &amp; expenses, certificates). Each one is added to Firebase without erasing what's already there.</p>
+        <div class="form-group" style="max-width:420px;">
+          <label>Data Type</label>
+          <select id="import-type-select" onchange="switchImportType(this.value)"></select>
+        </div>
+        <div id="import-type-note" style="font-size:12.5px;color:var(--muted);margin-top:8px;"></div>
+      </div>
+      <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">1️⃣</span> Download Template (Optional)</div></div>
         <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Download a pre-formatted template with the exact column names the system expects. Fill it and upload it back.</p>
-        <button class="btn btn-outline" onclick="downloadImportTemplate()">⬇️ Download Student Import Template (.xlsx)</button>
+        <button class="btn btn-outline" id="import-template-btn" onclick="downloadImportTemplate()">⬇️ Download Import Template (.xlsx)</button>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">2️⃣</span> Upload Your Excel File</div></div>
@@ -2440,15 +2449,15 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div class="action-bar" style="margin-top:16px;">
           <button class="btn btn-outline" onclick="resetImport()">↩ Start Over</button>
-          <button class="btn btn-teal" onclick="confirmImport()" id="import-confirm-btn">✅ Import All Students</button>
+          <button class="btn btn-teal" onclick="confirmImport()" id="import-confirm-btn">✅ Import All</button>
         </div>
       </div>
       <div class="card" id="import-done-card" style="display:none;text-align:center;padding:32px;">
         <div style="font-size:48px;margin-bottom:12px;">🎉</div>
         <div id="import-done-msg" style="font-size:16px;font-weight:600;color:var(--green);margin-bottom:8px;"></div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">All students are now live in Student Records and visible to all staff.</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">Your data is now live in Firebase and visible to all staff.</div>
         <div style="display:flex;gap:10px;justify-content:center;">
-          <button class="btn btn-teal" onclick="navTo('students',document.getElementById('nav-students'))">👥 View Student Records</button>
+          <button class="btn btn-teal" id="import-done-view-btn" onclick="navTo('students',document.getElementById('nav-students'))">👥 View Student Records</button>
           <button class="btn btn-outline" onclick="resetImport()">📥 Import More</button>
         </div>
       </div>
@@ -3703,7 +3712,7 @@ function navTo(page, el) {
     certificates:'Certificates', attendance:'Attendance Entry', 'absent-list':'Absent List',
     'attendance-report':'Attendance Report', 'student-dashboard':'Student Dashboard',
     marks:'Marks Entry', master:'Master Data', salary:'Staff Salary',
-    users:'User Management', 'import-students':'Import Students from Excel',
+    users:'User Management', 'import-students':'Import Data from Excel',
     settings:'Configuration', calendar:'Calendar', resources:'Study Materials',
     'my-dashboard':'My Dashboard', 'my-profile':'My Profile', 'my-attendance':'My Attendance', 'study-material':'Study Material',
     placement:'Job Placement Report', 'staff-attendance':'Staff Attendance', 'weekly-planner':'Weekly Planner'
@@ -3778,7 +3787,7 @@ function navTo(page, el) {
     }
     renderAbsentHistory();
   }
-  if (page === 'import-students') resetImport();
+  if (page === 'import-students') { populateImportTypeSelect(); resetImport(); }
   if (page === 'calendar') renderCalendar();
   if (page === 'resources') renderResourcesPage();
   if (page === 'my-dashboard') loadMyDashboard();
@@ -4016,6 +4025,268 @@ const STUDENT_FIELDS = [
   { key:'remarks',    label:'Remarks',               required:false },
 ];
 let _importRows=[], _importHeaders=[], _importMapped=[];
+let currentImportType = 'students';
+
+// ------------------------------------------------------------------
+// IMPORT_TYPES — table-driven config for every data type that can be
+// bulk-imported from Excel, in addition to Students. Each entry mirrors
+// the columns exportToExcel() already writes out for that module, so a
+// file exported from this app's own "Export to Excel" backup can be
+// re-imported (or edited and re-imported) without any manual remapping.
+// `collection` is the window.* array name; `dbKey` is the Firebase
+// collection name used by DB.set/DB.saveArray. `linkStudent: true` means
+// rows are matched to an existing student by Roll No, auto-filling
+// name/course/batch/mobile when the sheet doesn't already have them.
+// `dedupe(rec, existing)` returns a human-readable reason string when a
+// record looks like a duplicate of one already in Firebase (or blank/
+// null when it's fine) — used to warn during preview and to skip exact
+// repeats during the actual import so re-uploading the same file twice
+// doesn't double up records.
+// ------------------------------------------------------------------
+const IMPORT_TYPES = {
+  students: {
+    label:'Students', icon:'👥', collection:'students', dbKey:'students',
+    fields: STUDENT_FIELDS, dateFields:['admDate','dob'], linkStudent:false,
+    note:'New student admissions. Roll No must be unique and not already in the system.',
+    exampleRow: ['EL26101','Ravi','Kumar','9876543210','Tally with GST','Morning (8:00 AM - 10:00 AM)',
+      '01-07-2026','15-03-2005','ravi@gmail.com','12 Main St','Suresh Kumar','9123456789','5000','0','Offline','B.Com','']
+  },
+  payments: {
+    label:'Payments', icon:'💰', collection:'payments', dbKey:'payments', linkStudent:true,
+    dateFields:['date'],
+    fields:[
+      {key:'receiptNo', label:'Receipt No', required:true},
+      {key:'date', label:'Payment Date', required:true},
+      {key:'rollNo', label:'Student Roll No', required:true},
+      {key:'studentName', label:'Student Name', required:false},
+      {key:'course', label:'Course', required:false},
+      {key:'amount', label:'Amount (₹)', required:true},
+      {key:'mode', label:'Payment Mode', required:false},
+      {key:'reference', label:'Reference / Txn ID', required:false},
+      {key:'remarks', label:'Remarks', required:false},
+      {key:'collectedBy', label:'Collected By', required:false},
+    ],
+    note:'Fee payment receipts. Roll No links each payment to a student.',
+    dedupe:(rec, existing)=> rec.receiptNo && existing.some(e=>String(e.receiptNo)===String(rec.receiptNo)) ? 'Receipt No '+rec.receiptNo+' already exists' : null,
+    exampleRow:['RC1001','01-07-2026','EL26101','Ravi Kumar','Tally with GST','5000','Cash','','','Office']
+  },
+  attendance: {
+    label:'Attendance', icon:'🗓️', collection:'attendance', dbKey:'attendance', linkStudent:true,
+    dateFields:['date'],
+    fields:[
+      {key:'date', label:'Date', required:true},
+      {key:'rollNo', label:'Student Roll No', required:true},
+      {key:'studentName', label:'Student Name', required:false},
+      {key:'course', label:'Course', required:false},
+      {key:'batch', label:'Batch', required:false},
+      {key:'status', label:'Status (Present/Absent/Late)', required:true},
+      {key:'topic', label:'Topic Covered', required:false},
+      {key:'software', label:'Software Used', required:false},
+      {key:'recordedBy', label:'Recorded By', required:false},
+    ],
+    note:'Daily class attendance. One row per student per day.',
+    dedupe:(rec, existing)=> rec.rollNo && rec.date && existing.some(e=>e.rollNo===rec.rollNo && e.date===rec.date) ? 'Attendance for '+rec.rollNo+' on '+formatDateDMY(rec.date)+' already recorded' : null,
+    exampleRow:['01-07-2026','EL26101','Ravi Kumar','Tally with GST','Morning (8:00 AM - 10:00 AM)','Present','GST Returns','Tally Prime','Admin']
+  },
+  absences: {
+    label:'Absentees', icon:'🚫', collection:'absences', dbKey:'absences', linkStudent:true,
+    dateFields:['date'],
+    fields:[
+      {key:'date', label:'Date', required:true},
+      {key:'rollNo', label:'Student Roll No', required:true},
+      {key:'studentName', label:'Student Name', required:false},
+      {key:'mobile', label:'Mobile', required:false},
+      {key:'course', label:'Course', required:false},
+      {key:'batch', label:'Batch', required:false},
+      {key:'reason', label:'Reason', required:false},
+      {key:'recordedBy', label:'Recorded By', required:false},
+    ],
+    note:'The separate absentee log (used for follow-up calls), not the same as an Attendance row marked Absent.',
+    dedupe:(rec, existing)=> rec.rollNo && rec.date && existing.some(e=>e.rollNo===rec.rollNo && e.date===rec.date) ? 'Absence for '+rec.rollNo+' on '+formatDateDMY(rec.date)+' already recorded' : null,
+    exampleRow:['01-07-2026','EL26101','Ravi Kumar','9876543210','Tally with GST','Morning (8:00 AM - 10:00 AM)','Sick leave','Admin']
+  },
+  marks: {
+    label:'Marks', icon:'📝', collection:'marks', dbKey:'marks', linkStudent:true,
+    dateFields:[],
+    fields:[
+      {key:'rollNo', label:'Student Roll No', required:true},
+      {key:'studentName', label:'Student Name', required:false},
+      {key:'course', label:'Course', required:false},
+      {key:'batch', label:'Batch', required:false},
+      {key:'subject', label:'Subject', required:true},
+      {key:'maxMarks', label:'Max Marks', required:true},
+      {key:'obtainedMarks', label:'Obtained Marks', required:true},
+      {key:'grade', label:'Grade', required:false},
+      {key:'enteredBy', label:'Entered By', required:false},
+    ],
+    note:'Exam / test marks, one row per student per subject.',
+    dedupe:(rec, existing)=> rec.rollNo && rec.subject && existing.some(e=>e.rollNo===rec.rollNo && e.subject===rec.subject) ? 'Marks for '+rec.rollNo+' in '+rec.subject+' already exist' : null,
+    exampleRow:['EL26101','Ravi Kumar','Tally with GST','Morning (8:00 AM - 10:00 AM)','Accounting Basics','100','82','A','Faculty']
+  },
+  salary: {
+    label:'Salary', icon:'💵', collection:'salaries', dbKey:'salaries', linkStudent:false,
+    dateFields:[],
+    fields:[
+      {key:'month', label:'Month (e.g. 2026-07)', required:true},
+      {key:'staffName', label:'Staff Name', required:true},
+      {key:'basic', label:'Basic (₹)', required:false},
+      {key:'workDays', label:'Work Days', required:false},
+      {key:'presentDays', label:'Present Days', required:false},
+      {key:'leaveDays', label:'Leave Days', required:false},
+      {key:'otHours', label:'OT Hours', required:false},
+      {key:'otDays', label:'OT Days', required:false},
+      {key:'otAmount', label:'OT Amount', required:false},
+      {key:'advance', label:'Advance', required:false},
+      {key:'deductions', label:'Deductions', required:false},
+      {key:'bonus', label:'Bonus', required:false},
+      {key:'grossPay', label:'Gross Pay', required:false},
+      {key:'netPay', label:'Net Pay', required:false},
+      {key:'remarks', label:'Remarks', required:false},
+    ],
+    note:'Staff salary sheet, one row per staff member per month.',
+    dedupe:(rec, existing)=> rec.month && rec.staffName && existing.some(e=>e.month===rec.month && e.staffName===rec.staffName) ? 'Salary for '+rec.staffName+' in '+rec.month+' already exists' : null,
+    exampleRow:['2026-07','Suresh Kumar','20000','26','25','1','4','0.5','500','0','0','1000','21500','21500','']
+  },
+  incomes: {
+    label:'Other Income', icon:'📈', collection:'incomes', dbKey:'incomes', linkStudent:false,
+    dateFields:['date'],
+    fields:[
+      {key:'date', label:'Date', required:true},
+      {key:'source', label:'Source', required:true},
+      {key:'amount', label:'Amount (₹)', required:true},
+      {key:'remarks', label:'Remarks', required:false},
+      {key:'enteredBy', label:'Entered By', required:false},
+    ],
+    note:'Non-fee income entries (finance module).',
+    dedupe:()=>null,
+    exampleRow:['01-07-2026','Certificate Fee','500','','Office']
+  },
+  expenses: {
+    label:'Expenses', icon:'📉', collection:'expenses', dbKey:'expenses', linkStudent:false,
+    dateFields:['date'],
+    fields:[
+      {key:'date', label:'Date', required:true},
+      {key:'category', label:'Category', required:true},
+      {key:'amount', label:'Amount (₹)', required:true},
+      {key:'paidTo', label:'Paid To', required:false},
+      {key:'remarks', label:'Remarks', required:false},
+      {key:'enteredBy', label:'Entered By', required:false},
+    ],
+    note:'Institute expenses (finance module).',
+    dedupe:()=>null,
+    exampleRow:['01-07-2026','Electricity','1200','KSEB','','Admin']
+  },
+  certificates: {
+    label:'Certificates', icon:'🎓', collection:'certificates', dbKey:'certificates', linkStudent:true,
+    dateFields:['givenDate'],
+    fields:[
+      {key:'rollNo', label:'Student Roll No', required:true},
+      {key:'studentName', label:'Student Name', required:false},
+      {key:'course', label:'Course', required:false},
+      {key:'certNo', label:'Certificate No', required:false},
+      {key:'givenDate', label:'Given Date', required:false},
+      {key:'givenBy', label:'Given By', required:false},
+      {key:'status', label:'Status', required:false},
+    ],
+    note:'Certificate issue records.',
+    dedupe:(rec, existing)=> rec.rollNo && rec.certNo && existing.some(e=>e.rollNo===rec.rollNo && e.certNo===rec.certNo) ? 'Certificate '+rec.certNo+' for '+rec.rollNo+' already exists' : null,
+    exampleRow:['EL26101','Ravi Kumar','Tally with GST','CERT-2026-101','15-09-2026','Director','Issued']
+  },
+};
+
+// Shared column-name hints reused across every import type above, so the
+// mapping step auto-matches common Excel headers ("Roll No.", "Fee Paid",
+// "Marks Obtained"...) onto the right field regardless of which data
+// type is selected.
+const FIELD_HINTS = {
+  rollNo:['rollno','roll','admissionno','admno','studentid','regno','registrationno'],
+  fname:['firstname','first','fname','studentname','name'],
+  lname:['lastname','last','lname','surname'],
+  mobile:['mobile','phone','contact','mob','cell'],
+  course:['course','program'],
+  batch:['batch','timing','time','slot'],
+  admDate:['admission','admdate','joining','enroll','dateofadmission'],
+  dob:['dob','birth','birthdate','dateofbirth'],
+  email:['email','mail'],
+  address:['address','addr'],
+  guardian:['guardian','parent','father','mother'],
+  guardianMobile:['guardianmobile','parentmobile','parentphone'],
+  totalFees:['totalfees','fee','coursefee','total'],
+  concession:['concession','discount'],
+  mode:['mode','learning','paymentmode'],
+  qual:['qualification','edu','degree'],
+  courseType:['coursetype','batchtype','track'],
+  duration:['duration','months'],
+  gender:['gender','sex'],
+  idType:['idtype','idproof','proof'],
+  idNumber:['idnumber','idno','proofnumber'],
+  status:['status','active','attendancestatus'],
+  remarks:['remarks','notes','comment'],
+  date:['date','paymentdate','attendancedate'],
+  receiptNo:['receiptno','receipt','invoiceno','billno'],
+  studentName:['studentname','name'],
+  amount:['amount','amountpaid','feespaid','paid'],
+  reference:['reference','txnid','transactionid','utr','chequeno'],
+  collectedBy:['collectedby','receivedby','staff'],
+  topic:['topiccovered','topic','lesson','chapter'],
+  software:['softwareused','software','tool','application'],
+  recordedBy:['recordedby','markedby','takenby'],
+  reason:['reason','cause'],
+  subject:['subject','paper'],
+  maxMarks:['maxmarks','totalmarks','max'],
+  obtainedMarks:['obtainedmarks','marksobtained','scored','marks'],
+  grade:['grade'],
+  enteredBy:['enteredby','staff'],
+  month:['month','salarymonth','period'],
+  staffName:['staffname','employeename','employee','name'],
+  basic:['basicpay','basic'],
+  workDays:['workdays','totaldays'],
+  presentDays:['presentdays','present'],
+  leaveDays:['leavedays','leave'],
+  otHours:['othours','overtimehours'],
+  otDays:['otdays','overtimedays'],
+  otAmount:['otamount','overtimeamount'],
+  advance:['advance'],
+  deductions:['deductions','deduction'],
+  bonus:['bonus','incentive'],
+  grossPay:['grosspay','gross'],
+  netPay:['netpay','takehome','net'],
+  source:['incomesource','source'],
+  category:['expensetype','category','head'],
+  paidTo:['paidto','vendor','payee'],
+  certNo:['certificateno','certno','certnumber'],
+  givenDate:['givendate','issuedate','issueddate'],
+  givenBy:['givenby','issuedby'],
+};
+
+// Numeric fields that should be stored as numbers, not strings, so amounts
+// add up correctly on dashboards/reports built from imported records.
+const IMPORT_NUMERIC_FIELDS = new Set(['amount','maxMarks','obtainedMarks','basic','workDays','presentDays',
+  'leaveDays','otHours','otDays','otAmount','advance','deductions','bonus','grossPay','netPay','totalFees','concession']);
+
+function populateImportTypeSelect() {
+  const sel = document.getElementById('import-type-select');
+  if (!sel || sel.options.length) return; // already populated
+  sel.innerHTML = Object.entries(IMPORT_TYPES).map(([key,def]) =>
+    '<option value="'+key+'">'+def.icon+' '+def.label+'</option>').join('');
+  sel.value = currentImportType;
+}
+
+function switchImportType(type) {
+  if (!IMPORT_TYPES[type]) return;
+  currentImportType = type;
+  resetImport();
+  const def = IMPORT_TYPES[type];
+  const tb = document.getElementById('import-template-btn');
+  if (tb) tb.innerHTML = '⬇️ Download '+def.label+' Import Template (.xlsx)';
+  const note = document.getElementById('import-type-note');
+  if (note) note.textContent = def.note || '';
+  const viewBtn = document.getElementById('import-done-view-btn');
+  if (viewBtn) {
+    if (type === 'students') { viewBtn.style.display=''; viewBtn.onclick = function(){ navTo('students',document.getElementById('nav-students')); }; }
+    else viewBtn.style.display='none';
+  }
+}
 
 function resetImport() {
   _importRows=[]; _importHeaders=[]; _importMapped=[];
@@ -4025,10 +4296,11 @@ function resetImport() {
   const pc=document.getElementById('import-preview-card');    if(pc) pc.style.display='none';
   const dc=document.getElementById('import-done-card');       if(dc) dc.style.display='none';
   const al=document.getElementById('import-alert');           if(al) al.innerHTML='';
-  const cb=document.getElementById('import-confirm-btn');     if(cb){ cb.disabled=false; cb.textContent='✅ Import All Students'; }
+  const def = IMPORT_TYPES[currentImportType];
+  const cb=document.getElementById('import-confirm-btn');     if(cb){ cb.disabled=false; cb.textContent='✅ Import All '+(def?def.label:''); }
 }
 
-async function downloadImportTemplate() {
+async function downloadStudentTemplate() {
   await loadXLSXLib();
   const XLSX = window.XLSX;
   const headers = STUDENT_FIELDS.map(f => f.label + (f.required?' *':''));
@@ -4039,6 +4311,19 @@ async function downloadImportTemplate() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Students');
   XLSX.writeFile(wb, 'Student_Import_Template.xlsx');
+}
+
+async function downloadImportTemplate() {
+  if (currentImportType === 'students') { await downloadStudentTemplate(); return; }
+  await loadXLSXLib();
+  const XLSX = window.XLSX;
+  const def = IMPORT_TYPES[currentImportType];
+  const headers = def.fields.map(f => f.label + (f.required?' *':''));
+  const ws = XLSX.utils.aoa_to_sheet([headers, def.exampleRow]);
+  ws['!cols'] = headers.map(()=>({wch:22}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, def.label);
+  XLSX.writeFile(wb, def.label.replace(/\s+/g,'_') + '_Import_Template.xlsx');
 }
 
 async function loadXLSXLib() {
@@ -4071,7 +4356,11 @@ async function handleImportFile(file) {
   } catch(err) { showAlert('import-alert','error','❌ Could not read file: ' + err.message); }
 }
 
+// Builds the "Your Excel Column → System Field" mapping grid for
+// whichever data type is currently selected (IMPORT_TYPES[currentImportType]),
+// auto-matching columns using the shared FIELD_HINTS table.
 function buildMappingUI() {
+  const def = IMPORT_TYPES[currentImportType];
   const grid = document.getElementById('import-mapping-grid');
   grid.innerHTML =
     '<div style="font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;">Your Excel Column</div>' +
@@ -4079,37 +4368,13 @@ function buildMappingUI() {
     '<div style="font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;">System Field</div>';
 
   const norm = h => h.toLowerCase().replace(/[^a-z0-9]/g,'');
-  const hints = {
-    rollNo:    ['rollno','roll','admissionno','admno','studentid','regno','registrationno'],
-    fname:     ['firstname','first','fname','name','studentname'],
-    lname:     ['lastname','last','lname','surname'],
-    mobile:    ['mobile','phone','contact','mob','cell'],
-    course:    ['course','program','subject'],
-    batch:     ['batch','timing','time','slot'],
-    admDate:   ['admission','admdate','joining','enroll','date'],
-    dob:       ['dob','birth','birthdate'],
-    email:     ['email','mail'],
-    address:   ['address','addr'],
-    guardian:  ['guardian','parent','father','mother'],
-    guardianMobile: ['guardianmobile','parentmobile','parentphone'],
-    totalFees: ['fees','totalfees','fee','amount','total'],
-    concession:['concession','discount'],
-    mode:      ['mode','learning'],
-    qual:      ['qualification','edu','degree'],
-    courseType:['coursetype','batchtype','track'],
-    duration:  ['duration','months','durationmonths'],
-    gender:    ['gender','sex'],
-    idType:    ['idtype','idproof','proof'],
-    idNumber:  ['idnumber','idno','proofnumber','proofno'],
-    status:    ['status','active'],
-    remarks:   ['remarks','notes','comment'],
-  };
   const autoMatch = {};
   _importHeaders.forEach((h, ci) => {
     const n = norm(h);
-    for (const [key, hs] of Object.entries(hints)) {
-      if (!autoMatch[key] && hs.some(hint => n.includes(norm(hint)) || norm(hint).includes(n))) {
-        autoMatch[key] = ci;
+    for (const f of def.fields) {
+      const hs = FIELD_HINTS[f.key] || [f.key.toLowerCase()];
+      if (!autoMatch[f.key] && hs.some(hint => n.includes(norm(hint)) || norm(hint).includes(n))) {
+        autoMatch[f.key] = ci;
       }
     }
   });
@@ -4127,7 +4392,7 @@ function buildMappingUI() {
     const sel = document.createElement('select');
     sel.id = 'map-col-'+ci; sel.style.cssText='width:100%;font-size:12.5px;';
     sel.innerHTML = '<option value="">— Skip —</option>' +
-      STUDENT_FIELDS.map(f=>'<option value="'+f.key+'">'+f.label+(f.required?' ✱':'')+'</option>').join('');
+      def.fields.map(f=>'<option value="'+f.key+'">'+f.label+(f.required?' ✱':'')+'</option>').join('');
     const matched = Object.entries(autoMatch).find(([,v])=>v===ci);
     if (matched) sel.value = matched[0];
     grid.appendChild(sel);
@@ -4160,6 +4425,11 @@ function parseFlexibleDate(v) {
 window.parseFlexibleDate = parseFlexibleDate;
 
 function previewImport() {
+  if (currentImportType !== 'students') { previewGenericImport(); return; }
+  previewStudentImport();
+}
+
+function previewStudentImport() {
   const colMap={};
   _importHeaders.forEach((_,ci)=>{ const s=document.getElementById('map-col-'+ci); if(s&&s.value) colMap[ci]=s.value; });
   const mapped = Object.values(colMap);
@@ -4219,7 +4489,81 @@ function previewImport() {
   document.getElementById('import-preview-card').scrollIntoView({behavior:'smooth'});
 }
 
+// ------------------------------------------------------------------
+// Generic preview for every non-student import type (payments,
+// attendance, absentees, marks, salary, income, expenses, certificates).
+// Duplicates found via def.dedupe() are only WARNED about here — they're
+// skipped (not blocked) at confirm time, so one clashing row doesn't stop
+// the rest of a batch from importing.
+// ------------------------------------------------------------------
+function previewGenericImport() {
+  const def = IMPORT_TYPES[currentImportType];
+  const colMap={};
+  _importHeaders.forEach((_,ci)=>{ const s=document.getElementById('map-col-'+ci); if(s&&s.value) colMap[ci]=s.value; });
+  const mapped = Object.values(colMap);
+  const missing = def.fields.filter(f=>f.required && !mapped.includes(f.key));
+  if (missing.length) { showAlert('import-alert','error','❌ Map these required fields: '+missing.map(f=>f.label).join(', ')); return; }
+
+  _importMapped = _importRows.map(row => {
+    const s={};
+    Object.entries(colMap).forEach(([ci,key]) => {
+      let v = row[parseInt(ci)];
+      if (def.dateFields.includes(key)) {
+        s[key] = parseFlexibleDate(v);
+      } else {
+        s[key] = (v instanceof Date) ? v.toISOString().slice(0,10) : String(v||'').trim();
+      }
+    });
+    return s;
+  }).filter(s => def.fields.filter(f=>f.required).every(f=>s[f.key]));
+
+  if (!_importMapped.length) { showAlert('import-alert','error','❌ No valid rows found — check that all required columns are mapped and filled in.'); return; }
+
+  // Auto-fill Student Name / Course / Batch / Mobile from Student Records
+  // when the sheet didn't supply them, by matching on Roll No.
+  if (def.linkStudent) {
+    _importMapped.forEach(s => {
+      const stu = (window.students||[]).find(x=>x.rollNo===s.rollNo);
+      if (stu) {
+        if (def.fields.some(f=>f.key==='studentName') && !s.studentName) s.studentName = (stu.fname+' '+stu.lname).trim();
+        if (def.fields.some(f=>f.key==='course') && !s.course) s.course = stu.course;
+        if (def.fields.some(f=>f.key==='batch') && !s.batch) s.batch = stu.batch;
+        if (def.fields.some(f=>f.key==='mobile') && !s.mobile) s.mobile = stu.mobile;
+      }
+    });
+  }
+
+  const fields = def.fields.filter(f=>mapped.includes(f.key) || (def.linkStudent && ['studentName','course','batch','mobile'].includes(f.key)));
+  document.getElementById('import-preview-head').innerHTML =
+    '<tr>'+fields.map(f=>'<th>'+f.label+'</th>').join('')+'</tr>';
+  document.getElementById('import-preview-body').innerHTML =
+    _importMapped.slice(0,10).map(s=>
+      '<tr>'+fields.map(f=>'<td style="white-space:nowrap;">'+(def.dateFields.includes(f.key) && s[f.key] ? formatDateDMY(s[f.key]) : (s[f.key]||'—'))+'</td>').join('')+'</tr>'
+    ).join('');
+
+  let warnHtml = '';
+  if (def.linkStudent) {
+    const notFound = [...new Set(_importMapped.filter(s=>s.rollNo && !(window.students||[]).some(x=>x.rollNo===s.rollNo)).map(s=>s.rollNo))];
+    if (notFound.length) warnHtml += '<div class="alert alert-warn">⚠️ '+notFound.length+' Roll No(s) not found in Student Records: '+notFound.slice(0,10).join(', ')+(notFound.length>10?'…':'')+'. Those rows will still import, but Student Name/Course/Batch may stay blank until the student is added.</div>';
+  }
+  const existingArr = window[def.collection] || [];
+  const dupMsgs = _importMapped.map(rec => def.dedupe ? def.dedupe(rec, existingArr) : null).filter(Boolean);
+  if (dupMsgs.length) {
+    warnHtml += '<div class="alert alert-warn">⚠️ '+dupMsgs.length+' row(s) look like duplicates of records already in Firebase and will be <strong>skipped</strong> automatically: '+dupMsgs.slice(0,6).join(' | ')+(dupMsgs.length>6?' …':'')+'</div>';
+  }
+  document.getElementById('import-preview-warn').innerHTML = warnHtml;
+  document.getElementById('import-confirm-btn').disabled = false;
+  document.getElementById('import-preview-count').textContent = 'Showing '+Math.min(10,_importMapped.length)+' of '+_importMapped.length+' '+def.label.toLowerCase()+' record(s)';
+  document.getElementById('import-preview-card').style.display='block';
+  document.getElementById('import-preview-card').scrollIntoView({behavior:'smooth'});
+}
+
 async function confirmImport() {
+  if (currentImportType !== 'students') { await confirmGenericImport(); return; }
+  await confirmStudentImport();
+}
+
+async function confirmStudentImport() {
   const btn = document.getElementById('import-confirm-btn');
   btn.disabled=true; btn.textContent='⏳ Importing…';
   try {
@@ -4253,6 +4597,48 @@ async function confirmImport() {
     document.getElementById('import-done-card').scrollIntoView({behavior:'smooth'});
   } catch(err) {
     btn.disabled=false; btn.textContent='✅ Import All Students';
+    showAlert('import-alert','error','❌ Import failed: '+err.message);
+  }
+}
+
+// ------------------------------------------------------------------
+// Generic confirm for every non-student import type. Unlike the student
+// importer (which blocks on any clash), this one APPENDS to whatever is
+// already in Firebase for that collection and silently SKIPS rows that
+// def.dedupe() flags as duplicates, so re-importing the same export file
+// twice — or importing overlapping date ranges — is always safe.
+// ------------------------------------------------------------------
+async function confirmGenericImport() {
+  const def = IMPORT_TYPES[currentImportType];
+  const btn = document.getElementById('import-confirm-btn');
+  btn.disabled=true; btn.textContent='⏳ Importing…';
+  try {
+    const existingArr = [...(window[def.collection]||[])];
+    let added = 0, skipped = 0;
+    _importMapped.forEach(row => {
+      const rec = {};
+      def.fields.forEach(f => { rec[f.key] = row[f.key] !== undefined ? row[f.key] : ''; });
+      IMPORT_NUMERIC_FIELDS.forEach(k => { if (rec[k] !== undefined && rec[k] !== '') rec[k] = parseFloat(rec[k]) || 0; });
+      rec.id = def.collection + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7);
+      rec.importedAt = new Date().toISOString();
+      const dupMsg = def.dedupe ? def.dedupe(rec, existingArr) : null;
+      if (dupMsg) { skipped++; return; }
+      existingArr.push(rec);
+      added++;
+    });
+
+    window[def.collection] = existingArr;
+    await DB.set(def.dbKey, existingArr);
+
+    document.getElementById('import-done-msg').textContent =
+      '✅ ' + added + ' ' + def.label.toLowerCase() + ' record(s) imported' + (skipped ? ', ' + skipped + ' duplicate(s) skipped.' : '.');
+    document.getElementById('import-mapping-card').style.display='none';
+    document.getElementById('import-preview-card').style.display='none';
+    document.getElementById('import-done-card').style.display='block';
+    document.getElementById('import-done-card').scrollIntoView({behavior:'smooth'});
+    try { refreshDashboard(); } catch(refreshErr) { console.warn('Dashboard refresh after import had an issue (data was still saved):', refreshErr); }
+  } catch(err) {
+    btn.disabled=false; btn.textContent='✅ Import All '+def.label;
     showAlert('import-alert','error','❌ Import failed: '+err.message);
   }
 }
