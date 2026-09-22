@@ -184,6 +184,27 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shado
 input:disabled, select:disabled, textarea:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
 textarea { min-height: 80px; resize: vertical; }
 
+/* DATE FIELD dd-mm-yyyy OVERLAY
+   Native <input type="date"> renders its text (and the empty-field
+   placeholder) using the browser/OS's own regional format, which on many
+   Windows/Chrome setups is mm/dd/yyyy — and that can't be changed via CSS
+   or an attribute. To force dd-mm-yyyy everywhere regardless of the
+   computer's locale, the native input's own text is made invisible and a
+   custom label is drawn on top showing the date the way we want. Clicks
+   still reach the real input underneath (pointer-events:none on the
+   label), so the native calendar picker and keyboard entry keep working
+   exactly as before — only the visible text changes. */
+.date-field-wrap { position: relative; display: block; }
+.date-field-wrap input[type="date"] { color: transparent; position: relative; z-index: 1; background: transparent; width: 100%; }
+.date-field-wrap input[type="date"]:disabled { background: #f1f5f9; }
+.date-overlay-label {
+  position: absolute; left: 12px; top: 0; bottom: 0; display: flex; align-items: center;
+  font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--text);
+  pointer-events: none; z-index: 0; white-space: nowrap; right: 34px; overflow: hidden;
+}
+.date-overlay-label.placeholder { color: #94a3b8; }
+.date-field-wrap input[type="date"]:disabled ~ .date-overlay-label { color: #94a3b8; }
+
 /* AUTOCOMPLETE DROPDOWN */
 .autocomplete-dropdown {
   position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
@@ -3803,6 +3824,48 @@ function formatDateDMY(input) {
 }
 window.formatDateDMY = formatDateDMY;
 
+// ---- Date input dd-mm-yyyy overlay ----
+// See the .date-field-wrap / .date-overlay-label CSS for why this exists:
+// native <input type="date"> text follows the browser/OS locale (often
+// mm/dd/yyyy) and that can't be changed directly, so we hide the native
+// text and draw our own dd-mm-yyyy label on top instead. This wraps every
+// date input once, keeps its label in sync on every change, and — via the
+// MutationObserver below — automatically picks up date inputs created
+// later (e.g. inside modals built with innerHTML), so nothing needs to
+// call this manually after adding a new date field anywhere in the app.
+function enhanceDateInput(input) {
+  if (!input || input.dataset.dmyEnhanced) return;
+  input.dataset.dmyEnhanced = '1';
+  let wrap = input.parentElement;
+  if (!wrap || !wrap.classList.contains('date-field-wrap')) {
+    wrap = document.createElement('div');
+    wrap.className = 'date-field-wrap';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+  }
+  const label = document.createElement('div');
+  label.className = 'date-overlay-label';
+  wrap.appendChild(label);
+  const sync = () => {
+    if (input.value) { label.textContent = formatDateDMY(input.value); label.classList.remove('placeholder'); }
+    else { label.textContent = 'dd-mm-yyyy'; label.classList.add('placeholder'); }
+  };
+  input.addEventListener('input', sync);
+  input.addEventListener('change', sync);
+  sync();
+}
+function enhanceAllDateInputs(root) {
+  (root || document).querySelectorAll('input[type="date"]:not([data-dmy-enhanced])').forEach(enhanceDateInput);
+}
+enhanceAllDateInputs();
+new MutationObserver(muts => {
+  muts.forEach(m => m.addedNodes.forEach(node => {
+    if (node.nodeType !== 1) return;
+    if (node.matches && node.matches('input[type="date"]')) enhanceDateInput(node);
+    if (node.querySelectorAll) enhanceAllDateInputs(node);
+  }));
+}).observe(document.body, { childList: true, subtree: true });
+
 // Same idea but for a 'YYYY-MM' month key → "September 2026", and sorts
 // correctly since the key itself is still chronological.
 function formatMonthLabel(monthKey) {
@@ -3964,7 +4027,7 @@ async function downloadImportTemplate() {
   const XLSX = window.XLSX;
   const headers = STUDENT_FIELDS.map(f => f.label + (f.required?' *':''));
   const example = ['EL26101','Ravi','Kumar','9876543210','Tally with GST','Morning (8:00 AM - 10:00 AM)',
-    '2026-07-01','2005-03-15','ravi@gmail.com','12 Main St','Suresh Kumar','9123456789','5000','0','Offline','B.Com',''];
+    '01-07-2026','15-03-2005','ravi@gmail.com','12 Main St','Suresh Kumar','9123456789','5000','0','Offline','B.Com',''];
   const ws = XLSX.utils.aoa_to_sheet([headers, example]);
   ws['!cols'] = headers.map(()=>({wch:22}));
   const wb = XLSX.utils.book_new();
@@ -5792,7 +5855,7 @@ async function downloadFeeReportExcel() {
     [],
     ['Receipt No','Date','Student','Roll No','Course','Amount (₹)','Mode','Collected By']
   ];
-  const dataRows = _lastFeeReport.rows.map(p => [p.receiptNo, p.date, p.studentName, p.rollNo, p.course, parseFloat(p.amount), p.mode, p.recordedBy||'']);
+  const dataRows = _lastFeeReport.rows.map(p => [p.receiptNo, formatDateDMY(p.date), p.studentName, p.rollNo, p.course, parseFloat(p.amount), p.mode, p.recordedBy||'']);
   const ws = XLSX.utils.aoa_to_sheet([...header, ...dataRows]);
   ws['!cols'] = [{wch:14},{wch:12},{wch:22},{wch:10},{wch:18},{wch:12},{wch:14},{wch:16}];
   const wb = XLSX.utils.book_new();
@@ -6665,7 +6728,7 @@ function buildDueTable(bodyId, totalId, canEdit) {
       <td style="font-size:12px;">${s.course}</td>
       <td style="font-weight:700;color:var(--red);">₹${balance.toLocaleString('en-IN')}</td>
       <td>
-        <div style="font-weight:600;">${dueDate || '—'}</div>
+        <div style="font-weight:600;">${dueDate ? formatDateDMY(dueDate) : '—'}</div>
         <div style="font-size:11px;color:var(--muted);">${installLabel}</div>
       </td>
       <td>${statusBadge(status)}</td>
@@ -6726,9 +6789,18 @@ async function exportToExcel() {
   const timestamp = new Date().toLocaleString('en-IN');
   let sheetCount = 0;
 
-  function addSheet(name, data, cols, headers) {
+  function addSheet(name, data, cols, headers, dateCols) {
     if (!data || !data.length) return;
-    const rows = [headers || cols, ...data.map(row => cols.map(c => row[c] !== undefined && row[c] !== null ? row[c] : ''))];
+    const dateColSet = new Set(dateCols || []);
+    const rows = [headers || cols, ...data.map(row => cols.map(c => {
+      const v = row[c];
+      if (v === undefined || v === null || v === '') return '';
+      // Dates are written as dd-mm-yyyy TEXT (not a native date cell) so
+      // Excel can't silently reformat them to mm/dd/yyyy using the
+      // computer's regional settings when the file is opened.
+      if (dateColSet.has(c)) return formatDateDMY(v) === '—' ? v : formatDateDMY(v);
+      return v;
+    }))];
     const ws = XLSX.utils.aoa_to_sheet(rows);
     // Auto column width
     const colWidths = rows[0].map((_, ci) => ({ wch: Math.max(...rows.map(r => String(r[ci]||'').length), 10) + 2 }));
@@ -6740,17 +6812,20 @@ async function exportToExcel() {
   if (scope === 'all' || scope === 'students') {
     addSheet('Students', students,
       ['rollNo','fname','lname','dob','gender','mobile','email','address','course','batch','courseType','mode','admDate','duration','totalFees','concession','guardian','guardianMobile','qual','idType','remarks','status'],
-      ['Roll No','First Name','Last Name','DOB','Gender','Mobile','Email','Address','Course','Batch','Course Type','Mode','Admission Date','Duration','Total Fees','Concession','Guardian','Guardian Mobile','Qualification','ID Type','Remarks','Status']);
+      ['Roll No','First Name','Last Name','DOB','Gender','Mobile','Email','Address','Course','Batch','Course Type','Mode','Admission Date','Duration','Total Fees','Concession','Guardian','Guardian Mobile','Qualification','ID Type','Remarks','Status'],
+      ['dob','admDate']);
   }
   if (scope === 'all' || scope === 'payments') {
     addSheet('Payments', payments,
       ['receiptNo','date','rollNo','studentName','course','amount','mode','reference','remarks','collectedBy'],
-      ['Receipt No','Date','Roll No','Student Name','Course','Amount (₹)','Mode','Reference','Remarks','Collected By']);
+      ['Receipt No','Date','Roll No','Student Name','Course','Amount (₹)','Mode','Reference','Remarks','Collected By'],
+      ['date']);
   }
   if (scope === 'all' || scope === 'attendance') {
     addSheet('Attendance', attendance,
       ['date','rollNo','studentName','course','batch','status','topic','software','recordedBy'],
-      ['Date','Roll No','Student Name','Course','Batch','Status','Topic Covered','Software Used','Recorded By']);
+      ['Date','Roll No','Student Name','Course','Batch','Status','Topic Covered','Software Used','Recorded By'],
+      ['date']);
   }
   if (scope === 'all' || scope === 'marks') {
     addSheet('Marks', marks,
@@ -6765,18 +6840,22 @@ async function exportToExcel() {
   if (scope === 'all' || scope === 'finance') {
     addSheet('Incomes', incomes,
       ['date','source','amount','remarks','enteredBy'],
-      ['Date','Source','Amount (₹)','Remarks','Entered By']);
+      ['Date','Source','Amount (₹)','Remarks','Entered By'],
+      ['date']);
     addSheet('Expenses', expenses,
       ['date','category','amount','paidTo','remarks','enteredBy'],
-      ['Date','Category','Amount (₹)','Paid To','Remarks','Entered By']);
+      ['Date','Category','Amount (₹)','Paid To','Remarks','Entered By'],
+      ['date']);
   }
   if (scope === 'all') {
     addSheet('Certificates', certificates,
       ['rollNo','studentName','course','certNo','givenDate','givenBy','status','updatedAt'],
-      ['Roll No','Student Name','Course','Cert No','Given Date','Given By','Status','Updated At']);
+      ['Roll No','Student Name','Course','Cert No','Given Date','Given By','Status','Updated At'],
+      ['givenDate']);
     addSheet('Absences', absences,
       ['date','rollNo','studentName','mobile','course','batch','reason','recordedBy'],
-      ['Date','Roll No','Student Name','Mobile','Course','Batch','Reason','Recorded By']);
+      ['Date','Roll No','Student Name','Mobile','Course','Batch','Reason','Recorded By'],
+      ['date']);
     // Summary sheet
     const summary = [
       ['Explore Institute Management — Data Export'],
@@ -6916,7 +6995,29 @@ function normalizeStudentRow(row) {
   out.lname = out.lname || '';
   if (out.totalFees !== undefined) out.totalFees = parseFloat(out.totalFees) || 0;
   if (out.concession !== undefined) out.concession = parseFloat(out.concession) || 0;
+  // Whatever format the source spreadsheet used (mm/dd/yyyy, dd/mm/yyyy, a
+  // native Excel date cell, etc.), normalize to ISO so every part of the
+  // app displays it consistently as dd-mm-yyyy.
+  if (out.admDate) out.admDate = parseFlexibleDate(out.admDate);
+  if (out.dob) out.dob = parseFlexibleDate(out.dob);
   return out;
+}
+
+// Runs parseFlexibleDate over the given field names in every row — used
+// for the bulk Payments/Attendance/Salary importers below, which (unlike
+// the Admission wizard's mapped import) take spreadsheet columns mostly
+// as-is and so would otherwise store whatever date format the source
+// Excel file happened to use.
+function normalizeDateFields(rows, keys) {
+  return rows.map(row => {
+    const out = { ...row };
+    keys.forEach(k => {
+      // Column names can vary in case/spacing across uploaded sheets.
+      const matchKey = Object.keys(out).find(rk => rk.trim().toLowerCase() === k);
+      if (matchKey && out[matchKey]) out[matchKey] = parseFlexibleDate(out[matchKey]);
+    });
+    return out;
+  });
 }
 
 async function importFromExcel(event) {
@@ -6982,10 +7083,10 @@ async function importFromExcel(event) {
       await DB.set('students', students); imported = students.length;
       statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} students.</div>`;
     } else if (looksLike('payment')) {
-      payments = rows; await DB.set('payments', payments); imported = payments.length;
+      payments = normalizeDateFields(rows, ['date']); await DB.set('payments', payments); imported = payments.length;
       statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} payments.</div>`;
     } else if (looksLike('attendance')) {
-      attendance = rows; await DB.set('attendance', attendance); imported = attendance.length;
+      attendance = normalizeDateFields(rows, ['date']); await DB.set('attendance', attendance); imported = attendance.length;
       statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} attendance records.</div>`;
     } else if (looksLike('marks')) {
       marks = rows; await DB.set('marks', marks); imported = marks.length;
@@ -7747,7 +7848,7 @@ function loadMyProfile() {
   document.getElementById('mp-batch').textContent = (s.batch||'').split('(')[0].trim();
   document.getElementById('mp-mobile').textContent = s.mobile || '—';
   document.getElementById('mp-email').textContent = s.email || '—';
-  document.getElementById('mp-dob').textContent = s.dob || '—';
+  document.getElementById('mp-dob').textContent = s.dob ? formatDateDMY(s.dob) : '—';
   document.getElementById('mp-admitted').textContent = formatDateDMY(s.admDate);
 
   // Marks
