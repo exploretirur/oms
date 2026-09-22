@@ -2917,11 +2917,13 @@ function listenCol(col, onData, constraints) {
     snap => { onData(snap.docs.map(d => ({ ...d.data(), id: d.id }))); },
     err => {
       console.warn('Listener error', col, err);
-      if (err.code === 'permission-denied') {
-        showAlert('global-alert','error','❌ Access denied for "'+col+'" — your account may not have permission to view this data.');
-      } else if (err.code === 'unavailable') {
+      if (err.code === 'unavailable') {
         showAlert('global-alert','error','❌ Connection lost. Reconnecting…');
       }
+      // Permission-denied errors are no longer shown on screen — they're
+      // expected when a role's Firestore rules don't allow a collection
+      // (e.g. weekly_planner for some roles), and the resulting empty
+      // list on the page is enough feedback without a red banner.
     }
   );
 }
