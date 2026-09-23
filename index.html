@@ -612,7 +612,7 @@ tr:hover td { background: #f8fafd; }
     <span class="icon">👤</span> User Management
   </div>
   <div class="nav-item" id="nav-import-students" onclick="navTo('import-students',this)">
-    <span class="icon">📥</span> Import Data
+    <span class="icon">📥</span> Import Students
   </div>
   <div class="nav-item" id="nav-settings" onclick="navTo('settings',this)">
     <span class="icon">⚙️</span> Configuration
@@ -2386,7 +2386,7 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-success" onclick="exportToExcel()">⬇️ Download Excel Workbook (.xlsx)</button>
-          <button class="btn btn-outline" onclick="navTo('import-students',document.getElementById('nav-import-students'))">⬆️ Import Data from Excel</button>
+          <button class="btn btn-outline" onclick="navTo('import-students',document.getElementById('nav-import-students'))">⬆️ Import Students from Excel</button>
         </div>
         <div id="excel-status" style="margin-top:12px;"></div>
         <div class="alert alert-info" style="margin-top:16px;">
@@ -2396,22 +2396,13 @@ tr:hover td { background: #f8fafd; }
 
     </div>
 
-    <!-- ===== IMPORT DATA ===== -->
+    <!-- ===== IMPORT STUDENTS ===== -->
     <div id="page-import-students" class="page">
       <div id="import-alert"></div>
       <div class="card">
-        <div class="card-header"><div class="card-title"><span class="icon">📦</span> What are you importing?</div></div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Choose the type of data first — students, or any of the other details you already export to Excel (attendance, absentees, payments, marks, salary, income &amp; expenses, certificates). Or pick <strong>📦 All Categories</strong> to restore everything from one workbook in a single go (e.g. after clearing Firebase). Each one is added to Firebase without erasing what's already there.</p>
-        <div class="form-group" style="max-width:420px;">
-          <label>Data Type</label>
-          <select id="import-type-select" onchange="switchImportType(this.value)"></select>
-        </div>
-        <div id="import-type-note" style="font-size:12.5px;color:var(--muted);margin-top:8px;"></div>
-      </div>
-      <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">1️⃣</span> Download Template (Optional)</div></div>
         <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Download a pre-formatted template with the exact column names the system expects. Fill it and upload it back.</p>
-        <button class="btn btn-outline" id="import-template-btn" onclick="downloadImportTemplate()">⬇️ Download Import Template (.xlsx)</button>
+        <button class="btn btn-outline" onclick="downloadImportTemplate()">⬇️ Download Student Import Template (.xlsx)</button>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">2️⃣</span> Upload Your Excel File</div></div>
@@ -2449,15 +2440,15 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div class="action-bar" style="margin-top:16px;">
           <button class="btn btn-outline" onclick="resetImport()">↩ Start Over</button>
-          <button class="btn btn-teal" onclick="confirmImport()" id="import-confirm-btn">✅ Import All</button>
+          <button class="btn btn-teal" onclick="confirmImport()" id="import-confirm-btn">✅ Import All Students</button>
         </div>
       </div>
       <div class="card" id="import-done-card" style="display:none;text-align:center;padding:32px;">
         <div style="font-size:48px;margin-bottom:12px;">🎉</div>
         <div id="import-done-msg" style="font-size:16px;font-weight:600;color:var(--green);margin-bottom:8px;"></div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">Your data is now live in Firebase and visible to all staff.</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">All students are now live in Student Records and visible to all staff.</div>
         <div style="display:flex;gap:10px;justify-content:center;">
-          <button class="btn btn-teal" id="import-done-view-btn" onclick="navTo('students',document.getElementById('nav-students'))">👥 View Student Records</button>
+          <button class="btn btn-teal" onclick="navTo('students',document.getElementById('nav-students'))">👥 View Student Records</button>
           <button class="btn btn-outline" onclick="resetImport()">📥 Import More</button>
         </div>
       </div>
@@ -3712,7 +3703,7 @@ function navTo(page, el) {
     certificates:'Certificates', attendance:'Attendance Entry', 'absent-list':'Absent List',
     'attendance-report':'Attendance Report', 'student-dashboard':'Student Dashboard',
     marks:'Marks Entry', master:'Master Data', salary:'Staff Salary',
-    users:'User Management', 'import-students':'Import Data from Excel',
+    users:'User Management', 'import-students':'Import Students from Excel',
     settings:'Configuration', calendar:'Calendar', resources:'Study Materials',
     'my-dashboard':'My Dashboard', 'my-profile':'My Profile', 'my-attendance':'My Attendance', 'study-material':'Study Material',
     placement:'Job Placement Report', 'staff-attendance':'Staff Attendance', 'weekly-planner':'Weekly Planner'
@@ -3787,7 +3778,7 @@ function navTo(page, el) {
     }
     renderAbsentHistory();
   }
-  if (page === 'import-students') { populateImportTypeSelect(); resetImport(); }
+  if (page === 'import-students') resetImport();
   if (page === 'calendar') renderCalendar();
   if (page === 'resources') renderResourcesPage();
   if (page === 'my-dashboard') loadMyDashboard();
@@ -3861,6 +3852,22 @@ function enhanceDateInput(input) {
   };
   input.addEventListener('input', sync);
   input.addEventListener('change', sync);
+  // Typing/picking a date fires 'input'/'change', but the app sets dates
+  // on these fields programmatically all over the place too — e.g.
+  // document.getElementById('abs-date').value = todayStr() — and a plain
+  // JS assignment to .value does NOT fire either event. Without this, the
+  // overlay would silently go stale: the native input holds the real
+  // date underneath, but since its own text is deliberately hidden
+  // (see the CSS), the field would just look empty. Overriding the
+  // 'value' accessor on this instance (shadowing the prototype one)
+  // catches every .value = ... assignment, from any part of the app, and
+  // re-syncs the label right after.
+  const nativeDesc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  Object.defineProperty(input, 'value', {
+    get() { return nativeDesc.get.call(input); },
+    set(v) { nativeDesc.set.call(input, v); sync(); },
+    configurable: true
+  });
   sync();
 }
 function enhanceAllDateInputs(root) {
@@ -4025,304 +4032,19 @@ const STUDENT_FIELDS = [
   { key:'remarks',    label:'Remarks',               required:false },
 ];
 let _importRows=[], _importHeaders=[], _importMapped=[];
-let currentImportType = 'students';
-// State for the "All Categories" full-workbook import:
-// _importAllData[key]  = { headers, rows, sheetName }  — raw sheet data found for that category
-// _importAllMapped[key] = { mapped, colMap }            — auto-mapped, validated rows ready to write
-let _importAllData = {}, _importAllMapped = {};
-
-// ------------------------------------------------------------------
-// IMPORT_TYPES — table-driven config for every data type that can be
-// bulk-imported from Excel, in addition to Students. Each entry mirrors
-// the columns exportToExcel() already writes out for that module, so a
-// file exported from this app's own "Export to Excel" backup can be
-// re-imported (or edited and re-imported) without any manual remapping.
-// `collection` is the window.* array name; `dbKey` is the Firebase
-// collection name used by DB.set/DB.saveArray. `linkStudent: true` means
-// rows are matched to an existing student by Roll No, auto-filling
-// name/course/batch/mobile when the sheet doesn't already have them.
-// `dedupe(rec, existing)` returns a human-readable reason string when a
-// record looks like a duplicate of one already in Firebase (or blank/
-// null when it's fine) — used to warn during preview and to skip exact
-// repeats during the actual import so re-uploading the same file twice
-// doesn't double up records.
-// ------------------------------------------------------------------
-const IMPORT_TYPES = {
-  students: {
-    label:'Students', icon:'👥', collection:'students', dbKey:'students',
-    fields: STUDENT_FIELDS, dateFields:['admDate','dob'], linkStudent:false,
-    note:'New student admissions. Roll No must be unique and not already in the system.',
-    exampleRow: ['EL26101','Ravi','Kumar','9876543210','Tally with GST','Morning (8:00 AM - 10:00 AM)',
-      '01-07-2026','15-03-2005','ravi@gmail.com','12 Main St','Suresh Kumar','9123456789','5000','0','Offline','B.Com','']
-  },
-  payments: {
-    label:'Payments', icon:'💰', collection:'payments', dbKey:'payments', linkStudent:true,
-    dateFields:['date'],
-    fields:[
-      {key:'receiptNo', label:'Receipt No', required:true},
-      {key:'date', label:'Payment Date', required:true},
-      {key:'rollNo', label:'Student Roll No', required:true},
-      {key:'studentName', label:'Student Name', required:false},
-      {key:'course', label:'Course', required:false},
-      {key:'amount', label:'Amount (₹)', required:true},
-      {key:'mode', label:'Payment Mode', required:false},
-      {key:'reference', label:'Reference / Txn ID', required:false},
-      {key:'remarks', label:'Remarks', required:false},
-      {key:'collectedBy', label:'Collected By', required:false},
-    ],
-    note:'Fee payment receipts. Roll No links each payment to a student.',
-    dedupe:(rec, existing)=> rec.receiptNo && existing.some(e=>String(e.receiptNo)===String(rec.receiptNo)) ? 'Receipt No '+rec.receiptNo+' already exists' : null,
-    exampleRow:['RC1001','01-07-2026','EL26101','Ravi Kumar','Tally with GST','5000','Cash','','','Office']
-  },
-  attendance: {
-    label:'Attendance', icon:'🗓️', collection:'attendance', dbKey:'attendance', linkStudent:true,
-    dateFields:['date'],
-    fields:[
-      {key:'date', label:'Date', required:true},
-      {key:'rollNo', label:'Student Roll No', required:true},
-      {key:'studentName', label:'Student Name', required:false},
-      {key:'course', label:'Course', required:false},
-      {key:'batch', label:'Batch', required:false},
-      {key:'status', label:'Status (Present/Absent/Late)', required:true},
-      {key:'topic', label:'Topic Covered', required:false},
-      {key:'software', label:'Software Used', required:false},
-      {key:'recordedBy', label:'Recorded By', required:false},
-    ],
-    note:'Daily class attendance. One row per student per day.',
-    dedupe:(rec, existing)=> rec.rollNo && rec.date && existing.some(e=>e.rollNo===rec.rollNo && e.date===rec.date) ? 'Attendance for '+rec.rollNo+' on '+formatDateDMY(rec.date)+' already recorded' : null,
-    exampleRow:['01-07-2026','EL26101','Ravi Kumar','Tally with GST','Morning (8:00 AM - 10:00 AM)','Present','GST Returns','Tally Prime','Admin']
-  },
-  absences: {
-    label:'Absences', icon:'🚫', collection:'absences', dbKey:'absences', linkStudent:true,
-    dateFields:['date'],
-    fields:[
-      {key:'date', label:'Date', required:true},
-      {key:'rollNo', label:'Student Roll No', required:true},
-      {key:'studentName', label:'Student Name', required:false},
-      {key:'mobile', label:'Mobile', required:false},
-      {key:'course', label:'Course', required:false},
-      {key:'batch', label:'Batch', required:false},
-      {key:'reason', label:'Reason', required:false},
-      {key:'recordedBy', label:'Recorded By', required:false},
-    ],
-    note:'The separate absentee log (used for follow-up calls), not the same as an Attendance row marked Absent.',
-    dedupe:(rec, existing)=> rec.rollNo && rec.date && existing.some(e=>e.rollNo===rec.rollNo && e.date===rec.date) ? 'Absence for '+rec.rollNo+' on '+formatDateDMY(rec.date)+' already recorded' : null,
-    exampleRow:['01-07-2026','EL26101','Ravi Kumar','9876543210','Tally with GST','Morning (8:00 AM - 10:00 AM)','Sick leave','Admin']
-  },
-  marks: {
-    label:'Marks', icon:'📝', collection:'marks', dbKey:'marks', linkStudent:true,
-    dateFields:[],
-    fields:[
-      {key:'rollNo', label:'Student Roll No', required:true},
-      {key:'studentName', label:'Student Name', required:false},
-      {key:'course', label:'Course', required:false},
-      {key:'batch', label:'Batch', required:false},
-      {key:'subject', label:'Subject', required:true},
-      {key:'maxMarks', label:'Max Marks', required:true},
-      {key:'obtainedMarks', label:'Obtained Marks', required:true},
-      {key:'grade', label:'Grade', required:false},
-      {key:'enteredBy', label:'Entered By', required:false},
-    ],
-    note:'Exam / test marks, one row per student per subject.',
-    dedupe:(rec, existing)=> rec.rollNo && rec.subject && existing.some(e=>e.rollNo===rec.rollNo && e.subject===rec.subject) ? 'Marks for '+rec.rollNo+' in '+rec.subject+' already exist' : null,
-    exampleRow:['EL26101','Ravi Kumar','Tally with GST','Morning (8:00 AM - 10:00 AM)','Accounting Basics','100','82','A','Faculty']
-  },
-  salary: {
-    label:'Salary', icon:'💵', collection:'salaries', dbKey:'salaries', linkStudent:false,
-    dateFields:[],
-    fields:[
-      {key:'month', label:'Month (e.g. 2026-07)', required:true},
-      {key:'staffName', label:'Staff Name', required:true},
-      {key:'basic', label:'Basic (₹)', required:false},
-      {key:'workDays', label:'Work Days', required:false},
-      {key:'presentDays', label:'Present Days', required:false},
-      {key:'leaveDays', label:'Leave Days', required:false},
-      {key:'otHours', label:'OT Hours', required:false},
-      {key:'otDays', label:'OT Days', required:false},
-      {key:'otAmount', label:'OT Amount', required:false},
-      {key:'advance', label:'Advance', required:false},
-      {key:'deductions', label:'Deductions', required:false},
-      {key:'bonus', label:'Bonus', required:false},
-      {key:'grossPay', label:'Gross Pay', required:false},
-      {key:'netPay', label:'Net Pay', required:false},
-      {key:'remarks', label:'Remarks', required:false},
-    ],
-    note:'Staff salary sheet, one row per staff member per month.',
-    dedupe:(rec, existing)=> rec.month && rec.staffName && existing.some(e=>e.month===rec.month && e.staffName===rec.staffName) ? 'Salary for '+rec.staffName+' in '+rec.month+' already exists' : null,
-    exampleRow:['2026-07','Suresh Kumar','20000','26','25','1','4','0.5','500','0','0','1000','21500','21500','']
-  },
-  incomes: {
-    label:'Other Income', icon:'📈', collection:'incomes', dbKey:'incomes', linkStudent:false,
-    dateFields:['date'],
-    fields:[
-      {key:'date', label:'Date', required:true},
-      {key:'source', label:'Source', required:true},
-      {key:'amount', label:'Amount (₹)', required:true},
-      {key:'remarks', label:'Remarks', required:false},
-      {key:'enteredBy', label:'Entered By', required:false},
-    ],
-    note:'Non-fee income entries (finance module).',
-    dedupe:()=>null,
-    exampleRow:['01-07-2026','Certificate Fee','500','','Office']
-  },
-  expenses: {
-    label:'Expenses', icon:'📉', collection:'expenses', dbKey:'expenses', linkStudent:false,
-    dateFields:['date'],
-    fields:[
-      {key:'date', label:'Date', required:true},
-      {key:'category', label:'Category', required:true},
-      {key:'amount', label:'Amount (₹)', required:true},
-      {key:'paidTo', label:'Paid To', required:false},
-      {key:'remarks', label:'Remarks', required:false},
-      {key:'enteredBy', label:'Entered By', required:false},
-    ],
-    note:'Institute expenses (finance module).',
-    dedupe:()=>null,
-    exampleRow:['01-07-2026','Electricity','1200','KSEB','','Admin']
-  },
-  certificates: {
-    label:'Certificates', icon:'🎓', collection:'certificates', dbKey:'certificates', linkStudent:true,
-    dateFields:['givenDate'],
-    fields:[
-      {key:'rollNo', label:'Student Roll No', required:true},
-      {key:'studentName', label:'Student Name', required:false},
-      {key:'course', label:'Course', required:false},
-      {key:'certNo', label:'Certificate No', required:false},
-      {key:'givenDate', label:'Given Date', required:false},
-      {key:'givenBy', label:'Given By', required:false},
-      {key:'status', label:'Status', required:false},
-    ],
-    note:'Certificate issue records.',
-    dedupe:(rec, existing)=> rec.rollNo && rec.certNo && existing.some(e=>e.rollNo===rec.rollNo && e.certNo===rec.certNo) ? 'Certificate '+rec.certNo+' for '+rec.rollNo+' already exists' : null,
-    exampleRow:['EL26101','Ravi Kumar','Tally with GST','CERT-2026-101','15-09-2026','Director','Issued']
-  },
-};
-
-// Shared column-name hints reused across every import type above, so the
-// mapping step auto-matches common Excel headers ("Roll No.", "Fee Paid",
-// "Marks Obtained"...) onto the right field regardless of which data
-// type is selected.
-const FIELD_HINTS = {
-  rollNo:['rollno','roll','admissionno','admno','studentid','regno','registrationno'],
-  fname:['firstname','first','fname','studentname','name'],
-  lname:['lastname','last','lname','surname'],
-  mobile:['mobile','phone','contact','mob','cell'],
-  course:['course','program'],
-  batch:['batch','timing','time','slot'],
-  admDate:['admission','admdate','joining','enroll','dateofadmission'],
-  dob:['dob','birth','birthdate','dateofbirth'],
-  email:['email','mail'],
-  address:['address','addr'],
-  guardian:['guardian','parent','father','mother'],
-  guardianMobile:['guardianmobile','parentmobile','parentphone'],
-  totalFees:['totalfees','fee','coursefee','total'],
-  concession:['concession','discount'],
-  mode:['mode','learning','paymentmode'],
-  qual:['qualification','edu','degree'],
-  courseType:['coursetype','batchtype','track'],
-  duration:['duration','months'],
-  gender:['gender','sex'],
-  idType:['idtype','idproof','proof'],
-  idNumber:['idnumber','idno','proofnumber'],
-  status:['status','active','attendancestatus'],
-  remarks:['remarks','notes','comment'],
-  date:['date','paymentdate','attendancedate'],
-  receiptNo:['receiptno','receipt','invoiceno','billno'],
-  studentName:['studentname','name'],
-  amount:['amount','amountpaid','feespaid','paid'],
-  reference:['reference','txnid','transactionid','utr','chequeno'],
-  collectedBy:['collectedby','receivedby','staff'],
-  topic:['topiccovered','topic','lesson','chapter'],
-  software:['softwareused','software','tool','application'],
-  recordedBy:['recordedby','markedby','takenby'],
-  reason:['reason','cause'],
-  subject:['subject','paper'],
-  maxMarks:['maxmarks','totalmarks','max'],
-  obtainedMarks:['obtainedmarks','marksobtained','scored','marks'],
-  grade:['grade'],
-  enteredBy:['enteredby','staff'],
-  month:['month','salarymonth','period'],
-  staffName:['staffname','employeename','employee','name'],
-  basic:['basicpay','basic'],
-  workDays:['workdays','totaldays'],
-  presentDays:['presentdays','present'],
-  leaveDays:['leavedays','leave'],
-  otHours:['othours','overtimehours'],
-  otDays:['otdays','overtimedays'],
-  otAmount:['otamount','overtimeamount'],
-  advance:['advance'],
-  deductions:['deductions','deduction'],
-  bonus:['bonus','incentive'],
-  grossPay:['grosspay','gross'],
-  netPay:['netpay','takehome','net'],
-  source:['incomesource','source'],
-  category:['expensetype','category','head'],
-  paidTo:['paidto','vendor','payee'],
-  certNo:['certificateno','certno','certnumber'],
-  givenDate:['givendate','issuedate','issueddate'],
-  givenBy:['givenby','issuedby'],
-};
-
-// Numeric fields that should be stored as numbers, not strings, so amounts
-// add up correctly on dashboards/reports built from imported records.
-const IMPORT_NUMERIC_FIELDS = new Set(['amount','maxMarks','obtainedMarks','basic','workDays','presentDays',
-  'leaveDays','otHours','otDays','otAmount','advance','deductions','bonus','grossPay','netPay','totalFees','concession']);
-
-// Fixed processing order for the "All Categories" full-workbook import.
-// Students go first so every other sheet can link/auto-fill by Roll No
-// against students that were just imported in the same run.
-const IMPORT_ALL_ORDER = ['students','payments','attendance','absences','marks','salary','incomes','expenses','certificates'];
-
-function populateImportTypeSelect() {
-  const sel = document.getElementById('import-type-select');
-  if (!sel || sel.options.length) return; // already populated
-  sel.innerHTML = '<option value="all">📦 All Categories (Full Import — one workbook, every sheet)</option>' +
-    Object.entries(IMPORT_TYPES).map(([key,def]) =>
-    '<option value="'+key+'">'+def.icon+' '+def.label+'</option>').join('');
-  sel.value = currentImportType;
-}
-
-function switchImportType(type) {
-  if (type !== 'all' && !IMPORT_TYPES[type]) return;
-  currentImportType = type;
-  resetImport();
-  const tb = document.getElementById('import-template-btn');
-  const note = document.getElementById('import-type-note');
-  const viewBtn = document.getElementById('import-done-view-btn');
-  if (type === 'all') {
-    if (tb) tb.innerHTML = '⬇️ Download Full Import Template (.xlsx — all categories)';
-    if (note) note.textContent = 'Upload ONE Excel workbook with a separate sheet for each category — sheet names must match exactly: '
-      + IMPORT_ALL_ORDER.map(k=>IMPORT_TYPES[k].label).join(', ') + '. Use the template button above to get the correct sheet names and columns. '
-      + 'Missing sheets are simply skipped. Students are imported first so the rest can link to them by Roll No.';
-    if (viewBtn) { viewBtn.style.display=''; viewBtn.textContent='📊 Go to Dashboard'; viewBtn.onclick = function(){ navTo('dashboard',document.getElementById('nav-dashboard')); }; }
-    return;
-  }
-  const def = IMPORT_TYPES[type];
-  if (tb) tb.innerHTML = '⬇️ Download '+def.label+' Import Template (.xlsx)';
-  if (note) note.textContent = def.note || '';
-  if (viewBtn) {
-    if (type === 'students') { viewBtn.style.display=''; viewBtn.textContent='👥 View Student Records'; viewBtn.onclick = function(){ navTo('students',document.getElementById('nav-students')); }; }
-    else viewBtn.style.display='none';
-  }
-}
 
 function resetImport() {
   _importRows=[]; _importHeaders=[]; _importMapped=[];
-  _importAllData={}; _importAllMapped={};
   const fn=document.getElementById('import-file-name');       if(fn) fn.textContent='';
   const fi=document.getElementById('import-file-input');      if(fi) fi.value='';
   const mc=document.getElementById('import-mapping-card');    if(mc) mc.style.display='none';
   const pc=document.getElementById('import-preview-card');    if(pc) pc.style.display='none';
   const dc=document.getElementById('import-done-card');       if(dc) dc.style.display='none';
   const al=document.getElementById('import-alert');           if(al) al.innerHTML='';
-  const cb=document.getElementById('import-confirm-btn');
-  if (cb) {
-    cb.disabled=false;
-    cb.textContent = currentImportType==='all' ? '✅ Import All Categories' : '✅ Import All '+(IMPORT_TYPES[currentImportType]?IMPORT_TYPES[currentImportType].label:'');
-  }
+  const cb=document.getElementById('import-confirm-btn');     if(cb){ cb.disabled=false; cb.textContent='✅ Import All Students'; }
 }
 
-async function downloadStudentTemplate() {
+async function downloadImportTemplate() {
   await loadXLSXLib();
   const XLSX = window.XLSX;
   const headers = STUDENT_FIELDS.map(f => f.label + (f.required?' *':''));
@@ -4333,39 +4055,6 @@ async function downloadStudentTemplate() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Students');
   XLSX.writeFile(wb, 'Student_Import_Template.xlsx');
-}
-
-async function downloadImportTemplate() {
-  if (currentImportType === 'all') { await downloadFullImportTemplate(); return; }
-  if (currentImportType === 'students') { await downloadStudentTemplate(); return; }
-  await loadXLSXLib();
-  const XLSX = window.XLSX;
-  const def = IMPORT_TYPES[currentImportType];
-  const headers = def.fields.map(f => f.label + (f.required?' *':''));
-  const ws = XLSX.utils.aoa_to_sheet([headers, def.exampleRow]);
-  ws['!cols'] = headers.map(()=>({wch:22}));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, def.label);
-  XLSX.writeFile(wb, def.label.replace(/\s+/g,'_') + '_Import_Template.xlsx');
-}
-
-// One workbook, one sheet per category, sheet names matching each
-// IMPORT_TYPES label exactly (that's how handleImportFileAll recognizes
-// them on the way back in). This is the counterpart to exportToExcel()'s
-// scope==='all' — fill it in (or replace it with your own real export)
-// and re-upload it via the "All Categories" import type.
-async function downloadFullImportTemplate() {
-  await loadXLSXLib();
-  const XLSX = window.XLSX;
-  const wb = XLSX.utils.book_new();
-  IMPORT_ALL_ORDER.forEach(key => {
-    const def = IMPORT_TYPES[key];
-    const headers = def.fields.map(f => f.label + (f.required?' *':''));
-    const ws = XLSX.utils.aoa_to_sheet([headers, def.exampleRow]);
-    ws['!cols'] = headers.map(()=>({wch:22}));
-    XLSX.utils.book_append_sheet(wb, ws, def.label);
-  });
-  XLSX.writeFile(wb, 'Full_Data_Import_Template.xlsx');
 }
 
 async function loadXLSXLib() {
@@ -4380,7 +4069,6 @@ async function loadXLSXLib() {
 
 async function handleImportFile(file) {
   if (!file) return;
-  if (currentImportType === 'all') { await handleImportFileAll(file); return; }
   resetImport();
   document.getElementById('import-file-name').innerHTML =
     '📄 <strong>' + file.name + '</strong> (' + (file.size/1024).toFixed(1) + ' KB)';
@@ -4399,137 +4087,7 @@ async function handleImportFile(file) {
   } catch(err) { showAlert('import-alert','error','❌ Could not read file: ' + err.message); }
 }
 
-// ------------------------------------------------------------------
-// ALL-CATEGORIES FULL IMPORT
-// Reads every sheet in the uploaded workbook, matches each sheet name to
-// a category by its IMPORT_TYPES label (case/space/punctuation-insensitive,
-// same as exportToExcel() and downloadFullImportTemplate() sheet names),
-// and auto-maps each sheet's columns using the same FIELD_HINTS table the
-// single-category mapping screen uses — so there's no manual mapping step
-// for a full restore. Unrecognized or missing sheets are simply skipped.
-// ------------------------------------------------------------------
-async function handleImportFileAll(file) {
-  resetImport();
-  document.getElementById('import-file-name').innerHTML =
-    '📄 <strong>' + file.name + '</strong> (' + (file.size/1024).toFixed(1) + ' KB)';
-  try {
-    await loadXLSXLib();
-    const buf = await file.arrayBuffer();
-    const wb  = window.XLSX.read(buf, { type:'array', cellDates:true });
-    const normSheet = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-    const typeBySheet = {};
-    Object.entries(IMPORT_TYPES).forEach(([key,def]) => { typeBySheet[normSheet(def.label)] = key; });
-
-    _importAllData = {};
-    let sheetsMatched = 0, rowsTotal = 0;
-    wb.SheetNames.forEach(sheetName => {
-      const key = typeBySheet[normSheet(sheetName)];
-      if (!key) return; // e.g. a "Summary" sheet, or a name that doesn't match a category
-      const ws  = wb.Sheets[sheetName];
-      const raw = window.XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
-      if (raw.length < 2) return;
-      const headers = raw[0].map(h => String(h).trim());
-      const rows = raw.slice(1).filter(r => r.some(c => String(c).trim() !== ''));
-      if (!rows.length) return;
-      _importAllData[key] = { headers, rows, sheetName };
-      sheetsMatched++; rowsTotal += rows.length;
-    });
-
-    if (!sheetsMatched) {
-      showAlert('import-alert','error','❌ No recognized sheet names found. Sheets must be named exactly like the categories ('
-        + IMPORT_ALL_ORDER.map(k=>IMPORT_TYPES[k].label).join(', ') + ') — use the Download Template button above to get a file in the correct format.');
-      return;
-    }
-    document.getElementById('import-file-name').innerHTML +=
-      ' — <strong style="color:var(--green);">' + sheetsMatched + ' sheet(s), ' + rowsTotal + ' row(s) found</strong>';
-    buildAllPreview();
-  } catch(err) { showAlert('import-alert','error','❌ Could not read file: ' + err.message); }
-}
-
-// Auto-matches a sheet's header row to a category's field keys using the
-// same normalized-substring matching buildMappingUI() uses for the manual
-// single-category screen, just without the user in the loop.
-function autoMapColumns(def, headers) {
-  const norm = h => String(h||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-  const colMap = {};
-  headers.forEach((h, ci) => {
-    const n = norm(h);
-    for (const f of def.fields) {
-      const hs = FIELD_HINTS[f.key] || [f.key.toLowerCase()];
-      if (colMap[f.key] === undefined && hs.some(hint => n.includes(norm(hint)) || norm(hint).includes(n))) {
-        colMap[f.key] = ci;
-      }
-    }
-  });
-  return colMap;
-}
-
-// Turns raw sheet rows into field-keyed objects using an already-built
-// colMap, applying the same date parsing / cell coercion the manual
-// mapping flow uses.
-function mapRowsWithColMap(def, rows, colMap) {
-  return rows.map(row => {
-    const s = {};
-    Object.entries(colMap).forEach(([key, ci]) => {
-      let v = row[ci];
-      if ((def.dateFields||[]).includes(key)) s[key] = parseFlexibleDate(v);
-      else s[key] = (v instanceof Date) ? v.toISOString().slice(0,10) : String(v||'').trim();
-    });
-    return s;
-  });
-}
-
-// Builds a per-category summary (rows found → rows ready to import) for
-// every sheet that was recognized, and populates _importAllMapped ready
-// for confirmAllImport() to actually write to Firebase.
-function buildAllPreview() {
-  _importAllMapped = {};
-  let anyValid = false;
-  let rowsHtml = '';
-
-  IMPORT_ALL_ORDER.forEach(key => {
-    const def  = IMPORT_TYPES[key];
-    const data = _importAllData[key];
-    if (!data) {
-      rowsHtml += '<tr><td>'+def.icon+' '+def.label+'</td><td colspan="3" style="color:var(--muted);">— no sheet found, skipped</td></tr>';
-      return;
-    }
-    const colMap = autoMapColumns(def, data.headers);
-    const mappedKeys = Object.keys(colMap);
-    const missingReq = def.fields.filter(f => f.required && !mappedKeys.includes(f.key));
-    if (missingReq.length) {
-      rowsHtml += '<tr><td>'+def.icon+' '+def.label+'</td><td colspan="3" style="color:var(--red);">⚠️ Missing required column(s): '+missingReq.map(f=>f.label).join(', ')+' — sheet "'+data.sheetName+'" skipped</td></tr>';
-      return;
-    }
-    let mapped = mapRowsWithColMap(def, data.rows, colMap);
-    mapped = (key === 'students')
-      ? mapped.filter(s => s.fname || s.lname || s.mobile)
-      : mapped.filter(s => def.fields.filter(f=>f.required).every(f=>s[f.key]));
-
-    _importAllMapped[key] = { mapped, colMap };
-    if (mapped.length) anyValid = true;
-    rowsHtml += '<tr><td>'+def.icon+' '+def.label+'</td><td>'+data.rows.length+' row(s) in sheet</td>'
-      + '<td style="color:var(--green);font-weight:600;">'+mapped.length+' ready to import</td>'
-      + '<td style="color:var(--muted);">from "'+data.sheetName+'"</td></tr>';
-  });
-
-  document.getElementById('import-preview-head').innerHTML =
-    '<tr><th>Category</th><th>Sheet Rows</th><th>Ready to Import</th><th>Source</th></tr>';
-  document.getElementById('import-preview-body').innerHTML = rowsHtml;
-  document.getElementById('import-preview-count').textContent = 'Full import preview — one row per category';
-  document.getElementById('import-preview-warn').innerHTML = anyValid ? ''
-    : '<div class="alert alert-error">❌ No valid, ready-to-import rows found in any recognized sheet. Check required columns are present and filled in.</div>';
-  document.getElementById('import-confirm-btn').disabled = !anyValid;
-  document.getElementById('import-confirm-btn').textContent = '✅ Import All Categories';
-  document.getElementById('import-preview-card').style.display = 'block';
-  document.getElementById('import-preview-card').scrollIntoView({behavior:'smooth'});
-}
-
-// Builds the "Your Excel Column → System Field" mapping grid for
-// whichever data type is currently selected (IMPORT_TYPES[currentImportType]),
-// auto-matching columns using the shared FIELD_HINTS table.
 function buildMappingUI() {
-  const def = IMPORT_TYPES[currentImportType];
   const grid = document.getElementById('import-mapping-grid');
   grid.innerHTML =
     '<div style="font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;">Your Excel Column</div>' +
@@ -4537,13 +4095,37 @@ function buildMappingUI() {
     '<div style="font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;">System Field</div>';
 
   const norm = h => h.toLowerCase().replace(/[^a-z0-9]/g,'');
+  const hints = {
+    rollNo:    ['rollno','roll','admissionno','admno','studentid','regno','registrationno'],
+    fname:     ['firstname','first','fname','name','studentname'],
+    lname:     ['lastname','last','lname','surname'],
+    mobile:    ['mobile','phone','contact','mob','cell'],
+    course:    ['course','program','subject'],
+    batch:     ['batch','timing','time','slot'],
+    admDate:   ['admission','admdate','joining','enroll','date'],
+    dob:       ['dob','birth','birthdate'],
+    email:     ['email','mail'],
+    address:   ['address','addr'],
+    guardian:  ['guardian','parent','father','mother'],
+    guardianMobile: ['guardianmobile','parentmobile','parentphone'],
+    totalFees: ['fees','totalfees','fee','amount','total'],
+    concession:['concession','discount'],
+    mode:      ['mode','learning'],
+    qual:      ['qualification','edu','degree'],
+    courseType:['coursetype','batchtype','track'],
+    duration:  ['duration','months','durationmonths'],
+    gender:    ['gender','sex'],
+    idType:    ['idtype','idproof','proof'],
+    idNumber:  ['idnumber','idno','proofnumber','proofno'],
+    status:    ['status','active'],
+    remarks:   ['remarks','notes','comment'],
+  };
   const autoMatch = {};
   _importHeaders.forEach((h, ci) => {
     const n = norm(h);
-    for (const f of def.fields) {
-      const hs = FIELD_HINTS[f.key] || [f.key.toLowerCase()];
-      if (!autoMatch[f.key] && hs.some(hint => n.includes(norm(hint)) || norm(hint).includes(n))) {
-        autoMatch[f.key] = ci;
+    for (const [key, hs] of Object.entries(hints)) {
+      if (!autoMatch[key] && hs.some(hint => n.includes(norm(hint)) || norm(hint).includes(n))) {
+        autoMatch[key] = ci;
       }
     }
   });
@@ -4561,7 +4143,7 @@ function buildMappingUI() {
     const sel = document.createElement('select');
     sel.id = 'map-col-'+ci; sel.style.cssText='width:100%;font-size:12.5px;';
     sel.innerHTML = '<option value="">— Skip —</option>' +
-      def.fields.map(f=>'<option value="'+f.key+'">'+f.label+(f.required?' ✱':'')+'</option>').join('');
+      STUDENT_FIELDS.map(f=>'<option value="'+f.key+'">'+f.label+(f.required?' ✱':'')+'</option>').join('');
     const matched = Object.entries(autoMatch).find(([,v])=>v===ci);
     if (matched) sel.value = matched[0];
     grid.appendChild(sel);
@@ -4594,11 +4176,6 @@ function parseFlexibleDate(v) {
 window.parseFlexibleDate = parseFlexibleDate;
 
 function previewImport() {
-  if (currentImportType !== 'students') { previewGenericImport(); return; }
-  previewStudentImport();
-}
-
-function previewStudentImport() {
   const colMap={};
   _importHeaders.forEach((_,ci)=>{ const s=document.getElementById('map-col-'+ci); if(s&&s.value) colMap[ci]=s.value; });
   const mapped = Object.values(colMap);
@@ -4658,178 +4235,7 @@ function previewStudentImport() {
   document.getElementById('import-preview-card').scrollIntoView({behavior:'smooth'});
 }
 
-// ------------------------------------------------------------------
-// Generic preview for every non-student import type (payments,
-// attendance, absentees, marks, salary, income, expenses, certificates).
-// Duplicates found via def.dedupe() are only WARNED about here — they're
-// skipped (not blocked) at confirm time, so one clashing row doesn't stop
-// the rest of a batch from importing.
-// ------------------------------------------------------------------
-function previewGenericImport() {
-  const def = IMPORT_TYPES[currentImportType];
-  const colMap={};
-  _importHeaders.forEach((_,ci)=>{ const s=document.getElementById('map-col-'+ci); if(s&&s.value) colMap[ci]=s.value; });
-  const mapped = Object.values(colMap);
-  const missing = def.fields.filter(f=>f.required && !mapped.includes(f.key));
-  if (missing.length) { showAlert('import-alert','error','❌ Map these required fields: '+missing.map(f=>f.label).join(', ')); return; }
-
-  _importMapped = _importRows.map(row => {
-    const s={};
-    Object.entries(colMap).forEach(([ci,key]) => {
-      let v = row[parseInt(ci)];
-      if (def.dateFields.includes(key)) {
-        s[key] = parseFlexibleDate(v);
-      } else {
-        s[key] = (v instanceof Date) ? v.toISOString().slice(0,10) : String(v||'').trim();
-      }
-    });
-    return s;
-  }).filter(s => def.fields.filter(f=>f.required).every(f=>s[f.key]));
-
-  if (!_importMapped.length) { showAlert('import-alert','error','❌ No valid rows found — check that all required columns are mapped and filled in.'); return; }
-
-  // Auto-fill Student Name / Course / Batch / Mobile from Student Records
-  // when the sheet didn't supply them, by matching on Roll No.
-  if (def.linkStudent) {
-    _importMapped.forEach(s => {
-      const stu = (window.students||[]).find(x=>x.rollNo===s.rollNo);
-      if (stu) {
-        if (def.fields.some(f=>f.key==='studentName') && !s.studentName) s.studentName = (stu.fname+' '+stu.lname).trim();
-        if (def.fields.some(f=>f.key==='course') && !s.course) s.course = stu.course;
-        if (def.fields.some(f=>f.key==='batch') && !s.batch) s.batch = stu.batch;
-        if (def.fields.some(f=>f.key==='mobile') && !s.mobile) s.mobile = stu.mobile;
-      }
-    });
-  }
-
-  const fields = def.fields.filter(f=>mapped.includes(f.key) || (def.linkStudent && ['studentName','course','batch','mobile'].includes(f.key)));
-  document.getElementById('import-preview-head').innerHTML =
-    '<tr>'+fields.map(f=>'<th>'+f.label+'</th>').join('')+'</tr>';
-  document.getElementById('import-preview-body').innerHTML =
-    _importMapped.slice(0,10).map(s=>
-      '<tr>'+fields.map(f=>'<td style="white-space:nowrap;">'+(def.dateFields.includes(f.key) && s[f.key] ? formatDateDMY(s[f.key]) : (s[f.key]||'—'))+'</td>').join('')+'</tr>'
-    ).join('');
-
-  let warnHtml = '';
-  if (def.linkStudent) {
-    const notFound = [...new Set(_importMapped.filter(s=>s.rollNo && !(window.students||[]).some(x=>x.rollNo===s.rollNo)).map(s=>s.rollNo))];
-    if (notFound.length) warnHtml += '<div class="alert alert-warn">⚠️ '+notFound.length+' Roll No(s) not found in Student Records: '+notFound.slice(0,10).join(', ')+(notFound.length>10?'…':'')+'. Those rows will still import, but Student Name/Course/Batch may stay blank until the student is added.</div>';
-  }
-  const existingArr = window[def.collection] || [];
-  const dupMsgs = _importMapped.map(rec => def.dedupe ? def.dedupe(rec, existingArr) : null).filter(Boolean);
-  if (dupMsgs.length) {
-    warnHtml += '<div class="alert alert-warn">⚠️ '+dupMsgs.length+' row(s) look like duplicates of records already in Firebase and will be <strong>skipped</strong> automatically: '+dupMsgs.slice(0,6).join(' | ')+(dupMsgs.length>6?' …':'')+'</div>';
-  }
-  document.getElementById('import-preview-warn').innerHTML = warnHtml;
-  document.getElementById('import-confirm-btn').disabled = false;
-  document.getElementById('import-preview-count').textContent = 'Showing '+Math.min(10,_importMapped.length)+' of '+_importMapped.length+' '+def.label.toLowerCase()+' record(s)';
-  document.getElementById('import-preview-card').style.display='block';
-  document.getElementById('import-preview-card').scrollIntoView({behavior:'smooth'});
-}
-
 async function confirmImport() {
-  if (currentImportType === 'all') { await confirmAllImport(); return; }
-  if (currentImportType !== 'students') { await confirmGenericImport(); return; }
-  await confirmStudentImport();
-}
-
-// ------------------------------------------------------------------
-// Writes every category found by buildAllPreview() to Firebase in one
-// run: Students first (so Roll No links resolve for everything else),
-// then every other category using the same append + dedupe-skip logic
-// as confirmGenericImport(). Nothing existing in Firebase is deleted —
-// if you want a totally clean re-import, clear the relevant Firebase
-// collections yourself first, then run this import to repopulate them.
-// ------------------------------------------------------------------
-async function confirmAllImport() {
-  const btn = document.getElementById('import-confirm-btn');
-  btn.disabled = true; btn.textContent = '⏳ Importing all categories…';
-  try {
-    const resultMsgs = [];
-
-    // 1) Students first
-    const studentsBucket = _importAllMapped.students;
-    if (studentsBucket && studentsBucket.mapped.length) {
-      const today = todayStr();
-      const existingRolls = new Set((window.students||[]).map(s=>s.rollNo));
-      const seenInFile = new Set();
-      const newStudents = [];
-      let added = 0, skipped = 0;
-      studentsBucket.mapped.forEach(s => {
-        if (!s.rollNo || existingRolls.has(s.rollNo) || seenInFile.has(s.rollNo)) { skipped++; return; }
-        seenInFile.add(s.rollNo);
-        const statusRaw = (s.status||'').trim().toLowerCase();
-        newStudents.push({
-          rollNo:s.rollNo, id:s.rollNo,
-          fname:s.fname||'', lname:s.lname||'', mobile:s.mobile||'',
-          course:s.course||'', batch:s.batch||(window.masterData&&window.masterData.batches[0]?window.masterData.batches[0].name:''),
-          courseType:s.courseType||'Regular', mode:s.mode||'Offline',
-          admDate:s.admDate||today, duration:s.duration||'', dob:s.dob||'', gender:s.gender||'',
-          email:s.email||'', address:s.address||'', guardian:s.guardian||'', guardianMobile:s.guardianMobile||'',
-          totalFees:s.totalFees||'0', concession:s.concession||'0',
-          qual:s.qual||'', idType:s.idType||'', idNumber:s.idNumber||'', remarks:s.remarks||'',
-          customDueDate:null, status: statusRaw.startsWith('in') ? 'Inactive' : 'Active',
-          createdAt:new Date().toISOString(), importedAt:new Date().toISOString()
-        });
-        added++;
-      });
-      window.students = [...(window.students||[]), ...newStudents];
-      await DB.set('students', window.students);
-      resultMsgs.push('👥 Students: <strong>'+added+'</strong> imported'+(skipped?', '+skipped+' skipped (duplicate/blank Roll No)':''));
-    }
-
-    // 2) Every other category, in a fixed order, linking to students by Roll No where applicable
-    for (const key of IMPORT_ALL_ORDER) {
-      if (key === 'students') continue;
-      const bucket = _importAllMapped[key];
-      const def = IMPORT_TYPES[key];
-      if (!bucket || !bucket.mapped.length) continue;
-
-      if (def.linkStudent) {
-        bucket.mapped.forEach(s => {
-          const stu = (window.students||[]).find(x=>x.rollNo===s.rollNo);
-          if (stu) {
-            if (def.fields.some(f=>f.key==='studentName') && !s.studentName) s.studentName = (stu.fname+' '+stu.lname).trim();
-            if (def.fields.some(f=>f.key==='course') && !s.course) s.course = stu.course;
-            if (def.fields.some(f=>f.key==='batch') && !s.batch) s.batch = stu.batch;
-            if (def.fields.some(f=>f.key==='mobile') && !s.mobile) s.mobile = stu.mobile;
-          }
-        });
-      }
-
-      const existingArr = [...(window[def.collection]||[])];
-      let added = 0, skipped = 0;
-      bucket.mapped.forEach(row => {
-        const rec = {};
-        def.fields.forEach(f => { rec[f.key] = row[f.key] !== undefined ? row[f.key] : ''; });
-        IMPORT_NUMERIC_FIELDS.forEach(k => { if (rec[k] !== undefined && rec[k] !== '') rec[k] = parseFloat(rec[k]) || 0; });
-        rec.id = def.collection + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7);
-        rec.importedAt = new Date().toISOString();
-        const dupMsg = def.dedupe ? def.dedupe(rec, existingArr) : null;
-        if (dupMsg) { skipped++; return; }
-        existingArr.push(rec);
-        added++;
-      });
-      window[def.collection] = existingArr;
-      await DB.set(def.dbKey, existingArr);
-      resultMsgs.push(def.icon+' '+def.label+': <strong>'+added+'</strong> imported'+(skipped?', '+skipped+' skipped (duplicates)':''));
-    }
-
-    document.getElementById('import-done-msg').innerHTML =
-      '✅ Full import complete!<br><div style="text-align:left;display:inline-block;margin-top:12px;font-size:13px;font-weight:400;line-height:1.9;">'
-      + (resultMsgs.length ? resultMsgs.join('<br>') : 'Nothing was imported.') + '</div>';
-    document.getElementById('import-mapping-card').style.display='none';
-    document.getElementById('import-preview-card').style.display='none';
-    document.getElementById('import-done-card').style.display='block';
-    document.getElementById('import-done-card').scrollIntoView({behavior:'smooth'});
-    try { refreshDashboard(); } catch(refreshErr) { console.warn('Dashboard refresh after import had an issue (data was still saved):', refreshErr); }
-  } catch(err) {
-    btn.disabled=false; btn.textContent='✅ Import All Categories';
-    showAlert('import-alert','error','❌ Import failed: '+err.message);
-  }
-}
-
-async function confirmStudentImport() {
   const btn = document.getElementById('import-confirm-btn');
   btn.disabled=true; btn.textContent='⏳ Importing…';
   try {
@@ -4863,48 +4269,6 @@ async function confirmStudentImport() {
     document.getElementById('import-done-card').scrollIntoView({behavior:'smooth'});
   } catch(err) {
     btn.disabled=false; btn.textContent='✅ Import All Students';
-    showAlert('import-alert','error','❌ Import failed: '+err.message);
-  }
-}
-
-// ------------------------------------------------------------------
-// Generic confirm for every non-student import type. Unlike the student
-// importer (which blocks on any clash), this one APPENDS to whatever is
-// already in Firebase for that collection and silently SKIPS rows that
-// def.dedupe() flags as duplicates, so re-importing the same export file
-// twice — or importing overlapping date ranges — is always safe.
-// ------------------------------------------------------------------
-async function confirmGenericImport() {
-  const def = IMPORT_TYPES[currentImportType];
-  const btn = document.getElementById('import-confirm-btn');
-  btn.disabled=true; btn.textContent='⏳ Importing…';
-  try {
-    const existingArr = [...(window[def.collection]||[])];
-    let added = 0, skipped = 0;
-    _importMapped.forEach(row => {
-      const rec = {};
-      def.fields.forEach(f => { rec[f.key] = row[f.key] !== undefined ? row[f.key] : ''; });
-      IMPORT_NUMERIC_FIELDS.forEach(k => { if (rec[k] !== undefined && rec[k] !== '') rec[k] = parseFloat(rec[k]) || 0; });
-      rec.id = def.collection + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7);
-      rec.importedAt = new Date().toISOString();
-      const dupMsg = def.dedupe ? def.dedupe(rec, existingArr) : null;
-      if (dupMsg) { skipped++; return; }
-      existingArr.push(rec);
-      added++;
-    });
-
-    window[def.collection] = existingArr;
-    await DB.set(def.dbKey, existingArr);
-
-    document.getElementById('import-done-msg').textContent =
-      '✅ ' + added + ' ' + def.label.toLowerCase() + ' record(s) imported' + (skipped ? ', ' + skipped + ' duplicate(s) skipped.' : '.');
-    document.getElementById('import-mapping-card').style.display='none';
-    document.getElementById('import-preview-card').style.display='none';
-    document.getElementById('import-done-card').style.display='block';
-    document.getElementById('import-done-card').scrollIntoView({behavior:'smooth'});
-    try { refreshDashboard(); } catch(refreshErr) { console.warn('Dashboard refresh after import had an issue (data was still saved):', refreshErr); }
-  } catch(err) {
-    btn.disabled=false; btn.textContent='✅ Import All '+def.label;
     showAlert('import-alert','error','❌ Import failed: '+err.message);
   }
 }
@@ -7686,6 +7050,218 @@ function normalizeDateFields(rows, keys) {
   });
 }
 
+// ============================================================
+// FULL DATA IMPORT — restores Students, Payments, Attendance,
+// Absences, Marks, Salary, Incomes, Expenses and Certificates from an
+// uploaded Excel workbook (the same multi-sheet file "Export to Excel"
+// produces) or a single-table CSV/Excel file.
+//
+// IMPORTANT: this always MERGES into the existing data — it never wipes
+// a collection. DB.saveArray() treats whatever array you hand it as the
+// complete, final state of that collection and deletes any server
+// document not present in it, so blindly replacing `payments` (etc.)
+// with just the uploaded rows would silently delete every payment not
+// in that file. Every importer below therefore starts from the current
+// in-memory array and only adds to / updates it, using a natural key
+// (receipt no, roll+date, etc.) so re-uploading the same file twice
+// updates existing records instead of duplicating them.
+// ============================================================
+
+// Column-header aliases → the app's actual field names, one map per
+// collection. Keys are lowercased/trimmed header text; covers both the
+// headers this app's own "Export to Excel" produces and common variants
+// a hand-edited sheet might use.
+const IMPORT_HEADER_MAPS = {
+  students: STUDENT_HEADER_MAP,
+  payments: {
+    'receipt no':'receiptNo', receiptno:'receiptNo',
+    date:'date', 'roll no':'rollNo', rollno:'rollNo',
+    'student name':'studentName', studentname:'studentName', name:'studentName',
+    course:'course', 'amount (₹)':'amount', amount:'amount',
+    mode:'mode', reference:'reference', remarks:'remarks', notes:'remarks',
+    'collected by':'collectedBy', collectedby:'collectedBy',
+  },
+  attendance: {
+    date:'date', 'roll no':'rollNo', rollno:'rollNo',
+    'student name':'studentName', studentname:'studentName',
+    course:'course', batch:'batch', status:'status',
+    'topic covered':'topic', topic:'topic',
+    'software used':'software', software:'software',
+    'recorded by':'recordedBy', recordedby:'recordedBy',
+  },
+  absences: {
+    date:'date', 'roll no':'rollNo', rollno:'rollNo',
+    'student name':'studentName', studentname:'studentName', mobile:'mobile',
+    course:'course', batch:'batch', reason:'reason',
+    'recorded by':'recordedBy', recordedby:'recordedBy',
+  },
+  marks: {
+    'roll no':'rollNo', rollno:'rollNo',
+    'student name':'studentName', studentname:'studentName',
+    course:'course', batch:'batch', subject:'subject',
+    'max marks':'maxMarks', maxmarks:'maxMarks',
+    'obtained marks':'obtainedMarks', obtainedmarks:'obtainedMarks',
+    grade:'grade', 'entered by':'enteredBy', enteredby:'enteredBy',
+  },
+  salary: {
+    month:'month', 'staff name':'staffName', staffname:'staffName',
+    'basic (₹)':'basic', basic:'basic',
+    'work days':'workDays', workdays:'workDays',
+    'present days':'presentDays', presentdays:'presentDays',
+    'leave days':'leaveDays', leavedays:'leaveDays',
+    'ot hours':'otHours', othours:'otHours',
+    'ot days':'otDays', otdays:'otDays',
+    'ot amount':'otAmount', otamount:'otAmount',
+    advance:'advance', deductions:'deductions', bonus:'bonus',
+    'gross pay':'grossPay', grosspay:'grossPay',
+    'net pay':'netPay', netpay:'netPay', remarks:'remarks',
+  },
+  incomes: {
+    date:'date', source:'source', 'amount (₹)':'amount', amount:'amount',
+    remarks:'remarks', 'entered by':'enteredBy', enteredby:'enteredBy',
+  },
+  expenses: {
+    date:'date', category:'category', 'amount (₹)':'amount', amount:'amount',
+    'paid to':'paidTo', paidto:'paidTo',
+    remarks:'remarks', 'entered by':'enteredBy', enteredby:'enteredBy',
+  },
+  certificates: {
+    'roll no':'rollNo', rollno:'rollNo',
+    'student name':'studentName', studentname:'studentName', course:'course',
+    'cert no':'certNo', certno:'certNo',
+    'given date':'givenDate', givendate:'givenDate',
+    'given by':'givenBy', givenby:'givenBy',
+    status:'status', 'updated at':'updatedAt', updatedat:'updatedAt',
+  },
+};
+
+// Which spreadsheet columns (already normalized to app field names) hold
+// dates / plain numbers for each collection — used to clean values right
+// after header mapping, same as the Admission import already does.
+const IMPORT_TYPE_CONFIG = {
+  students:     { dateFields:['admDate','dob'], numFields:['totalFees','concession'] },
+  payments:     { dateFields:['date'], numFields:['amount'],
+                  idFn: r => r.receiptNo || null },
+  attendance:   { dateFields:['date'],
+                  idFn: r => (r.date && r.rollNo) ? (r.date+'_'+r.rollNo) : null },
+  absences:     { dateFields:['date'],
+                  idFn: r => (r.date && r.rollNo && r.course) ? (r.date+'_'+r.rollNo+'_'+String(r.course).replace(/\s+/g,'_')) : null },
+  marks:        { numFields:['maxMarks','obtainedMarks'] },
+  salary:       { numFields:['basic','workDays','presentDays','leaveDays','otHours','otDays','otAmount','advance','deductions','bonus','grossPay','netPay'],
+                  idFn: r => (r.month && r.staffName) ? (r.month+'_'+String(r.staffName).replace(/\s+/g,'_')) : null },
+  incomes:      { dateFields:['date'], numFields:['amount'] },
+  expenses:     { dateFields:['date'], numFields:['amount'] },
+  certificates: { dateFields:['givenDate'],
+                  idFn: r => (r.rollNo && r.certNo) ? (r.rollNo+'_'+r.certNo) : null },
+};
+
+// Sheet-tab / filename hints used to detect which collection a sheet or
+// uploaded file represents. Order matters — more specific kinds (e.g.
+// "absences") are checked before their broader substrings could clash.
+const IMPORT_TYPE_HINTS = [
+  ['certificates', ['certificate','cert']],
+  ['absences',     ['absence','absent']],
+  ['students',     ['student']],
+  ['payments',     ['payment']],
+  ['attendance',   ['attendance']],
+  ['marks',        ['marks','mark']],
+  ['salary',       ['salary','salaries']],
+  ['incomes',      ['income']],
+  ['expenses',     ['expense']],
+];
+function detectImportType(nameOrHeaders) {
+  const hay = nameOrHeaders.toLowerCase();
+  for (const [type, hints] of IMPORT_TYPE_HINTS) {
+    if (hints.some(h => hay.includes(h))) return type;
+  }
+  return null;
+}
+
+// Maps one raw spreadsheet row onto the app's field names for `type`,
+// using its header map, then cleans dates/numbers per IMPORT_TYPE_CONFIG.
+function normalizeImportRow(type, row) {
+  if (type === 'students') return normalizeStudentRow(row);
+  const map = IMPORT_HEADER_MAPS[type] || {};
+  const cfg = IMPORT_TYPE_CONFIG[type] || {};
+  const out = {};
+  for (const key of Object.keys(row)) {
+    const norm = key.trim().toLowerCase().replace(/\s+/g, ' ');
+    if (map[norm]) out[map[norm]] = (row[key] instanceof Date) ? row[key] : String(row[key]).trim();
+    else out[key] = row[key];
+  }
+  (cfg.dateFields || []).forEach(k => { if (out[k]) out[k] = parseFlexibleDate(out[k]); });
+  (cfg.numFields || []).forEach(k => { if (out[k] !== undefined && out[k] !== '') out[k] = parseFloat(out[k]) || 0; });
+  return out;
+}
+
+// Merges freshly-imported rows into the existing in-memory array for one
+// collection: rows that match an existing record by natural key REPLACE
+// it (so re-importing the same backup updates rather than duplicates),
+// everything else is appended as new. Returns the merged array.
+function mergeImportedRows(type, existing, newRows) {
+  const cfg = IMPORT_TYPE_CONFIG[type] || {};
+  const merged = [...(existing || [])];
+  const idIndex = new Map();
+  if (cfg.idFn) merged.forEach((r, i) => { const id = cfg.idFn(r); if (id) idIndex.set(id, i); });
+  let added = 0, updated = 0;
+  newRows.forEach((row, i) => {
+    const id = cfg.idFn ? cfg.idFn(row) : null;
+    if (id) row.id = id;
+    if (id && idIndex.has(id)) {
+      merged[idIndex.get(id)] = { ...merged[idIndex.get(id)], ...row };
+      updated++;
+    } else {
+      if (!row.id) row.id = type.toUpperCase().slice(0,3) + '_IMP_' + Date.now() + '_' + i;
+      merged.push(row);
+      if (id) idIndex.set(id, merged.length - 1);
+      added++;
+    }
+  });
+  return { merged, added, updated };
+}
+
+const IMPORT_COLLECTION_VAR = {
+  students:'students', payments:'payments', attendance:'attendance', absences:'absences',
+  marks:'marks', salary:'salaries', incomes:'incomes', expenses:'expenses', certificates:'certificates',
+};
+const IMPORT_DB_COLLECTION = {
+  students:'students', payments:'payments', attendance:'attendance', absences:'absences',
+  marks:'marks', salary:'salaries', incomes:'incomes', expenses:'expenses', certificates:'certificates',
+};
+const IMPORT_LABEL = {
+  students:'Students', payments:'Payments', attendance:'Attendance', absences:'Absences',
+  marks:'Marks', salary:'Salary', incomes:'Incomes', expenses:'Expenses', certificates:'Certificates',
+};
+
+// Imports one already-parsed sheet's rows (array of plain objects) into
+// its detected collection, merging with existing data, and returns a
+// one-line summary string for the status panel.
+async function importSheetRows(type, rows) {
+  if (type === 'students') {
+    const normalized = rows.map(r => normalizeImportRow('students', r)).filter(r => r.fname || r.rollNo);
+    // Students are matched/merged by rollNo — the one natural key every
+    // student record has — rather than fully replacing the roster.
+    const existing = window.students || [];
+    const byRoll = new Map(existing.map((s, i) => [s.rollNo, i]));
+    let added = 0, updated = 0;
+    normalized.forEach(s => {
+      if (!s.rollNo) s.rollNo = 'ST' + Date.now() + Math.floor(Math.random()*1000);
+      if (!s.id) s.id = s.rollNo;
+      if (byRoll.has(s.rollNo)) { existing[byRoll.get(s.rollNo)] = { ...existing[byRoll.get(s.rollNo)], ...s }; updated++; }
+      else { existing.push(s); byRoll.set(s.rollNo, existing.length - 1); added++; }
+    });
+    window.students = existing;
+    await DB.set('students', window.students);
+    return `Students: ${added} added, ${updated} updated`;
+  }
+  const varName = IMPORT_COLLECTION_VAR[type];
+  const normalized = rows.map(r => normalizeImportRow(type, r));
+  const { merged, added, updated } = mergeImportedRows(type, window[varName] || [], normalized);
+  window[varName] = merged;
+  await DB.set(IMPORT_DB_COLLECTION[type], merged);
+  return `${IMPORT_LABEL[type]}: ${added} added, ${updated} updated`;
+}
+
 async function importFromExcel(event) {
   const file = event.target.files[0];
   const statusEl = document.getElementById('excel-status');
@@ -7693,76 +7269,59 @@ async function importFromExcel(event) {
 
   const fname = file.name.toLowerCase();
   const isExcel = fname.endsWith('.xlsx') || fname.endsWith('.xls');
+  statusEl.innerHTML = '<div class="alert alert-info">⏳ Reading file...</div>';
 
   try {
-    let rows;
+    const summaries = [];
 
     if (isExcel) {
-      // Real Excel workbooks are binary (zip) files — they must be read as
-      // an ArrayBuffer and parsed with SheetJS, never as plain text.
-      statusEl.innerHTML = '<div class="alert alert-info">⏳ Reading Excel file...</div>';
       const XLSX = await ensureXLSXLoaded();
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'array' });
 
-      // If the workbook has multiple sheets, prefer one whose name matches
-      // the kind of data we can recognize (Students, Payments, etc.);
-      // otherwise fall back to the first sheet.
-      const knownKeys = ['student', 'payment', 'attendance', 'marks', 'salary'];
-      let sheetName = wb.SheetNames.find(n => knownKeys.some(k => n.toLowerCase().includes(k)));
-      if (!sheetName) sheetName = wb.SheetNames[0];
-      const sheet = wb.Sheets[sheetName];
-
-      // defval:'' fills blank cells instead of omitting the key, so every
-      // row object has a consistent set of columns.
-      rows = XLSX.utils.sheet_to_json(sheet, { defval: '' , raw: false});
+      // A workbook from "Export to Excel → All Data" has one sheet per
+      // module plus a "Summary" tab — process every recognizable sheet in
+      // one pass so a single backup file restores everything at once.
+      // A single-sheet workbook (just "Sheet1" etc.) falls back to
+      // detecting the type from its column headers instead.
+      for (const sheetName of wb.SheetNames) {
+        if (sheetName.toLowerCase() === 'summary') continue;
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '', raw: false });
+        if (!rows.length) continue;
+        let type = detectImportType(sheetName);
+        if (!type) {
+          const headerHay = Object.keys(rows[0]).join(' ').toLowerCase();
+          type = detectImportType(headerHay) || detectImportType(fname);
+        }
+        if (!type) { summaries.push(`⚠️ Sheet "${sheetName}": could not detect data type, skipped`); continue; }
+        summaries.push(await importSheetRows(type, rows));
+      }
     } else {
-      // Plain .csv — read as text and parse manually (existing behavior).
+      // Plain .csv — always a single table, detect type from filename or headers.
       const text = await file.text();
       const lines = text.split('\n').filter(l => l.trim());
       if (lines.length < 2) { statusEl.innerHTML = '<div class="alert alert-error">❌ File appears empty.</div>'; return; }
       const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-      rows = lines.slice(1).map(line => {
+      const rows = lines.slice(1).map(line => {
         const vals = parseCSVLine(line);
         const obj = {};
         headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
         return obj;
       });
+      const type = detectImportType(fname) || detectImportType(headers.join(' '));
+      if (!type) {
+        statusEl.innerHTML = '<div class="alert alert-warn">⚠️ Could not detect data type. Rename the file (or a sheet tab) to include: students, payments, attendance, absences, marks, salary, incomes, expenses, or certificates.</div>';
+        return;
+      }
+      summaries.push(await importSheetRows(type, rows));
     }
 
-    if (!rows || !rows.length) {
-      statusEl.innerHTML = '<div class="alert alert-error">❌ No rows found in the file.</div>';
+    if (!summaries.length) {
+      statusEl.innerHTML = '<div class="alert alert-warn">⚠️ No recognizable data found in the file.</div>';
       return;
     }
-
-    // Auto-detect target collection by filename first, then by column headers
-    // (covers Excel files whose filename doesn't hint at the content).
-    const headerKeys = Object.keys(rows[0]).map(h => h.toLowerCase());
-    const looksLike = (kind) => fname.includes(kind) || headerKeys.some(h => h.includes(kind));
-
-    let imported = 0;
-    if (looksLike('student') || headerKeys.some(h => h.includes('rollno') || h.includes('roll no') || h.includes('first name') || h.includes('firstname'))) {
-      students = rows.map(normalizeStudentRow).filter(r => r.fname || r.rollNo);
-      if (!students.length) students = rows.map(normalizeStudentRow);
-      // Auto-generate a rollNo for any row the sheet didn't already have one for.
-      students.forEach((s, i) => { if (!s.rollNo) s.rollNo = 'ST' + String(i + 1).padStart(4, '0'); });
-      await DB.set('students', students); imported = students.length;
-      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} students.</div>`;
-    } else if (looksLike('payment')) {
-      payments = normalizeDateFields(rows, ['date']); await DB.set('payments', payments); imported = payments.length;
-      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} payments.</div>`;
-    } else if (looksLike('attendance')) {
-      attendance = normalizeDateFields(rows, ['date']); await DB.set('attendance', attendance); imported = attendance.length;
-      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} attendance records.</div>`;
-    } else if (looksLike('marks')) {
-      marks = rows; await DB.set('marks', marks); imported = marks.length;
-      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} marks records.</div>`;
-    } else if (looksLike('salary')) {
-      salaries = rows; await DB.set('salaries', salaries); imported = salaries.length;
-      statusEl.innerHTML = `<div class="alert alert-success">✅ Imported ${imported} salary records.</div>`;
-    } else {
-      statusEl.innerHTML = '<div class="alert alert-warn">⚠️ Could not detect data type. Rename the file (or its sheet tab) to include: students, payments, attendance, marks, or salary.</div>';
-    }
+    statusEl.innerHTML = '<div class="alert alert-success">✅ Import complete — merged into existing data (nothing was deleted):<br>' +
+      summaries.map(s => '• ' + s).join('<br>') + '</div>';
     try { refreshDashboard(); } catch (refreshErr) { console.warn('Dashboard refresh after import had an issue (data was still saved):', refreshErr); }
   } catch (err) {
     console.error('Import failed:', err);
