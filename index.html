@@ -7,7 +7,7 @@
 
 <!-- PWA: lets this be installed as an app on Android and iOS -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0f1f3d">
+<meta name="theme-color" content="#0f2557">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -18,10 +18,11 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --navy: #0f1f3d;
-  --navy-light: #1a3260;
-  --teal: #00b09b;
-  --teal-light: #96fbc4;
+  --navy: #0f2557;        /* dark blue (sidebar, dark surfaces) */
+  --navy-light: #1a3a80;
+  --teal: #f47b00;        /* orange accent (buttons, links, charts) */
+  --teal-light: #ffffff;  /* text on dark-blue surfaces */
+  --brand-orange: #f47b00;
   --amber: #f59e0b;
   --red: #ef4444;
   --green: #10b981;
@@ -38,7 +39,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: va
 /* ===== LOGIN SCREEN ===== */
 #login-screen {
   position: fixed; inset: 0; z-index: 1000;
-  background: linear-gradient(135deg, #0f1f3d 0%, #1a3260 50%, #0d2b4a 100%);
+  background: linear-gradient(135deg, #0b1a44 0%, #0f2557 50%, #0a1b4d 100%);
   display: flex; align-items: center; justify-content: center;
 }
 .login-wrap {
@@ -48,7 +49,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: va
   text-align: center; margin-bottom: 32px;
 }
 .login-logo h1 {
-  font-family: 'Playfair Display', serif; font-size: 36px; color: var(--teal-light);
+  font-family: 'Playfair Display', serif; font-size: 36px; color: var(--brand-orange);
 }
 .login-logo p { font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
 .login-card {
@@ -64,14 +65,14 @@ body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: va
   font-family: 'DM Sans', sans-serif; outline: none; transition: border 0.2s;
 }
 .login-field input::placeholder { color: rgba(255,255,255,0.3); }
-.login-field input:focus { border-color: var(--teal); background: rgba(0,176,155,0.08); }
+.login-field input:focus { border-color: var(--teal); background: rgba(244,123,0,0.1); }
 .login-error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; font-size: 13px; padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; display: none; }
 .btn-login {
   width: 100%; padding: 13px; background: var(--teal); color: #fff; border: none;
   border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
   font-family: 'DM Sans', sans-serif; transition: background 0.2s; margin-top: 4px;
 }
-.btn-login:hover { background: #009688; }
+.btn-login:hover { background: #d96d00; }
 .login-hint {
   text-align: center; margin-top: 20px; font-size: 11.5px; color: rgba(255,255,255,0.3);
   line-height: 1.8;
@@ -89,7 +90,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: va
   overflow-y: auto;
 }
 .sidebar-brand { padding: 20px 20px 14px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-.sidebar-brand h1 { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--teal-light); }
+.sidebar-brand h1 { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--brand-orange); }
 .sidebar-brand p { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; letter-spacing: 1px; text-transform: uppercase; }
 .user-info-sidebar {
   margin: 12px 12px 0; background: rgba(255,255,255,0.07);
@@ -191,7 +192,7 @@ input, select, textarea {
   font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--text);
   background: #fff; transition: border 0.15s; outline: none;
 }
-input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(0,176,155,0.1); }
+input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(244,123,0,0.15); }
 input:disabled, select:disabled, textarea:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
 textarea { min-height: 80px; resize: vertical; }
 
@@ -312,13 +313,16 @@ tr:hover td { background: #f8fafd; }
 
 /* RECEIPT */
 .receipt { max-width: 520px; margin: 0 auto; }
-.receipt-header { background: var(--navy); color: #fff; padding: 24px; border-radius: 14px 14px 0 0; text-align: center; }
-.receipt-header h2 { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--teal-light); }
-.receipt-header p { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+.receipt-header { background: #fff; color: #000; padding: 24px; border: 1px solid #d1d5db; border-bottom: 2px solid #000; border-radius: 14px 14px 0 0; text-align: center; }
+.receipt-header h2 { font-family: 'Playfair Display', serif; font-size: 22px; color: #000; }
+.receipt-header p { font-size: 12px; color: #000; margin-top: 4px; }
 .receipt-body { background: #fff; border: 1px solid var(--border); border-top: none; padding: 24px; }
 .receipt-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: 14px; }
-.receipt-total { display: flex; justify-content: space-between; padding: 12px 0; font-size: 17px; font-weight: 700; color: var(--navy); }
-.receipt-footer { background: #f8fafd; border: 1px solid var(--border); border-top: none; padding: 16px; border-radius: 0 0 14px 14px; text-align: center; font-size: 12px; color: var(--muted); }
+.receipt-total { display: flex; justify-content: space-between; padding: 12px 0; font-size: 17px; font-weight: 700; color: #000; }
+/* Receipt: plain white page, everything black (overrides inline muted/green/red colours) */
+.receipt, .receipt * { color: #000 !important; background-color: #fff !important; }
+.receipt .stamp { border-color: #000 !important; }
+.receipt-footer { background: #fff; border: 1px solid var(--border); border-top: none; padding: 16px; border-radius: 0 0 14px 14px; text-align: center; font-size: 12px; color: var(--muted); }
 .stamp { display: inline-block; border: 3px solid var(--green); color: var(--green); padding: 6px 16px; border-radius: 6px; font-weight: 700; font-size: 14px; letter-spacing: 1px; transform: rotate(-3deg); margin-top: 8px; }
 
 /* ALERT */
@@ -366,10 +370,10 @@ tr:hover td { background: #f8fafd; }
 
 /* PRINT */
 @media print {
-  .print-company-header { display:flex !important; align-items:center; gap:14px; padding:0 0 10px; margin-bottom:14px; border-bottom:2px solid #0f1f3d; }
+  .print-company-header { display:flex !important; align-items:center; gap:14px; padding:0 0 10px; margin-bottom:14px; border-bottom:2px solid #0f2557; }
   .print-company-header[data-off] { display:none !important; }
   .print-company-header img { max-height:60px; max-width:100px; object-fit:contain; }
-  .print-company-header h2 { font-size:18px; color:#0f1f3d; margin:0; }
+  .print-company-header h2 { font-size:18px; color:#0f2557; margin:0; }
   .print-company-header p { font-size:11px; color:#475569; margin:2px 0 0; }
   #login-screen, .sidebar, .topbar, .no-print, .readonly-banner { display: none !important; }
   .main { margin-left: 0; }
@@ -441,7 +445,7 @@ tr:hover td { background: #f8fafd; }
 .due-today   { background:#fef3c7; color:#b45309; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600; }
 .due-soon    { background:#dbeafe; color:#1d4ed8; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600; }
 /* SALARY PAGE */
-.salary-card { background: linear-gradient(135deg, #0f1f3d, #1a3260); color:#fff; border-radius:14px; padding:20px; }
+.salary-card { background: linear-gradient(135deg, #0f2557, #1a3a80); color:#fff; border-radius:14px; padding:20px; }
 .salary-card .stat-label { color: rgba(255,255,255,0.5); }
 .salary-card .stat-value { color: var(--teal-light); font-size:26px; font-weight:700; }
 .net-pay-card { background: linear-gradient(135deg, #065f46, #059669); color:#fff; border-radius:14px; padding:20px; }
@@ -474,7 +478,7 @@ tr:hover td { background: #f8fafd; }
 .student-avatar-lg { width: 72px; height: 72px; border-radius: 50%; background: var(--navy); display: flex; align-items: center; justify-content: center; font-size: 26px; color: var(--teal-light); font-weight: 700; flex-shrink: 0; }
 .notif-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .notif-item:last-child { border-bottom: none; }
-.notif-icon { width: 34px; height: 34px; border-radius: 8px; background: rgba(0,176,155,0.12); color: var(--teal); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.notif-icon { width: 34px; height: 34px; border-radius: 8px; background: rgba(244,123,0,0.12); color: var(--teal); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
 .notif-title { font-size: 13.5px; font-weight: 600; }
 .notif-msg { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .notif-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
@@ -527,7 +531,7 @@ tr:hover td { background: #f8fafd; }
           <input id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
         </div>
         <div style="text-align:right;margin:-10px 0 16px;">
-          <a href="#" onclick="showForgotPassword();return false;" style="font-size:12.5px;color:var(--teal);text-decoration:none;">Forgot Password?</a>
+          <a href="#" onclick="showForgotPassword();return false;" style="font-size:12.5px;color:#ffa94d;text-decoration:none;">Forgot Password?</a>
         </div>
         <button class="btn-login" onclick="doLogin()" id="login-btn">Sign In</button>
       </div>
@@ -4023,7 +4027,7 @@ function companyHeaderHtml(opts) {
   opts = opts || {};
   const cp = getCompanyProfile();
   const dark = opts.dark;
-  const nameCol = dark ? '#96fbc4' : '#0f1f3d', txtCol = dark ? 'rgba(255,255,255,0.8)' : '#475569';
+  const nameCol = dark ? '#ffffff' : '#0f2557', txtCol = dark ? 'rgba(255,255,255,0.8)' : '#475569';
   const details = [
     cp.address && `<div>${_escHtml(cp.address).replace(/\n/g,'<br>')}</div>`,
     (cp.mobile || cp.email) && `<div>${[cp.mobile && 'Ph: ' + _escHtml(cp.mobile), cp.email && _escHtml(cp.email)].filter(Boolean).join(' &nbsp;|&nbsp; ')}</div>`,
@@ -5993,7 +5997,7 @@ function printFeeReport() {
       @media print { button{display:none;} }
     </style></head>
     <body>
-      <div style="border-bottom:2px solid #0f1f3d;padding-bottom:10px;margin-bottom:10px;">${companyHeaderHtml({size:20})}</div>
+      <div style="border-bottom:2px solid #0f2557;padding-bottom:10px;margin-bottom:10px;">${companyHeaderHtml({size:20})}</div>
       <h2>Fee Collection Report — ${_lastFeeReport.label}</h2>
       <div class="summary">Total Payments: <strong>${_lastFeeReport.rows.length}</strong> &nbsp;|&nbsp; Total Collected: <strong>₹${total.toLocaleString('en-IN')}</strong></div>
       <table>
@@ -6063,9 +6067,15 @@ function loadReceipt() {
   const s = students.find(x=>x.rollNo===p.rollNo);
   const totalPaid = payments.filter(x=>x.rollNo===p.rollNo).reduce((a,x)=>a+parseFloat(x.amount||0),0);
   const net = s ? parseFloat(s.totalFees||0)-parseFloat(s.concession||0) : 0;
-  const bal = net-totalPaid;
+  const bal = net-totalPaid;   // only used for the PAID IN FULL / PARTIAL stamp — never printed as an amount
+  // Which payment this receipt is for: the admission Down Payment, or a monthly Installment
+  const isDown = (p.linkedInstallment === 'Down Payment') || (p.category === 'Down Payment');
+  const isInst = !isDown && (p.category === 'Installment');
+  const payTypeLabel = isDown ? 'Down Payment'
+    : isInst ? 'Installment' + (p.linkedInstallment ? ' — ' + p.linkedInstallment : '')
+    : (p.category || p.linkedInstallment || 'Fee Payment');
   const instName = DB.cfg().instName || 'Explore Learning';
-  document.getElementById('receipt-company-head').innerHTML = companyHeaderHtml({dark:true, center:true, size:22});
+  document.getElementById('receipt-company-head').innerHTML = companyHeaderHtml({center:true, size:22});
   const _cl = companyContactLine();
   document.getElementById('receipt-footer-text').innerHTML = `<p>Thank you for your payment. This is a computer generated receipt.</p><p style="margin-top:4px;">${_escHtml(instName)}${_cl?' | '+_escHtml(_cl):''}</p>`;
   document.getElementById('receipt-body').innerHTML=`
@@ -6078,11 +6088,10 @@ function loadReceipt() {
       <div class="receipt-row"><span style="color:var(--muted);">Roll No</span><span>${p.rollNo}</span></div>
       <div class="receipt-row"><span style="color:var(--muted);">Course</span><span>${p.course}</span></div>
     </div>
-    <div class="receipt-row"><span style="color:var(--muted);">Total Fees</span><span>₹${net.toLocaleString('en-IN')}</span></div>
+    <div class="receipt-row"><span style="color:var(--muted);">Payment Type</span><span style="font-weight:600;">${payTypeLabel}</span></div>
     <div class="receipt-row"><span style="color:var(--muted);">Amount Paid (This Receipt)</span><span style="color:var(--green);font-weight:600;">₹${parseFloat(p.amount).toLocaleString('en-IN')}</span></div>
     <div class="receipt-row"><span style="color:var(--muted);">Payment Mode</span><span>${p.mode}${p.reference?' — '+p.reference:''}</span></div>
     <div class="receipt-row"><span style="color:var(--muted);">Total Paid to Date</span><span>₹${totalPaid.toLocaleString('en-IN')}</span></div>
-    <div class="receipt-total"><span>Balance Due</span><span style="color:${bal<=0?'var(--green)':'var(--red)'};">₹${Math.abs(bal).toLocaleString('en-IN')}</span></div>
     <div style="text-align:center;margin-top:16px;"><div class="stamp">${bal<=0?'PAID IN FULL':'PARTIAL PAYMENT'}</div></div>
     ${p.remarks?'<p style="margin-top:12px;font-size:12px;color:var(--muted);">Remarks: '+p.remarks+'</p>':''}`;
 }
@@ -8632,7 +8641,7 @@ function renderMasterData() {
   const bl = document.getElementById('master-batches-list');
   bl.innerHTML = masterData.batches.length ? masterData.batches.map((bt,i) => `
     <div class="master-item">
-      <div class="master-badge" style="background:#1a3260;">🕐</div>
+      <div class="master-badge" style="background:#1a3a80;">🕐</div>
       <div style="flex:1;">
         <div style="font-weight:600;font-size:13.5px;">${bt.name}</div>
         <div style="font-size:11.5px;color:var(--muted);">${bt.time}</div>
@@ -8990,8 +8999,8 @@ function printSalarySlip(id) {
   if (!s) return;
   const w = window.open('','_blank','width=600,height=700');
   w.document.write(`<!DOCTYPE html><html><head><title>Salary Slip</title>
-  <style>body{font-family:sans-serif;padding:30px;font-size:13px;}h2{color:#0f1f3d;}table{width:100%;border-collapse:collapse;margin-top:16px;}td{padding:8px 12px;border-bottom:1px solid #eee;}td:last-child{text-align:right;font-weight:600;}.net{background:#0f1f3d;color:#96fbc4;font-size:16px;font-weight:700;}</style></head><body>
-  <div style="border-bottom:2px solid #0f1f3d;padding-bottom:10px;margin-bottom:10px;">${companyHeaderHtml({size:20})}</div>
+  <style>body{font-family:sans-serif;padding:30px;font-size:13px;}h2{color:#0f2557;}table{width:100%;border-collapse:collapse;margin-top:16px;}td{padding:8px 12px;border-bottom:1px solid #eee;}td:last-child{text-align:right;font-weight:600;}.net{background:#0f2557;color:#ffffff;font-size:16px;font-weight:700;}</style></head><body>
+  <div style="border-bottom:2px solid #0f2557;padding-bottom:10px;margin-bottom:10px;">${companyHeaderHtml({size:20})}</div>
   <p>Salary Slip — <strong>${formatMonthLabel(s.month)}</strong> &nbsp;|&nbsp; Staff: <strong>${s.staffName}</strong></p>
   <table>
     <tr><td>Basic Salary</td><td>₹${(s.basic||0).toLocaleString('en-IN')}</td></tr>
@@ -9004,7 +9013,7 @@ function printSalarySlip(id) {
     <tr><td>Gross Pay</td><td>₹${(s.grossPay||0).toFixed(2)}</td></tr>
     <tr><td>Advance Deducted</td><td style="color:red;">- ₹${(s.advance||0).toFixed(2)}</td></tr>
     <tr><td>Other Deductions</td><td style="color:red;">- ₹${(s.deductions||0).toFixed(2)}</td></tr>
-    <tr class="net"><td colspan="2" style="color:#96fbc4;background:#0f1f3d;padding:12px;">NET PAY &nbsp;|&nbsp; ₹${(s.netPay||0).toLocaleString('en-IN')}</td></tr>
+    <tr class="net"><td colspan="2" style="color:#ffffff;background:#0f2557;padding:12px;">NET PAY &nbsp;|&nbsp; ₹${(s.netPay||0).toLocaleString('en-IN')}</td></tr>
   </table>
   ${s.remarks?'<p style="margin-top:12px;color:#64748b;">Remarks: '+s.remarks+'</p>':''}
   <p style="margin-top:24px;font-size:11px;color:#94a3b8;">Generated by ${_escHtml(getCompanyProfile().name)} on ${new Date().toLocaleDateString('en-IN')}</p>
