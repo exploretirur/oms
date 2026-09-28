@@ -2978,9 +2978,10 @@ function listenCol(col, onData, constraints) {
     : collection(firestoreDB, col);
   _unsubs[col] = onSnapshot(
     colRef,
-    snap => { onData(snap.docs.map(d => ({ ...d.data(), id: d.id }))); },
+    snap => { (window._listenErrors = window._listenErrors || {})[col] = null; onData(snap.docs.map(d => ({ ...d.data(), id: d.id }))); },
     err => {
       console.warn('Listener error', col, err);
+      (window._listenErrors = window._listenErrors || {})[col] = err.code || 'error';
       if (err.code === 'unavailable') {
         showAlert('global-alert','error','❌ Connection lost. Reconnecting…');
       }
@@ -4613,7 +4614,7 @@ async function saveUserConfirmed({ name, email, password, role, designation, dep
   if (editDocId) {
     // ---- EDIT existing user: only the Firestore profile fields change ----
     saveBtn.textContent = 'Saving…';
-    const updateData = { name, role, designation, dept, mobile, courses, rollNo: role === 'student' ? rollNo : null };
+    const updateData = { name, role, designation, dept, mobile, courses, rollNo: role === 'student' ? (linkedStudent ? linkedStudent.rollNo : rollNo) : null };
     const ok = await DB.updateDoc('users', editDocId, updateData);
     saveBtn.disabled = false; saveBtn.textContent = '💾 Save Changes';
     if (ok) {
@@ -4650,7 +4651,7 @@ async function saveUserConfirmed({ name, email, password, role, designation, dep
     // new Auth UID (this is the schema the rest of the app expects).
     const ok = await DB.setDoc('users', newUid, {
       name, email, role, designation, dept, mobile, courses,
-      rollNo: role === 'student' ? rollNo : null,
+      rollNo: role === 'student' ? (linkedStudent ? linkedStudent.rollNo : rollNo) : null,
       course: linkedStudent ? linkedStudent.course : null,
       batch: linkedStudent ? linkedStudent.batch : null,
       active: true,
@@ -7570,7 +7571,7 @@ function renderStudyMaterialPage() {
   const s = findMyStudentRecord();
   const alertBox = document.getElementById('sm-alert');
   if (!s) {
-    if (alertBox) alertBox.innerHTML = '<div class="alert alert-error">We couldn\'t find your student record. Please contact the office.</div>';
+    if (alertBox) alertBox.innerHTML = studentRecordProblemHtml();
     return;
   }
   if (alertBox) alertBox.innerHTML = '';
@@ -8034,6 +8035,17 @@ function buildDonutGradient(pct) {
   return `conic-gradient(var(--teal) 0% ${p}%, var(--red) ${p}% 100%)`;
 }
 
+// Explains WHY the logged-in student's record can't be shown, instead of one generic message.
+function studentRecordProblemHtml() {
+  const roll = currentUser && currentUser.rollNo;
+  const err = (window._listenErrors || {}).students;
+  let why;
+  if (!roll) why = "Your login isn't linked to a student Roll No yet.";
+  else if (err === 'permission-denied') why = "Your account isn't allowed to read the student record (access rule).";
+  else why = 'No student record matches Roll No "' + String(roll).replace(/[<>&"]/g,'') + '" (it must match exactly, including capital letters).';
+  return '<div class="alert alert-error">We couldn\'t find your student record. ' + why + ' Please contact the office.</div>';
+}
+
 function findMyStudentRecord() {
   if (!currentUser) return null;
   return (window.students||[]).find(s => s.rollNo === currentUser.rollNo) || null;
@@ -8043,7 +8055,7 @@ function loadMyDashboard() {
   const s = findMyStudentRecord();
   const alertBox = document.getElementById('my-dashboard-alert');
   if (!s) {
-    alertBox.innerHTML = '<div class="alert alert-error">We couldn\'t find your student record. Please contact the office.</div>';
+    alertBox.innerHTML = studentRecordProblemHtml();
     return;
   }
   alertBox.innerHTML = '';
@@ -8128,7 +8140,7 @@ function renderMyAttendanceCalendar() {
   const s = findMyStudentRecord();
   const alertBox = document.getElementById('my-att-cal-alert');
   if (!s) {
-    if (alertBox) alertBox.innerHTML = '<div class="alert alert-error">We couldn\'t find your student record. Please contact the office.</div>';
+    if (alertBox) alertBox.innerHTML = studentRecordProblemHtml();
     return;
   }
   if (alertBox) alertBox.innerHTML = '';
