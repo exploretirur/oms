@@ -2161,6 +2161,9 @@ tr:hover td { background: #f8fafd; }
           <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
         </div>
         <div class="cal-grid" id="sd-cal-grid"></div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:8px;">Tap a date to see the topic covered and software used.</div>
+        <div id="sd-cal-alert" style="margin-top:8px;"></div>
+        <div id="sd-cal-detail" style="display:none;margin-top:12px;"></div>
         <div class="cal-month-summary" id="sd-cal-summary"></div>
       </div>
     </div>
@@ -3271,6 +3274,12 @@ function startListeners() {
     window.attendance = data;
     if (document.getElementById('page-attendance-report').classList.contains('active')) generateAttReport();
     refreshDashboard();
+    if (!isStudentRole) {
+      const sdPage = document.getElementById('page-student-dashboard'), sdBox = document.getElementById('sd-search');
+      if (sdPage && sdPage.classList.contains('active') && window._sdCurrentRoll && sdBox && sdBox.value.trim()) loadStudentDashboard();
+      const sdModal = document.getElementById('sd-att-cal-modal');
+      if (sdModal && sdModal.classList.contains('open')) renderSdAttCalendar();
+    }
     if (document.getElementById('page-my-dashboard') && document.getElementById('page-my-dashboard').classList.contains('active')) loadMyDashboard();
   }, isStudentRole ? [where('rollNo', '==', currentUser.rollNo)] : []);
   // Students only ever get THEIR OWN marks.
@@ -6737,61 +6746,155 @@ function canEditAttendanceRecord(a) {
   return false;
 }
 
+// Shared edit form — used by the Attendance Report's Edit button and by the
+// Student Dashboard calendar, so both behave identically.
+function attEditFieldsHtml(a) {
+  const absRec = (window.absences || []).find(x => x.rollNo === a.rollNo && x.date === a.date);
+  const reasonVal = absRec && absRec.reason && absRec.reason !== 'Not specified' ? absRec.reason : '';
+  const isAbs = a.status === 'Absent';
+  return `
+    <div class="form-group full"><label>Student</label><input type="text" value="${_escHtml(a.studentName)} (${_escHtml(a.rollNo)})" disabled></div>
+    <div class="form-group"><label>Date</label><input type="text" value="${formatDateDMY(a.date)}" disabled></div>
+    <div class="form-group"><label>Batch</label><input type="text" value="${_escHtml((a.batch||'').split('(')[0].trim())}" disabled></div>
+    <div class="form-group"><label>Status <span class="required">*</span></label>
+      <select id="ea-status" onchange="toggleEditAttFields()">
+        <option value="Present" ${a.status==='Present'?'selected':''}>Present</option>
+        <option value="Absent" ${isAbs?'selected':''}>Absent</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Topic Covered</label><input id="ea-topic" type="text" value="${_escHtml(a.topic||'')}" placeholder="Topic covered" ${isAbs?'disabled':''}></div>
+    <div class="form-group"><label>Software Used</label><input id="ea-software" type="text" value="${_escHtml(a.software||'')}" placeholder="Software used" ${isAbs?'disabled':''}></div>
+    <div class="form-group"><label>Absent Reason</label><input id="ea-reason" type="text" value="${_escHtml(reasonVal)}" placeholder="Reason for absence" ${isAbs?'':'disabled'}></div>`;
+}
+
 function openEditAttendance(id) {
   const a = attendance.find(r => r.id === id);
   if (!a) { showAlert('global-alert','error','❌ Attendance record not found.'); return; }
   if (!canEditAttendanceRecord(a)) { showAlert('global-alert','error','❌ You can only edit today\'s attendance entries.'); return; }
-
-  const fields = `
-    <div class="form-group full"><label>Student</label><input type="text" value="${a.studentName} (${a.rollNo})" disabled></div>
-    <div class="form-group"><label>Date</label><input type="text" value="${formatDateDMY(a.date)}" disabled></div>
-    <div class="form-group"><label>Batch</label><input type="text" value="${(a.batch||'').split('(')[0].trim()}" disabled></div>
-    <div class="form-group"><label>Status <span class="required">*</span></label>
-      <select id="ea-status" onchange="toggleEditAttFields()">
-        <option value="Present" ${a.status==='Present'?'selected':''}>Present</option>
-        <option value="Absent" ${a.status==='Absent'?'selected':''}>Absent</option>
-      </select>
-    </div>
-    <div class="form-group"><label>Topic Covered</label><input id="ea-topic" type="text" value="${a.topic||''}" placeholder="Topic covered" ${a.status==='Absent'?'disabled':''}></div>
-    <div class="form-group"><label>Software Used</label><input id="ea-software" type="text" value="${a.software||''}" placeholder="Software used" ${a.status==='Absent'?'disabled':''}></div>`;
-
-  showInlineModal('Edit Attendance — ' + a.studentName, fields, `saveAttendanceEdit('${a.id}')`);
+  showInlineModal('Edit Attendance — ' + a.studentName, attEditFieldsHtml(a), `saveAttendanceEdit('${a.id}')`);
 }
 
 function toggleEditAttFields() {
   const status = document.getElementById('ea-status').value;
-  const t = document.getElementById('ea-topic'), sw = document.getElementById('ea-software');
-  if (status === 'Absent') { t.disabled = true; sw.disabled = true; t.value=''; sw.value=''; }
-  else { t.disabled = false; sw.disabled = false; }
+  const t = document.getElementById('ea-topic'), sw = document.getElementById('ea-software'), rs = document.getElementById('ea-reason');
+  if (status === 'Absent') { t.disabled = true; sw.disabled = true; t.value=''; sw.value=''; if (rs) rs.disabled = false; }
+  else { t.disabled = false; sw.disabled = false; if (rs) { rs.disabled = true; rs.value = ''; } }
 }
 
-async function saveAttendanceEdit(id) {
-  const idx = attendance.findIndex(r => r.id === id);
-  if (idx === -1) return;
-  if (!canEditAttendanceRecord(attendance[idx])) { showAlert('global-alert','error','❌ You can only edit today\'s attendance entries.'); return; }
-
+// Reads the edit form (must be called while the form is open).
+function _readAttEditForm() {
   const status = document.getElementById('ea-status').value;
+  return {
+    status,
+    topic: status === 'Absent' ? '' : document.getElementById('ea-topic').value.trim(),
+    software: status === 'Absent' ? '' : document.getElementById('ea-software').value.trim(),
+    reason: status === 'Absent' ? document.getElementById('ea-reason').value.trim() : ''
+  };
+}
+
+// Keeps the separate "Absent List" store in step with attendance, so a
+// Present→Absent (or Absent→Present) change shows up there too.
+async function syncAbsenceForAttendance(rec, reason) {
+  const list = window.absences || [];
+  const existing = list.find(x => x.rollNo === rec.rollNo && x.date === rec.date);
+  const others = list.filter(x => !(x.rollNo === rec.rollNo && x.date === rec.date));
+  if (rec.status === 'Absent') {
+    const stu = students.find(st => st.rollNo === rec.rollNo);
+    others.push({
+      ...(existing || {}),
+      id: existing ? existing.id : rec.date + '_' + rec.rollNo + '_' + (rec.course || '').replace(/\s+/g,'_'),
+      date: rec.date, rollNo: rec.rollNo, studentName: rec.studentName,
+      mobile: (existing && existing.mobile) || (stu ? stu.mobile : '') || '',
+      course: rec.course, batch: rec.batch, reason: reason || 'Not specified',
+      recordedBy: (existing && existing.recordedBy) || currentUser.name,
+      recordedAt: (existing && existing.recordedAt) || new Date().toISOString()
+    });
+  } else if (!existing) {
+    return; // Present, and nothing in the absent list to clean up
+  }
+  absences = others;
+  await DB.set('absences', absences);
+}
+
+// Saves one attendance record (new or edited) and refreshes every screen that shows attendance.
+async function commitAttendanceRecord(base, vals) {
+  const rec = {
+    ...base, status: vals.status, topic: vals.topic, software: vals.software,
+    editedBy: currentUser.name, editedAt: new Date().toISOString()
+  };
+  const idx = attendance.findIndex(r => r.id === rec.id);
+  if (idx >= 0) attendance[idx] = rec; else attendance = [...attendance, rec];
+  await DB.set('attendance', attendance);
+  await syncAbsenceForAttendance(rec, vals.reason);
+  closeModal('inline-modal');
+  refreshAttendanceViews();
+  const msg = `✅ Attendance updated — ${formatDateDMY(rec.date)} marked ${rec.status}.`;
+  const sdOpen = document.getElementById('sd-att-cal-modal').classList.contains('open');
+  showAlert(sdOpen ? 'sd-cal-alert' : 'global-alert', 'success', msg);
+}
+
+// Re-renders every attendance-driven view that is currently on screen.
+function refreshAttendanceViews() {
+  const act = id => { const el = document.getElementById(id); return !!(el && el.classList.contains('active')); };
+  try {
+    if (act('page-attendance-report')) generateAttReport();
+    if (act('page-absent-list')) renderAbsentHistory();
+    if (act('page-student-dashboard') && window._sdCurrentRoll && document.getElementById('sd-search').value.trim()) loadStudentDashboard();
+    if (document.getElementById('sd-att-cal-modal').classList.contains('open')) renderSdAttCalendar();
+    if (act('page-my-attendance')) renderMyAttendanceCalendar();
+    if (act('page-my-dashboard') && typeof loadMyDashboard === 'function') loadMyDashboard();
+    if (typeof refreshDashboard === 'function') refreshDashboard();
+  } catch (e) { console.error('refreshAttendanceViews', e); }
+}
+window.refreshAttendanceViews = refreshAttendanceViews;
+
+// --- Edit from the Attendance Report ---
+function saveAttendanceEdit(id) {
+  const base = attendance.find(r => r.id === id);
+  if (!base) return;
+  if (!canEditAttendanceRecord(base)) { showAlert('global-alert','error','❌ You can only edit today\'s attendance entries.'); return; }
+  const vals = _readAttEditForm();   // read now, while the form is open
   confirmAction(
-    `Update this attendance record to "${status}"?`,
-    () => saveAttendanceEditConfirmed(id, idx, status),
+    `Update this attendance record to "${vals.status}"?`,
+    () => commitAttendanceRecord(base, vals),
     { title: 'Confirm Attendance Update', confirmLabel: 'Yes, Update' }
   );
 }
 
-async function saveAttendanceEditConfirmed(id, idx, status) {
-  attendance[idx] = {
-    ...attendance[idx],
-    status,
-    topic: status==='Absent' ? '' : document.getElementById('ea-topic').value.trim(),
-    software: status==='Absent' ? '' : document.getElementById('ea-software').value.trim(),
-    editedBy: currentUser.name,
-    editedAt: new Date().toISOString()
-  };
-  await DB.set('attendance', attendance);
-  closeModal('inline-modal');
-  generateAttReport();
-  showAlert('global-alert','success', `✅ Attendance updated — marked ${status}.`);
+// --- Edit / add from the Student Dashboard calendar ---
+function openSdAttEdit(dateStr) {
+  const roll = window._sdCurrentRoll;
+  const stu = students.find(st => st.rollNo === roll);
+  if (!stu) return;
+  let a = attendance.find(r => r.rollNo === roll && r.date === dateStr);
+  if (a) {
+    if (!canEditAttendanceRecord(a)) { showAlert('sd-cal-alert','error','❌ You can only edit today\'s attendance entries.'); return; }
+  } else {
+    if (!canModify()) return;
+    a = { id: dateStr + '_' + roll, date: dateStr, rollNo: roll, studentName: (stu.fname + ' ' + (stu.lname || '')).trim(),
+          course: stu.course, batch: stu.batch, status: 'Present', topic: '', software: '', recordedBy: currentUser.name, recordedAt: new Date().toISOString() };
+  }
+  showInlineModal((attendance.some(r => r.id === a.id) ? 'Edit' : 'Add') + ' Attendance — ' + a.studentName, attEditFieldsHtml(a), `saveSdAttEdit('${dateStr}')`);
 }
+window.openSdAttEdit = openSdAttEdit;
+
+function saveSdAttEdit(dateStr) {
+  const roll = window._sdCurrentRoll;
+  const existing = attendance.find(r => r.rollNo === roll && r.date === dateStr);
+  const stu = students.find(st => st.rollNo === roll);
+  if (!stu) return;
+  if (existing && !canEditAttendanceRecord(existing)) { showAlert('sd-cal-alert','error','❌ You can only edit today\'s attendance entries.'); return; }
+  if (!existing && !canModify()) return;
+  const base = existing || { id: dateStr + '_' + roll, date: dateStr, rollNo: roll, studentName: (stu.fname + ' ' + (stu.lname || '')).trim(),
+    course: stu.course, batch: stu.batch, recordedBy: currentUser.name, recordedAt: new Date().toISOString() };
+  const vals = _readAttEditForm();
+  confirmAction(
+    `${existing ? 'Update' : 'Add'} attendance for ${formatDateDMY(dateStr)} as "${vals.status}"? This will update the dashboard, attendance report and absent list.`,
+    () => commitAttendanceRecord(base, vals),
+    { title: existing ? 'Confirm Attendance Update' : 'Confirm Attendance Entry', confirmLabel: 'Yes, Save' }
+  );
+}
+window.saveSdAttEdit = saveSdAttEdit;
 
 // ============================================================
 // STUDENT DASHBOARD
@@ -8587,7 +8690,7 @@ window.myCalGoToday = myCalGoToday;
 // Inactive, so long-leave periods are naturally excluded rather than
 // counted as absent.
 // ============================================================
-let sdCalState = { year: new Date().getFullYear(), month: new Date().getMonth() };
+let sdCalState = { year: new Date().getFullYear(), month: new Date().getMonth(), selectedDate: null };
 
 function openSdAttCalendar() {
   const roll = window._sdCurrentRoll;
@@ -8595,7 +8698,8 @@ function openSdAttCalendar() {
   if (!s) return;
   const admDate = s.admDate ? new Date(s.admDate + 'T00:00:00') : new Date();
   const today = new Date();
-  sdCalState.year = today.getFullYear(); sdCalState.month = today.getMonth();
+  sdCalState.year = today.getFullYear(); sdCalState.month = today.getMonth(); sdCalState.selectedDate = null;
+  document.getElementById('sd-cal-alert').innerHTML = '';
   document.getElementById('sd-cal-title').textContent = `🗓️ ${s.fname} ${s.lname} — Attendance Calendar`;
   document.getElementById('sd-att-cal-modal').classList.add('open');
   renderSdAttCalendar();
@@ -8642,8 +8746,9 @@ function renderSdAttCalendar() {
     else if (rec && rec.status === 'Absent') { cls = 'day-absent'; tag = 'Absent'; mAbsent++; }
     else if (dow === 0 || dow === 6) { cls = 'day-weekend'; tag = dow === 0 ? 'Sunday' : 'Saturday'; }
     const isToday = dateStr === todayStrVal;
+    const isSel = dateStr === sdCalState.selectedDate;
     html += `
-      <div class="cal-day ${cls} ${isToday ? 'cal-today' : ''}" title="${rec ? rec.topic || '' : ''}">
+      <div class="cal-day ${cls} ${isToday ? 'cal-today' : ''} ${isSel ? 'cal-selected' : ''}" onclick="sdCalSelectDate('${dateStr}')" title="${_escHtml(rec ? rec.topic || '' : '')}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <span class="cal-day-num">${d}</span>
           ${tag ? `<span class="cal-day-tag">${tag}</span>` : ''}
@@ -8656,8 +8761,63 @@ function renderSdAttCalendar() {
     <div class="cms-item"><div class="cms-val" style="color:var(--green);">${mPresent}</div><div class="cms-label">Present</div></div>
     <div class="cms-item"><div class="cms-val" style="color:var(--red);">${mAbsent}</div><div class="cms-label">Absent</div></div>
     <div class="cms-item"><div class="cms-val" style="color:var(--amber);">${mHoliday}</div><div class="cms-label">Holidays</div></div>`;
+  sdCalRenderDetail();
 }
 window.renderSdAttCalendar = renderSdAttCalendar;
+
+function sdCalSelectDate(dateStr) {
+  sdCalState.selectedDate = dateStr;
+  renderSdAttCalendar();
+  const box = document.getElementById('sd-cal-detail');
+  if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+window.sdCalSelectDate = sdCalSelectDate;
+
+// Detail panel under the calendar: topic, software, status for the picked day,
+// plus an Edit (or Add) button when the signed-in user is allowed to change it.
+function sdCalRenderDetail() {
+  const box = document.getElementById('sd-cal-detail');
+  if (!box) return;
+  const ds = sdCalState.selectedDate;
+  if (!ds) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const roll = window._sdCurrentRoll;
+  const rec = (window.attendance || []).find(a => a.rollNo === roll && a.date === ds);
+  const holiday = calHolidayFor(ds);
+  const dow = new Date(ds + 'T00:00:00').getDay();
+  const pretty = new Date(ds + 'T00:00:00').toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  const row = (k, v) => `<div style="display:flex;gap:10px;padding:5px 0;font-size:13.5px;"><div style="width:120px;color:var(--muted);flex-shrink:0;">${k}</div><div style="font-weight:500;word-break:break-word;">${v}</div></div>`;
+  let body = '', actions = '', statusChip = '';
+
+  if (rec) {
+    statusChip = `<span class="chip ${rec.status === 'Present' ? 'chip-green' : 'chip-red'}">${_escHtml(rec.status)}</span>`;
+    const absRec = (window.absences || []).find(x => x.rollNo === roll && x.date === ds);
+    body = rec.status === 'Present'
+      ? row('Topic covered', rec.topic ? _escHtml(rec.topic) : '<span style="color:var(--muted);">Not entered</span>')
+        + row('Software used', rec.software ? _escHtml(rec.software) : '<span style="color:var(--muted);">Not entered</span>')
+      : row('Reason', absRec && absRec.reason ? _escHtml(absRec.reason) : '<span style="color:var(--muted);">Not specified</span>');
+    body += row('Batch', _escHtml((rec.batch || '').split('(')[0].trim() || '—'));
+    if (rec.recordedBy) body += row('Recorded by', _escHtml(rec.recordedBy));
+    if (rec.editedBy) body += row('Last edited by', _escHtml(rec.editedBy) + (rec.editedAt ? ' · ' + new Date(rec.editedAt).toLocaleString('en-IN') : ''));
+    if (canEditAttendanceRecord(rec)) actions = `<button class="btn btn-outline" onclick="openSdAttEdit('${ds}')" style="padding:6px 14px;font-size:12.5px;color:var(--amber);border-color:var(--amber);">✏️ Edit Attendance</button>`;
+    else if (currentUser && currentUser.role === 'teacher') actions = `<span style="font-size:11.5px;color:var(--muted);">Teachers can edit only today's entries.</span>`;
+  } else if (holiday) {
+    statusChip = `<span class="chip chip-amber">Holiday</span>`;
+    body = row('Holiday', _escHtml(holiday.name));
+  } else {
+    statusChip = `<span class="chip" style="background:#e2e8f0;color:#475569;">No record</span>`;
+    body = `<div style="font-size:13px;color:var(--muted);padding:4px 0;">No attendance was recorded for this student on this day${(dow === 0 || dow === 6) ? ' (' + (dow === 0 ? 'Sunday' : 'Saturday') + ')' : ''}.</div>`;
+    if (canModify() && ds <= todayStr()) actions = `<button class="btn btn-outline" onclick="openSdAttEdit('${ds}')" style="padding:6px 14px;font-size:12.5px;">➕ Add Attendance</button>`;
+  }
+  box.style.display = 'block';
+  box.innerHTML = `<div style="border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;background:#f8fafd;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+      <div style="font-weight:700;font-size:14.5px;">${pretty}</div>${statusChip}
+    </div>
+    ${body}
+    ${actions ? `<div style="margin-top:10px;">${actions}</div>` : ''}
+  </div>`;
+}
+window.sdCalRenderDetail = sdCalRenderDetail;
 
 function myCalSelectDate(dateStr) {
   myCalState.selectedDate = dateStr;
