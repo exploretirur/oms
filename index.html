@@ -257,11 +257,11 @@ textarea { min-height: 80px; resize: vertical; }
 .cal-dot-green { background: var(--green); }
 .cal-dot-red { background: var(--red); }
 .cal-dot-orange { background: var(--amber); }
-.cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; }
+.cal-weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
 .cal-weekdays span { text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
 .cal-day {
-  position: relative; aspect-ratio: 1 / 0.85; border-radius: 10px; border: 1.5px solid var(--border);
+  min-width: 0; overflow: hidden; position: relative; aspect-ratio: 1 / 0.85; border-radius: 10px; border: 1.5px solid var(--border);
   padding: 8px; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; justify-content: space-between;
   background: #fff;
 }
@@ -307,25 +307,6 @@ tr:hover td { background: #f8fafd; }
 .chip-red { background: #fee2e2; color: #b91c1c; }
 .chip-amber { background: #fef3c7; color: #b45309; }
 .chip-blue { background: #dbeafe; color: #1d4ed8; }
-.chip-purple { background: #ede9fe; color: #6d28d9; }
-.cal-day.day-leave { background: rgba(139,92,246,0.10); border-color: rgba(139,92,246,0.40); }
-.cal-day.day-leave .cal-day-tag { background: #8b5cf6; color: #fff; }
-.cal-day.day-rejoin { background: rgba(14,165,233,0.10); border-color: rgba(14,165,233,0.45); }
-.cal-day.day-rejoin .cal-day-tag { background: #0ea5e9; color: #fff; }
-.cal-day.day-dropout { background: rgba(71,85,105,0.12); border-color: rgba(71,85,105,0.45); }
-.cal-day.day-dropout .cal-day-tag { background: #475569; color: #fff; }
-.cal-day .cal-day-note { font-size: 10px; font-weight: 600; margin-top: 2px; }
-.icon-actions { display: flex; gap: 4px; flex-wrap: nowrap; white-space: nowrap; }
-.icon-btn { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; border: 1.5px solid var(--border); background: transparent; cursor: pointer; font-size: 14px; line-height: 1; transition: background .12s, transform .12s; }
-.icon-btn:hover { background: #f1f5f9; transform: translateY(-1px); }
-.icon-btn.i-view { border-color: #93c5fd; }
-.icon-btn.i-edit { border-color: #fcd34d; }
-.icon-btn.i-leave { border-color: #c4b5fd; }
-.icon-btn.i-rejoin { border-color: #6ee7b7; }
-.icon-btn.i-drop { border-color: #fca5a5; }
-.icon-btn.i-login { border-color: var(--border); }
-.tbl-compact th, .tbl-compact td { padding: 8px 9px; font-size: 12.5px; }
-#global-tip { position: fixed; z-index: 100000; background: #0f172a; color: #fff; font-size: 12px; font-weight: 500; padding: 5px 9px; border-radius: 6px; pointer-events: none; opacity: 0; transition: opacity .12s; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
 .chip-purple { background: #ede9fe; color: #5b21b6; }
 .chip-teal { background: #ccfbf1; color: #0f766e; }
 
@@ -612,9 +593,6 @@ tr:hover td { background: #f8fafd; }
   </div>
   <div class="nav-item" id="nav-students" onclick="navTo('students',this)">
     <span class="icon">👥</span> Student Records
-  </div>
-  <div class="nav-item" id="nav-status-report" onclick="navTo('status-report',this)">
-    <span class="icon">🏖️</span> Long Leave / Drop Out Report
   </div>
   <div class="nav-item" id="nav-fees" onclick="navTo('fees',this)">
     <span class="icon">💳</span> Fees & Payments
@@ -1029,8 +1007,8 @@ tr:hover td { background: #f8fafd; }
           </div>
         </div>
         <div class="table-wrap">
-          <table class="tbl-compact">
-            <thead><tr><th>No</th><th>Roll No</th><th>Name</th><th>Course</th><th>Type</th><th>Batch</th><th>Mode</th><th>Mobile</th><th>Fees</th><th>Login</th><th>Actions</th></tr></thead>
+          <table>
+            <thead><tr><th>Sl.No</th><th>Roll No</th><th>Name</th><th>Course</th><th>Type</th><th>Batch</th><th>Mode</th><th>Mobile</th><th>Fees Status</th><th>Login</th><th>Actions</th></tr></thead>
             <tbody id="students-table-body"><tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px;">No students admitted yet</td></tr></tbody>
           </table>
 
@@ -1685,11 +1663,16 @@ tr:hover td { background: #f8fafd; }
     <div id="page-attendance-report" class="page">
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">🔍</span> Filter</div></div>
+        <div style="display:flex;gap:18px;margin-bottom:14px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="ar-date-mode" value="range" checked onchange="toggleArDateMode()"> Date Range</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="ar-date-mode" value="single" onchange="toggleArDateMode()"> Single Date</label>
+        </div>
         <div class="form-grid">
           <div class="form-group"><label>Course</label><select id="ar-course"><option value="">All Courses</option></select></div>
           <div class="form-group"><label>Batch</label><select id="ar-batch"><option value="">All Batches</option></select></div>
-          <div class="form-group"><label>From Date</label><input id="ar-from" type="date"></div>
-          <div class="form-group"><label>To Date</label><input id="ar-to" type="date"></div>
+          <div class="form-group" id="ar-from-group"><label>From Date</label><input id="ar-from" type="date"></div>
+          <div class="form-group" id="ar-to-group"><label>To Date</label><input id="ar-to" type="date"></div>
+          <div class="form-group" id="ar-single-group" style="display:none;"><label>Date</label><input id="ar-single" type="date"></div>
           <div class="form-group"><label>Status</label><select id="ar-status"><option value="">All (Present + Absent)</option><option value="Present">Present Only</option><option value="Absent">Absent Only</option></select></div>
         </div>
         <div class="action-bar"><button class="btn btn-primary" onclick="generateAttReport()">Generate Report</button></div>
@@ -1703,40 +1686,6 @@ tr:hover td { background: #f8fafd; }
         <div class="table-wrap">
           <table><thead><tr><th>Sl.No</th><th>Photo</th><th>Date</th><th>Roll No</th><th>Student</th><th>Course</th><th>Batch</th><th>Status</th><th>Topic</th><th>Software</th><th class="no-print">Action</th></tr></thead>
           <tbody id="att-report-body"></tbody></table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== PAUSED / REJOINED / STOPPED REPORT ===== -->
-    <div id="page-status-report" class="page">
-      <div class="card">
-        <div class="card-header"><div class="card-title"><span class="icon">🔍</span> Filter</div></div>
-        <div class="form-grid">
-          <div class="form-group"><label>Current Status</label>
-            <select id="sr-status" onchange="renderStatusReport()">
-              <option value="">All (Long Leave + Rejoined + Drop Out)</option>
-              <option value="Long Leave">Long Leave</option>
-              <option value="Rejoined">Rejoined</option>
-              <option value="Drop Out">Drop Out (left the course)</option>
-            </select></div>
-          <div class="form-group"><label>Course</label><select id="sr-course" onchange="renderStatusReport()"><option value="">All Courses</option></select></div>
-          <div class="form-group"><label>Batch</label><select id="sr-batch" onchange="renderStatusReport()"><option value="">All Batches</option></select></div>
-          <div class="form-group"><label>Search</label><input id="sr-search" type="text" placeholder="Roll no, name or mobile" data-no-enter-submit="true" oninput="renderStatusReport()"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><span class="icon">🏖️</span> Long Leave / Rejoined / Drop Out Report</div>
-          <div class="no-print" style="display:flex;gap:8px;">
-            <button class="btn btn-outline" onclick="downloadStatusReportCsv()" style="padding:6px 14px;font-size:12px;">⬇️ CSV</button>
-            <button class="btn btn-outline" onclick="window.print()" style="padding:6px 14px;font-size:12px;">🖨️ Print</button>
-          </div>
-        </div>
-        <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;">Leave Days = working days (excluding Sundays and holidays) from the Long Leave date until the student rejoined or dropped out, counted from the joining date. Total = recorded absences + leave days.</div>
-        <div id="sr-summary" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;"></div>
-        <div class="table-wrap">
-          <table><thead><tr><th>Sl.No</th><th>Roll No</th><th>Student</th><th>Course</th><th>Batch</th><th>Joined</th><th>Status</th><th>Long Leave From</th><th>Rejoined On</th><th>Drop Out On</th><th>Reason</th><th>Leave Days</th><th>Recorded Absent</th><th>Total Absent</th><th class="no-print">Action</th></tr></thead>
-          <tbody id="sr-body"></tbody></table>
         </div>
       </div>
     </div>
@@ -1789,17 +1738,12 @@ tr:hover td { background: #f8fafd; }
           <div style="display:flex;gap:22px;">
             <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:var(--green);" id="sd-att-since-present">0</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Present</div></div>
             <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:var(--red);" id="sd-att-since-absent">0</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Absent</div></div>
-            <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#8b5cf6;" id="sd-att-since-leave">0</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Leave</div></div>
             <div style="align-self:center;color:var(--muted);font-size:20px;">›</div>
           </div>
         </div>
         <div class="card">
-          <div class="card-header">
-            <div class="card-title"><span class="icon">📅</span> Attendance Log</div>
-            <select id="sd-att-month" onchange="renderSdAttLog()" style="max-width:200px;"><option value="">All months</option></select>
-          </div>
-          <div id="sd-att-log-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;"></div>
-          <div class="table-wrap"><table><thead><tr><th>Date</th><th>Status</th><th>Topic / Reason</th><th>Software</th></tr></thead><tbody id="sd-att-log"></tbody></table></div>
+          <div class="card-header"><div class="card-title"><span class="icon">📅</span> Attendance Log</div></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>Status</th><th>Topic</th><th>Software</th></tr></thead><tbody id="sd-att-log"></tbody></table></div>
         </div>
         <!-- Payment history hidden for teacher -->
         <div class="card" id="sd-payment-card">
@@ -1878,9 +1822,6 @@ tr:hover td { background: #f8fafd; }
           <span class="cal-legend-item"><span class="cal-dot cal-dot-red"></span> Absent</span>
           <span class="cal-legend-item"><span class="cal-dot cal-dot-orange"></span> Holiday</span>
           <span class="cal-legend-item"><span class="cal-dot" style="background:#3b82f6;"></span> Sat/Sun</span>
-          <span class="cal-legend-item"><span class="cal-dot" style="background:#8b5cf6;"></span> Long Leave / Leave</span>
-          <span class="cal-legend-item"><span class="cal-dot" style="background:#0ea5e9;"></span> Rejoined</span>
-          <span class="cal-legend-item"><span class="cal-dot" style="background:#475569;"></span> Drop Out</span>
         </div>
         <div class="cal-weekdays">
           <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
@@ -2204,9 +2145,6 @@ tr:hover td { background: #f8fafd; }
           <span class="cal-legend-item"><span class="cal-dot cal-dot-red"></span> Absent</span>
           <span class="cal-legend-item"><span class="cal-dot cal-dot-orange"></span> Holiday</span>
           <span class="cal-legend-item"><span class="cal-dot" style="background:#3b82f6;"></span> Sat/Sun</span>
-          <span class="cal-legend-item"><span class="cal-dot" style="background:#8b5cf6;"></span> Long Leave / Leave</span>
-          <span class="cal-legend-item"><span class="cal-dot" style="background:#0ea5e9;"></span> Rejoined</span>
-          <span class="cal-legend-item"><span class="cal-dot" style="background:#475569;"></span> Drop Out</span>
         </div>
         <div class="cal-weekdays">
           <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
@@ -2730,7 +2668,7 @@ tr:hover td { background: #f8fafd; }
             </div>
             <div style="background:#fff;border-radius:10px;padding:12px 14px;text-align:center;">
               <div style="font-size:22px;font-weight:800;color:var(--red);" id="sa-stat-leave">0</div>
-              <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">Leave Days</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">Leave (Absent) Days</div>
             </div>
             <div style="background:#fff;border-radius:10px;padding:12px 14px;text-align:center;">
               <div style="font-size:22px;font-weight:800;" id="sa-stat-pct">0%</div>
@@ -2743,7 +2681,7 @@ tr:hover td { background: #f8fafd; }
       <div class="card">
         <div class="card-header"><div class="card-title"><span class="icon">📊</span> Monthly Attendance Summary</div></div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Staff</th><th>Designation</th><th>Total Working Days</th><th>Present Days</th><th>Leave Days</th><th>Attendance %</th></tr></thead>
+          <thead><tr><th>Staff</th><th>Designation</th><th>Total Working Days</th><th>Present Days</th><th>Leave (Absent) Days</th><th>Attendance %</th></tr></thead>
           <tbody id="sa-summary-body"></tbody>
         </table></div>
       </div>
@@ -2862,7 +2800,7 @@ tr:hover td { background: #f8fafd; }
       </div>
       <div class="form-group"><label>Total Fees (₹)</label><input id="es-totalfees" type="number"></div>
       <div class="form-group"><label>Concession (₹)</label><input id="es-concession" type="number"></div>
-      <div class="form-group"><label>Status</label><select id="es-status"><option>Active</option><option>Long Leave</option><option>Rejoined</option><option>Drop Out</option><option>Completed</option></select></div>
+      <div class="form-group"><label>Status</label><select id="es-status"><option>Active</option><option>Inactive</option><option>Completed</option><option>Dropped</option></select></div>
       <div class="form-group"><label>Guardian Name</label><input id="es-guardian" type="text" placeholder="Father / Guardian"></div>
       <div class="form-group"><label>Guardian Mobile</label><input id="es-gmobile" type="tel" placeholder="Guardian mobile"></div>
       <div class="form-group"><label>Qualification</label><input id="es-qual" type="text" placeholder="Student qualification"></div>
@@ -2888,7 +2826,7 @@ tr:hover td { background: #f8fafd; }
   </div>
 </div>
 
-<!-- MODAL: pause / rejoin / stop student with reason + date -->
+<!-- MODAL: activate/deactivate student with reason -->
 <div class="modal-backdrop" id="status-modal">
   <div class="modal" style="max-width:460px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
@@ -2896,11 +2834,6 @@ tr:hover td { background: #f8fafd; }
       <button class="btn btn-outline" onclick="closeModal('status-modal')" style="padding:4px 12px;">✕</button>
     </div>
     <div id="status-modal-alert"></div>
-    <div id="status-modal-hint" style="font-size:12.5px;color:var(--muted);background:#f8fafd;border-radius:8px;padding:8px 10px;margin-bottom:12px;"></div>
-    <div class="form-group full" style="margin-bottom:12px;">
-      <label id="status-date-label">Effective date</label>
-      <input type="date" id="status-date">
-    </div>
     <div class="form-group full">
       <label id="status-reason-label">Reason</label>
       <textarea id="status-reason" placeholder="e.g. Student discontinued the course / on long leave" style="min-height:80px;"></textarea>
@@ -2948,31 +2881,6 @@ tr:hover td { background: #f8fafd; }
   </div>
 </div>
 
-<div id="global-tip"></div>
-<script>
-(function(){
-  const tip = document.getElementById('global-tip');
-  let hideT = null;
-  function show(el){
-    const t = el.getAttribute('data-tip'); if (!t) return;
-    clearTimeout(hideT);
-    tip.textContent = t; tip.style.opacity = '1';
-    const r = el.getBoundingClientRect(), tr = tip.getBoundingClientRect();
-    let x = r.left + r.width/2 - tr.width/2;
-    x = Math.max(6, Math.min(x, window.innerWidth - tr.width - 6));
-    let y = r.top - tr.height - 8;
-    if (y < 6) y = r.bottom + 8;
-    tip.style.left = x + 'px'; tip.style.top = y + 'px';
-  }
-  function hide(){ tip.style.opacity = '0'; }
-  document.addEventListener('mouseover', e => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) show(el); });
-  document.addEventListener('mouseout',  e => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) hide(); });
-  document.addEventListener('focusin',   e => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) show(el); });
-  document.addEventListener('focusout',  hide);
-  document.addEventListener('touchstart', e => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) { show(el); hideT = setTimeout(hide, 1500); } }, {passive:true});
-  document.addEventListener('scroll', hide, true);
-})();
-</script>
 <script type="module">
 // ============================================================
 // FIREBASE v9 MODULAR SDK — Authentication + Firestore (Production)
@@ -3614,7 +3522,8 @@ onAuthStateChanged(auth, async (user) => {
       const todayEl = id => { const el = document.getElementById(id); if (el) el.value = todayStr(); };
       todayEl('att-date'); todayEl('fee-date'); todayEl('adm-date');
       todayEl('inc-date'); todayEl('exp-date'); todayEl('cert-givendate');
-      // Attendance Report starts with NO date limits so all months show; narrow it with From/To if needed.
+      const arFrom = document.getElementById('ar-from'); if (arFrom) arFrom.value = localDateStr(new Date(new Date().setDate(1)));
+      const arTo = document.getElementById('ar-to'); if (arTo) arTo.value = todayStr();
     }
     document.querySelector('.sidebar').classList.remove('open');
     document.getElementById('sidebar-overlay').classList.remove('open');
@@ -3667,16 +3576,16 @@ if ('serviceWorker' in navigator) {
 // canEnter = can submit new records (admission, payments, attendance)
 // canModify = can edit or delete existing records (admin/manager)
 const PERMISSIONS = {
-  admin:   { pages: ['dashboard','enquiry','admission','admission-report','students','status-report','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
+  admin:   { pages: ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
   // Manager: sees and can enter/edit/delete everything an Admin can, EXCEPT
   // the Student Admission and Fee Collection processes, which are view-only
   // (enforced via canManageAdmissions() / canManageFees() below, not here).
-  manager: { pages: ['dashboard','enquiry','admission','admission-report','students','status-report','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
+  manager: { pages: ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
   // HR Manager: full access, identical to Admin — plus the HR-specific
   // Job Placement Report and Staff Attendance sections.
-  hrmanager: { pages: ['dashboard','enquiry','admission','admission-report','students','status-report','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
-  office:  { pages: ['dashboard','enquiry','admission','admission-report','students','status-report','fees','budget-planner','receipt','certificates','absent-list','student-dashboard','calendar','resources'],                                                                               canEnter: true, canModify: false },
-  teacher: { pages: ['dashboard','students','status-report','attendance','absent-list','attendance-report','student-dashboard','marks','calendar','resources','weekly-planner'],                                                                              canEnter: true, canModify: false },
+  hrmanager: { pages: ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'], canEnter: true, canModify: true },
+  office:  { pages: ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','certificates','absent-list','student-dashboard','calendar','resources'],                                                                               canEnter: true, canModify: false },
+  teacher: { pages: ['dashboard','students','attendance','absent-list','attendance-report','student-dashboard','marks','calendar','resources','weekly-planner'],                                                                              canEnter: true, canModify: false },
   // Academic Head: owns the Weekly Planner (creates/edits the schedule);
   // sees the Dashboard/Calendar/Study Materials for context, same as a
   // Teacher, but doesn't get the back-office (Fees/Admin/Users) pages.
@@ -3750,7 +3659,7 @@ function applyRoleUI() {
   // no-op for them and they always see everything; Office, Teacher and
   // Academic Head simply won't see the nav items (or empty section headers)
   // for pages that don't apply to their role at all.
-  const allPages = ['dashboard','enquiry','admission','admission-report','students','status-report','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'];
+  const allPages = ['dashboard','enquiry','admission','admission-report','students','fees','budget-planner','receipt','finance','certificates','attendance','absent-list','attendance-report','student-dashboard','marks','master','salary','users','import-students','settings','calendar','resources','placement','staff-attendance','weekly-planner'];
   allPages.forEach(p => {
     const nav = document.getElementById('nav-' + p);
     if (!nav) return;
@@ -3899,7 +3808,7 @@ function navTo(page, el) {
   if (pageEl) pageEl.classList.add('active');
   if (el && !el.classList.contains('locked')) el.classList.add('active');
   const titles = {
-    dashboard:'Dashboard', enquiry:'Enquiry', admission:'Student Admission', 'admission-report':'Admission Report', students:'Student Records', 'status-report':'Long Leave / Rejoined / Drop Out Report',
+    dashboard:'Dashboard', enquiry:'Enquiry', admission:'Student Admission', 'admission-report':'Admission Report', students:'Student Records',
     fees:'Fees & Payments', receipt:'Payment Receipt', finance:'Income & Expenses',
     'budget-planner':'Monthly Budget Planner',
     certificates:'Certificates', attendance:'Attendance Entry', 'absent-list':'Absent List',
@@ -3911,11 +3820,9 @@ function navTo(page, el) {
     placement:'Job Placement Report', 'staff-attendance':'Staff Attendance', 'weekly-planner':'Weekly Planner'
   };
   document.getElementById('page-title').textContent = titles[page] || page;
-  if (['admission','students','status-report','attendance','absent-list','attendance-report','marks','calendar','weekly-planner','enquiry'].includes(page)) populateCourseBatchSelects();
+  if (['admission','students','attendance','absent-list','attendance-report','marks','calendar','weekly-planner','enquiry'].includes(page)) populateCourseBatchSelects();
   if (page === 'dashboard') refreshDashboard();
   if (page === 'students') renderStudentsTable();
-  if (page === 'status-report') renderStatusReport();
-  if (page === 'attendance-report') generateAttReport();
   if (page === 'receipt') refreshReceiptDropdown();
   if (page === 'finance') renderFinance();
   if (page === 'budget-planner') renderBudgetPlanner();
@@ -3996,7 +3903,20 @@ function showPage(page) {
   navTo(page, navEl);
 }
 
-function todayStr() { return new Date().toISOString().slice(0,10); }
+// Converts a JS Date to a plain 'yyyy-mm-dd' string using ITS OWN LOCAL
+// calendar fields (getFullYear/getMonth/getDate) — never .toISOString(),
+// which reads UTC fields instead. For any timezone ahead of UTC (e.g.
+// India, UTC+5:30), .toISOString().slice(0,10) silently rolls back to the
+// PREVIOUS calendar day for roughly the first few hours after local
+// midnight, which was causing "today" and computed due-dates to land on
+// the wrong weekday. Use this everywhere a Date needs to become a date
+// string that should match what the clock on the wall says.
+function localDateStr(date) {
+  const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+window.localDateStr = localDateStr;
+function todayStr() { return localDateStr(new Date()); }
 
 // Global date display formatter — every date shown to the user (tables,
 // lists, cards, receipts) should read dd-mm-yyyy consistently, regardless
@@ -4329,7 +4249,7 @@ const STUDENT_FIELDS = [
   { key:'qual',       label:'Qualification',         required:false },
   { key:'idType',     label:'ID Type',               required:false },
   { key:'idNumber',   label:'ID Number',             required:false },
-  { key:'status',     label:'Status (Active/Long Leave/Rejoined/Drop Out)', required:false },
+  { key:'status',     label:'Status (Active/Inactive)', required:false },
   { key:'remarks',    label:'Remarks',               required:false },
 ];
 let _importRows=[], _importHeaders=[], _importMapped=[];
@@ -4461,7 +4381,7 @@ function buildMappingUI() {
 // Admission Date consistent regardless of how the source file was typed.
 function parseFlexibleDate(v) {
   if (!v) return '';
-  if (v instanceof Date) return isNaN(v.getTime()) ? '' : v.toISOString().slice(0,10);
+  if (v instanceof Date) return isNaN(v.getTime()) ? '' : localDateStr(v);
   const str = String(v).trim();
   if (!str) return '';
   if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0,10);
@@ -4472,7 +4392,7 @@ function parseFlexibleDate(v) {
     return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
   }
   const parsed = new Date(str);
-  return isNaN(parsed.getTime()) ? str : parsed.toISOString().slice(0,10);
+  return isNaN(parsed.getTime()) ? str : localDateStr(parsed);
 }
 window.parseFlexibleDate = parseFlexibleDate;
 
@@ -4490,7 +4410,7 @@ function previewImport() {
       if (key === 'admDate' || key === 'dob') {
         s[key] = parseFlexibleDate(v);
       } else {
-        s[key] = (v instanceof Date) ? v.toISOString().slice(0,10) : String(v||'').trim();
+        s[key] = (v instanceof Date) ? localDateStr(v) : String(v||'').trim();
       }
     });
     return s;
@@ -4556,7 +4476,7 @@ async function confirmImport() {
         email:s.email||'', address:s.address||'', guardian:s.guardian||'', guardianMobile:s.guardianMobile||'',
         totalFees:s.totalFees||'0', concession:s.concession||'0',
         qual:s.qual||'', idType:s.idType||'', idNumber:s.idNumber||'', remarks:s.remarks||'',
-        customDueDate:null, status: (statusRaw.startsWith('in') || statusRaw.startsWith('pau') || statusRaw.startsWith('long')) ? 'Long Leave' : (statusRaw.startsWith('stop') || statusRaw.startsWith('drop')) ? 'Drop Out' : statusRaw.startsWith('rejoin') ? 'Rejoined' : 'Active',
+        customDueDate:null, status: statusRaw.startsWith('in') ? 'Inactive' : 'Active',
         createdAt:new Date().toISOString(), importedAt:new Date().toISOString()
       };
     });
@@ -5246,27 +5166,24 @@ function renderStudentsTable(filtered) {
     const status = bal<=0 ? '<span class="chip chip-green">Paid</span>' :
                    paid>0 ? '<span class="chip chip-amber">Partial</span>' :
                    '<span class="chip chip-red">Pending</span>';
-    const _ib = (cls, icon, tip, onclick) => `<button class="icon-btn ${cls}" data-tip="${tip}" aria-label="${tip}" onclick="${onclick}">${icon}</button>`;
-    const stNow = normStatus(s.status);
-    const isLeave = stNow === 'Long Leave', isDrop = stNow === 'Drop Out';
-    let actionBtns = _ib('i-view', '👁️', 'View', `viewStudent('${s.rollNo}')`);
-    if (canModifyStudents()) {
-      actionBtns += _ib('i-edit', '✏️', 'Edit', `openEditStudent('${s.rollNo}')`);
-      if (isLeave || isDrop) actionBtns += _ib('i-rejoin', '🔁', 'Rejoined', `openStatusChangeModal('${s.rollNo}','Rejoined')`);
-      else actionBtns += _ib('i-leave', '🏖️', 'Long Leave', `openStatusChangeModal('${s.rollNo}','Long Leave')`);
-      if (!isDrop) actionBtns += _ib('i-drop', '🚪', 'Drop Out', `openStatusChangeModal('${s.rollNo}','Drop Out')`);
-    }
+    const editBtn = canModifyStudents() ? `<button class="btn btn-outline" onclick="openEditStudent('${s.rollNo}')" style="padding:4px 10px;font-size:12px;color:var(--amber);border-color:var(--amber);">✏️ Edit</button>` : '';
+    const isInactive = s.status === 'Inactive';
+    const statusBtn = canModifyStudents()
+      ? (isInactive
+          ? `<button class="btn btn-outline" onclick="openStatusChangeModal('${s.rollNo}','Active')" style="padding:4px 10px;font-size:12px;color:var(--green);border-color:var(--green);">▶️ Activate</button>`
+          : `<button class="btn btn-outline" onclick="openStatusChangeModal('${s.rollNo}','Inactive')" style="padding:4px 10px;font-size:12px;color:var(--red);border-color:var(--red);">⏸️ Deactivate</button>`)
+      : '';
     const loginCell = s.hasLogin
       ? '<span class="chip chip-green">Active</span>'
       : (s.email
           ? (currentUser.role === 'teacher'
               ? '<span class="chip chip-amber">No Login</span>'
-              : `<button class="icon-btn i-login" data-tip="Create Login" aria-label="Create Login" onclick="createLoginForExistingStudent('${s.rollNo}')">🔑</button>`)
+              : `<button class="btn btn-outline" onclick="createLoginForExistingStudent('${s.rollNo}')" style="padding:4px 10px;font-size:11px;">+ Create Login</button>`)
           : '<span class="chip chip-red" title="No email on file">No Email</span>');
     return `<tr>
       <td>${slIdx + 1}</td>
       <td><strong>${s.rollNo}</strong></td>
-      <td>${s.fname} ${s.lname}${stNow !== 'Active' ? ` <span class="chip ${statusChipClass(stNow)}" style="margin-left:4px;">${stNow}</span>` : ''}</td>
+      <td>${s.fname} ${s.lname}${isInactive ? ' <span class="chip chip-red" style="margin-left:4px;">Inactive</span>' : ''}</td>
       <td>${s.course}</td>
       <td><span class="chip ${s.courseType==='Fast Track'?'chip-amber':'chip-blue'}">${s.courseType||'Regular'}</span></td>
       <td style="font-size:12px;">${s.batch.split('(')[0].trim()}</td>
@@ -5274,7 +5191,11 @@ function renderStudentsTable(filtered) {
       <td>${s.mobile}</td>
       <td>${status}</td>
       <td>${loginCell}</td>
-      <td><div class="icon-actions">${actionBtns}</div></td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-outline" onclick="viewStudent('${s.rollNo}')" style="padding:4px 10px;font-size:12px;">View</button>
+        ${editBtn}
+        ${statusBtn}
+      </td>
     </tr>`;
   }).join('');
 }
@@ -5323,7 +5244,7 @@ function viewStudent(rollNo) {
           <div><span style="color:var(--muted);">DOB:</span> <strong>${formatDateDMY(s.dob)}</strong></div>
           <div><span style="color:var(--muted);">Mobile:</span> <strong>${s.mobile}</strong></div>
           <div><span style="color:var(--muted);">Email:</span> <strong>${s.email||'—'}</strong></div>
-          <div><span style="color:var(--muted);">Status:</span> <strong>${normStatus(s.status)}</strong></div>
+          <div><span style="color:var(--muted);">Status:</span> <strong>${s.status||'Active'}</strong></div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
@@ -5355,18 +5276,13 @@ function viewStudent(rollNo) {
         </div>
       </div>
       <div style="margin-top:10px;"><span style="color:var(--muted);">Remarks:</span> ${s.remarks||'—'}</div>
-      ${(() => { const li = getStudentLeaveInfo(s); return (li.count || li.periods.length) ? `
-      <div style="margin-top:14px;padding:10px 12px;border-radius:8px;background:rgba(239,68,68,0.07);font-size:13px;">
-        <strong style="color:var(--red);">Leave (Absent) days since joining: ${li.count}</strong>
-        <div style="color:var(--muted);font-size:12px;margin-top:2px;">Working days between Long Leave and Rejoined/Drop Out, counted as leave days.</div>
-      </div>` : ''; })()}
       ${s.statusHistory && s.statusHistory.length ? `
       <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border);">
         <div style="font-weight:600;color:var(--navy);margin-bottom:4px;">Status History</div>
         ${[...s.statusHistory].reverse().map(h => `
           <div style="font-size:12.5px;margin-bottom:4px;">
-            <span class="chip ${statusChipClass(h.status)}">${normStatus(h.status)}</span>
-            <strong>${formatDateDMY(statusEntryDate(h))}</strong> — ${h.reason} <span style="color:var(--muted);">(${h.changedBy||'—'}, ${new Date(h.changedAt).toLocaleString('en-IN')})</span>
+            <span class="chip ${h.status==='Inactive'?'chip-red':'chip-green'}">${h.status}</span>
+            — ${h.reason} <span style="color:var(--muted);">(${h.changedBy||'—'}, ${new Date(h.changedAt).toLocaleString('en-IN')})</span>
           </div>`).join('')}
       </div>` : ''}
       <div style="margin-top:10px;font-size:12px;color:var(--muted);">Admitted by: ${s.addedBy||'—'}</div>
@@ -5399,7 +5315,7 @@ function openEditStudent(rollNo) {
   document.getElementById('es-duedate').value = s.customDueDate ? String(parseInt(s.customDueDate)) : '';
   document.getElementById('es-totalfees').value = s.totalFees;
   document.getElementById('es-concession').value = s.concession;
-  document.getElementById('es-status').value = normStatus(s.status);
+  document.getElementById('es-status').value = s.status||'Active';
   document.getElementById('es-guardian').value = s.guardian||'';
   document.getElementById('es-gmobile').value = s.guardianMobile||'';
   document.getElementById('es-qual').value = s.qual||'';
@@ -5446,7 +5362,6 @@ async function saveStudentEdit() {
 }
 
 async function saveStudentEditConfirmed(roll, idx) {
-  const _prevStatus = normStatus(students[idx].status);
   students[idx] = { ...students[idx],
     fname: document.getElementById('es-fname').value.trim(),
     lname: document.getElementById('es-lname').value.trim(),
@@ -5474,12 +5389,6 @@ async function saveStudentEditConfirmed(roll, idx) {
     remarks: document.getElementById('es-remarks').value.trim(),
     editedBy: currentUser.name, editedAt: new Date().toISOString()
   };
-  const _newStatus = normStatus(students[idx].status);
-  if (_newStatus !== _prevStatus) {
-    students[idx].status = _newStatus;
-    students[idx].statusSince = todayStr();
-    students[idx].statusHistory = [...(students[idx].statusHistory || []), { status: _newStatus, reason: 'Changed from Edit Student', effectiveDate: todayStr(), changedBy: currentUser.name, changedAt: new Date().toISOString() }];
-  }
   await DB.set('students', students);
   closeModal('edit-student-modal');
   renderStudentsTable();
@@ -5523,94 +5432,8 @@ async function deleteStudentConfirmed(roll, s) {
 }
 
 // ============================================================
-// STUDENT PAUSE / REJOIN / STOP (with date + reason) — Admin & Office
+// STUDENT ACTIVATE / DEACTIVATE (with reason) — Admin & Office
 // ============================================================
-// Status model:
-//   Active   -> normal, attends class
-//   Long Leave -> every working day of the leave is counted as a LEAVE (absent) day
-//   Rejoined -> came back after a pause; attends class again
-//   Drop Out -> discontinued the course; nothing is counted after the drop-out date
-// Old records saved as 'Inactive'/'Paused' are read as Long Leave and 'Dropped'/'Stopped' as Drop Out.
-function isMarkedAtt(a) { return a && (a.status === 'Present' || a.status === 'Absent'); }
-function normStatus(v) {
-  v = v || 'Active';
-  if (v === 'Inactive' || v === 'Paused') return 'Long Leave';
-  if (v === 'Dropped' || v === 'Stopped') return 'Drop Out';
-  return v;
-}
-function isAttendingStatus(s) { const v = normStatus(s && s.status); return v === 'Active' || v === 'Rejoined'; }
-function statusChipClass(v) {
-  v = normStatus(v);
-  return v === 'Long Leave' ? 'chip-purple' : v === 'Drop Out' ? 'chip-red' : v === 'Rejoined' ? 'chip-blue' : 'chip-green';
-}
-function statusIcon(v) {
-  v = normStatus(v);
-  return v === 'Long Leave' ? '🏖️' : v === 'Drop Out' ? '🚪' : v === 'Rejoined' ? '🔁' : '✅';
-}
-function _ymd(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
-function _parseYmd(s) { const p = String(s).slice(0,10).split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
-function statusEntryDate(h) {
-  if (h.effectiveDate) return String(h.effectiveDate).slice(0,10);
-  const d = new Date(h.changedAt);
-  return isNaN(d.getTime()) ? todayStr() : _ymd(d);
-}
-function getStatusTimeline(s) {
-  return [...(s.statusHistory || [])]
-    .map(h => ({ ...h, _st: normStatus(h.status), _date: statusEntryDate(h) }))
-    .sort((a, b) => a._date.localeCompare(b._date) || String(a.changedAt||'').localeCompare(String(b.changedAt||'')));
-}
-
-// Exact leave (absent) day count for one student, from the joining date.
-// Every working day (not a Sunday, not a holiday — same rule the Calendar uses)
-// between the pause date and the rejoin / stop date is counted as absent.
-// Days that already have a saved attendance record are not counted twice.
-function getStudentLeaveInfo(s) {
-  const today = todayStr();
-  const adm = s.admDate ? String(s.admDate).slice(0,10) : null;
-  const timeline = getStatusTimeline(s);
-  const periods = [];
-  let open = null, stoppedOn = null, lastRejoinedOn = null;
-  const events = {};
-  timeline.forEach(h => {
-    if (h._st === 'Long Leave' || h._st === 'Rejoined' || h._st === 'Drop Out') events[h._date] = h._st;
-    if (h._st === 'Long Leave') {
-      if (!open) open = { from: h._date, reason: h.reason };
-    } else if (h._st === 'Rejoined' || h._st === 'Active') {
-      if (open) { periods.push({ from: open.from, to: h._date, reason: open.reason, endedBy: 'Rejoined' }); open = null; }
-      if (h._st === 'Rejoined') lastRejoinedOn = h._date;
-      stoppedOn = null;
-    } else if (h._st === 'Drop Out' || h._st === 'Completed') {
-      if (open) { periods.push({ from: open.from, to: h._date, reason: open.reason, endedBy: h._st }); open = null; }
-      stoppedOn = h._date;
-    }
-  });
-  if (open) periods.push({ from: open.from, to: null, reason: open.reason, endedBy: null, ongoing: true });
-
-  const attDates = new Set((window.attendance || []).filter(a => a.rollNo === s.rollNo).map(a => a.date));
-  const dates = new Set();
-  const reasonByDate = {};
-  periods.forEach(p => {
-    let d = _parseYmd(adm && adm > p.from ? adm : p.from);
-    const endStr = p.to || _ymd(new Date(_parseYmd(today).getTime() + 86400000)); // ongoing: through today
-    const end = _parseYmd(endStr);
-    while (d < end) {
-      const ds = _ymd(d);
-      if (d.getDay() !== 0 && !calHolidayFor(ds) && !attDates.has(ds) && ds <= today) { dates.add(ds); reasonByDate[ds] = p.reason || ''; }
-      d.setDate(d.getDate() + 1);
-    }
-  });
-  const pauseEntries = timeline.filter(h => h._st === 'Long Leave');
-  const lastPause = pauseEntries[pauseEntries.length - 1];
-  const legacyPausedNoDate = normStatus(s.status) === 'Long Leave' && !pauseEntries.length;
-  return {
-    count: dates.size, dates, periods, events, reasonByDate,
-    timesPaused: pauseEntries.length,
-    lastPausedFrom: lastPause ? lastPause._date : null,
-    lastRejoinedOn, stoppedOn, legacyPausedNoDate
-  };
-}
-window.getStudentLeaveInfo = getStudentLeaveInfo;
-
 let statusChangeContext = null; // { rollNo, newStatus }
 
 function openStatusChangeModal(rollNo, newStatus) {
@@ -5618,24 +5441,17 @@ function openStatusChangeModal(rollNo, newStatus) {
   const s = students.find(st => st.rollNo === rollNo);
   if (!s) return;
   statusChangeContext = { rollNo, newStatus };
-  const cfg = {
-    'Long Leave': { title: '🏖️ Long Leave', dateLabel: 'Long leave from', reasonLabel: 'Reason for long leave (e.g. medical, family, personal)', ph: 'e.g. Student is on long leave',
-                hint: 'Every working day from this date until the student rejoins is counted as a leave day.' },
-    'Rejoined': { title: '🔁 Rejoined', dateLabel: 'Rejoined on',  reasonLabel: 'Reason / note for rejoining', ph: 'e.g. Student is back after leave',
-                hint: 'Leave days before this date stay counted. Attendance resumes from this date.' },
-    'Drop Out': { title: '🚪 Drop Out',   dateLabel: 'Dropped out on',   reasonLabel: 'Reason for dropping out', ph: 'e.g. Student discontinued the course',
-                hint: 'The student has left the course. No days are counted after this date.' }
-  }[newStatus];
-  document.getElementById('status-modal-title').textContent = cfg.title + ' — ' + s.fname + ' ' + s.lname + ' (' + s.rollNo + ')';
-  document.getElementById('status-reason-label').textContent = cfg.reasonLabel;
-  document.getElementById('status-date-label').textContent = cfg.dateLabel;
-  document.getElementById('status-modal-hint').textContent = cfg.hint;
+  const isDeactivating = newStatus === 'Inactive';
+  document.getElementById('status-modal-title').textContent =
+    (isDeactivating ? '⏸️ Deactivate' : '▶️ Activate') + ' — ' + s.fname + ' ' + s.lname + ' (' + s.rollNo + ')';
+  document.getElementById('status-reason-label').textContent = isDeactivating
+    ? 'Reason for deactivation (e.g. discontinued the course, on long leave)'
+    : 'Reason for reactivation (e.g. student has rejoined)';
   const reasonBox = document.getElementById('status-reason');
-  reasonBox.placeholder = cfg.ph;
+  reasonBox.placeholder = isDeactivating
+    ? 'e.g. Student discontinued the course / on long leave'
+    : 'e.g. Student has rejoined the course';
   reasonBox.value = '';
-  const dateBox = document.getElementById('status-date');
-  dateBox.max = todayStr();
-  dateBox.value = todayStr();
   document.getElementById('status-modal-alert').innerHTML = '';
   document.getElementById('status-modal').classList.add('open');
 }
@@ -5644,8 +5460,6 @@ async function confirmStatusChange() {
   if (!statusChangeContext) return;
   if (!canModifyStudents()) { showAlert('status-modal-alert','error','❌ Only Admin and Office Staff can change student status.'); return; }
   const reason = document.getElementById('status-reason').value.trim();
-  const effDate = document.getElementById('status-date').value;
-  if (!effDate) { showAlert('status-modal-alert','error','❌ Please choose the date.'); return; }
   if (!reason) { showAlert('status-modal-alert','error','❌ Please enter a reason.'); return; }
 
   const { rollNo, newStatus } = statusChangeContext;
@@ -5653,30 +5467,22 @@ async function confirmStatusChange() {
   if (idx < 0) return;
   const s = students[idx];
 
-  if (effDate > todayStr()) { showAlert('status-modal-alert','error','❌ The date cannot be in the future.'); return; }
-  if (s.admDate && effDate < String(s.admDate).slice(0,10)) { showAlert('status-modal-alert','error','❌ The date cannot be before the joining date (' + formatDateDMY(s.admDate) + ').'); return; }
-  const tl = getStatusTimeline(s);
-  const lastEntry = tl[tl.length - 1];
-  if (lastEntry && effDate < lastEntry._date) { showAlert('status-modal-alert','error','❌ The date cannot be before the previous status change (' + formatDateDMY(lastEntry._date) + ').'); return; }
-
   confirmAction(
-    `Mark ${s.fname} ${s.lname} (${s.rollNo}) as ${newStatus} from ${formatDateDMY(effDate)}?\n\nReason: ${reason}`,
-    () => applyStatusChange(rollNo, newStatus, reason, effDate),
-    { title: 'Confirm ' + newStatus, confirmLabel: 'Yes, Confirm', danger: newStatus !== 'Rejoined' }
+    `Mark ${s.fname} ${s.lname} (${s.rollNo}) as ${newStatus}?\n\nReason: ${reason}`,
+    () => applyStatusChange(rollNo, newStatus, reason),
+    { title: newStatus === 'Inactive' ? 'Confirm Deactivation' : 'Confirm Activation', confirmLabel: 'Yes, Confirm', danger: newStatus === 'Inactive' }
   );
 }
 
-async function applyStatusChange(rollNo, newStatus, reason, effDate) {
+async function applyStatusChange(rollNo, newStatus, reason) {
   const idx = students.findIndex(s => s.rollNo === rollNo);
   if (idx < 0) return;
-  effDate = effDate || todayStr();
 
-  const historyEntry = { status: newStatus, reason, effectiveDate: effDate, changedBy: currentUser.name, changedAt: new Date().toISOString() };
+  const historyEntry = { status: newStatus, reason, changedBy: currentUser.name, changedAt: new Date().toISOString() };
   students[idx] = {
     ...students[idx],
     status: newStatus,
     statusReason: reason,
-    statusSince: effDate,
     statusHistory: [...(students[idx].statusHistory || []), historyEntry]
   };
   await DB.set('students', students);
@@ -5684,108 +5490,10 @@ async function applyStatusChange(rollNo, newStatus, reason, effDate) {
   closeModal('status-modal');
   statusChangeContext = null;
   renderStudentsTable();
-  const li = getStudentLeaveInfo(students[idx]);
-  const extra = li.count ? ` Leave days counted so far: <strong>${li.count}</strong>.` : '';
-  showAlert('students-alert','success', `✅ Student marked <strong>${newStatus}</strong> from ${formatDateDMY(effDate)}. Reason recorded.${extra}`);
+  showAlert('students-alert','success', `✅ Student marked <strong>${newStatus}</strong>. Reason recorded.`);
 }
 window.openStatusChangeModal = openStatusChangeModal;
 window.confirmStatusChange = confirmStatusChange;
-
-// ============================================================
-// PAUSED / REJOINED / STOPPED REPORT
-// ============================================================
-let _statusReportRows = [];
-function buildStatusReportRows() {
-  const fs = document.getElementById('sr-status').value;
-  const fc = document.getElementById('sr-course').value;
-  const fb = document.getElementById('sr-batch').value;
-  const q  = (document.getElementById('sr-search').value || '').trim().toLowerCase();
-  const rows = [];
-  (window.students || []).forEach(s => {
-    const cur = normStatus(s.status);
-    const tl = getStatusTimeline(s);
-    const everChanged = tl.some(h => h._st === 'Long Leave' || h._st === 'Drop Out');
-    if (!(cur === 'Long Leave' || cur === 'Rejoined' || cur === 'Drop Out' || everChanged)) return;
-    if (fs && cur !== fs) return;
-    if (fc && !looseMatch(s.course, fc)) return;
-    if (fb && !looseMatch(s.batch, fb)) return;
-    if (q && !((s.rollNo||'') + ' ' + (s.fname||'') + ' ' + (s.lname||'') + ' ' + (s.mobile||'')).toLowerCase().includes(q)) return;
-    const li = getStudentLeaveInfo(s);
-    const attLog = (window.attendance || []).filter(a => a.rollNo === s.rollNo);
-    const recAbsent = attLog.filter(a => a.status === 'Absent').length;
-    const present = attLog.filter(a => a.status === 'Present').length;
-    const lastEntry = tl[tl.length - 1];
-    rows.push({
-      s, cur, li, present, recAbsent,
-      totalAbsent: recAbsent + li.count,
-      reason: (lastEntry && lastEntry.reason) || s.statusReason || '—'
-    });
-  });
-  const order = { 'Long Leave': 0, 'Drop Out': 1, 'Rejoined': 2 };
-  rows.sort((a, b) => (order[a.cur] ?? 3) - (order[b.cur] ?? 3) || b.li.count - a.li.count);
-  return rows;
-}
-
-function renderStatusReport() {
-  if (!document.getElementById('sr-status')) return;
-  const rows = buildStatusReportRows();
-  _statusReportRows = rows;
-  const nPaused = rows.filter(r => r.cur === 'Long Leave').length;
-  const nRejoined = rows.filter(r => r.cur === 'Rejoined').length;
-  const nStopped = rows.filter(r => r.cur === 'Drop Out').length;
-  const totalLeave = rows.reduce((a, r) => a + r.li.count, 0);
-  document.getElementById('sr-summary').innerHTML = `
-    <div class="stat-card purple" style="flex:1;min-width:140px;border-left:4px solid #8b5cf6;"><div class="stat-label">Long Leave</div><div class="stat-value">${nPaused}</div></div>
-    <div class="stat-card teal" style="flex:1;min-width:140px;"><div class="stat-label">Rejoined</div><div class="stat-value">${nRejoined}</div></div>
-    <div class="stat-card red" style="flex:1;min-width:140px;"><div class="stat-label">Drop Out</div><div class="stat-value">${nStopped}</div></div>
-    <div class="stat-card red" style="flex:1;min-width:140px;border-left:4px solid #8b5cf6;"><div class="stat-label">Leave Days</div><div class="stat-value">${totalLeave}</div></div>`;
-  const tbody = document.getElementById('sr-body');
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;color:var(--muted);padding:30px;">No paused, rejoined or stopped students found</td></tr>';
-    return;
-  }
-  tbody.innerHTML = rows.map((r, i) => {
-    const s = r.s, li = r.li;
-    const pausedFrom = li.lastPausedFrom ? formatDateDMY(li.lastPausedFrom) : (li.legacyPausedNoDate ? '<span style="color:var(--muted);" title="Long leave was marked before dates were recorded">Not recorded</span>' : '—');
-    return `<tr>
-      <td>${i + 1}</td>
-      <td><strong>${s.rollNo}</strong></td>
-      <td>${s.fname} ${s.lname}</td>
-      <td>${s.course || '—'}</td>
-      <td style="font-size:12px;">${(s.batch || '').split('(')[0].trim()}</td>
-      <td>${formatDateDMY(s.admDate)}</td>
-      <td><span class="chip ${statusChipClass(r.cur)}">${statusIcon(r.cur)} ${r.cur}</span></td>
-      <td>${pausedFrom}</td>
-      <td>${li.lastRejoinedOn ? formatDateDMY(li.lastRejoinedOn) : '—'}</td>
-      <td>${li.stoppedOn ? formatDateDMY(li.stoppedOn) : '—'}</td>
-      <td style="max-width:220px;font-size:12.5px;">${r.reason}</td>
-      <td style="text-align:center;"><strong style="color:#7c3aed;">${li.count}</strong></td>
-      <td style="text-align:center;">${r.recAbsent}</td>
-      <td style="text-align:center;"><strong style="color:var(--red);">${r.totalAbsent}</strong></td>
-      <td class="no-print"><button class="icon-btn i-view" data-tip="View" aria-label="View" onclick="viewStudent('${s.rollNo}')">👁️</button></td>
-    </tr>`;
-  }).join('');
-}
-window.renderStatusReport = renderStatusReport;
-
-function downloadStatusReportCsv() {
-  const rows = _statusReportRows.length ? _statusReportRows : buildStatusReportRows();
-  const head = ['Roll No','Student','Course','Batch','Joining Date','Status','Long Leave From','Rejoined On','Drop Out On','Reason','Leave Days','Recorded Absent','Total Absent + Leave'];
-  const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const lines = [head.map(esc).join(',')];
-  rows.forEach(r => {
-    const s = r.s, li = r.li;
-    lines.push([s.rollNo, s.fname + ' ' + s.lname, s.course, (s.batch||'').split('(')[0].trim(), formatDateDMY(s.admDate), r.cur,
-      li.lastPausedFrom ? formatDateDMY(li.lastPausedFrom) : '', li.lastRejoinedOn ? formatDateDMY(li.lastRejoinedOn) : '',
-      li.stoppedOn ? formatDateDMY(li.stoppedOn) : '', r.reason, li.count, r.recAbsent, r.totalAbsent].map(esc).join(','));
-  });
-  const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'student-status-report-' + todayStr() + '.csv';
-  document.body.appendChild(a); a.click(); a.remove();
-}
-window.downloadStatusReportCsv = downloadStatusReportCsv;
 
 // ============================================================
 // FEES
@@ -5823,7 +5531,7 @@ function onFeeSearchInput() {
         <div class="ac-name">${s.fname} ${s.lname}</div>
         <div class="ac-meta">${s.rollNo} • ${s.course}</div>
       </div>
-      <span class="chip ${statusChipClass(s.status)}" style="font-size:10px;">${normStatus(s.status)}</span>
+      <span class="chip ${s.status==='Inactive'?'chip-red':'chip-green'}" style="font-size:10px;">${s.status||'Active'}</span>
     </div>
   `).join('');
   dropdown.style.display = 'block';
@@ -6234,7 +5942,7 @@ function renderBudgetPlanner() {
   const targetLabel = new Date(y, m - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
   const courseFilter = document.getElementById('bp-course-filter').value;
 
-  const activeStudents = (window.students || []).filter(s => !['Long Leave','Drop Out'].includes(normStatus(s.status)) && (!courseFilter || s.course === courseFilter));
+  const activeStudents = (window.students || []).filter(s => s.status !== 'Inactive' && (!courseFilter || s.course === courseFilter));
 
   _bpRows = [];
   activeStudents.forEach(s => {
@@ -6504,7 +6212,7 @@ function loadAttStudents() {
   );
 
   const filtered = students.filter(s =>
-    looseMatch(s.batch, batch) && looseMatch(s.course, course) && isAttendingStatus(s)
+    looseMatch(s.batch, batch) && looseMatch(s.course, course) && (s.status||'Active') === 'Active'
   );
   const listEl  = document.getElementById('att-student-list');
   const emptyEl = document.getElementById('att-empty');
@@ -6660,7 +6368,7 @@ function loadAbsentStudents() {
   const batch = document.getElementById('abs-batch').value;
   const course = document.getElementById('abs-course').value;
   if (!batch||!course) return;
-  const filtered = students.filter(s=>looseMatch(s.batch,batch)&&looseMatch(s.course,course)&&isAttendingStatus(s));
+  const filtered = students.filter(s=>looseMatch(s.batch,batch)&&looseMatch(s.course,course)&&(s.status||'Active')==='Active');
   const listEl = document.getElementById('abs-student-list');
   const emptyEl = document.getElementById('abs-empty');
   if (!filtered.length) { listEl.style.display='none'; emptyEl.style.display='block'; return; }
@@ -6797,37 +6505,25 @@ function renderAbsentHistory() {
 // ============================================================
 // ATTENDANCE REPORT
 // ============================================================
-
-// Admin: set every listed record whose status is not Present/Absent to Present or Absent.
-// Only those records are written (one update each), nothing else is touched.
-function fixUnmarkedAttendance(newStatus) {
-  if (!canModify()) { showAlert('global-alert','error','❌ Only Admin can correct attendance records.'); return; }
-  const ids = new Set(window._attUnmarkedIds || []);
-  if (!ids.size) return;
-  confirmAction(
-    `Set ${ids.size} record(s) with a status other than Present/Absent to "${newStatus}"?\n\nOnly do this if you know these days were really ${newStatus.toLowerCase()}. Otherwise re-import the original attendance sheet.`,
-    async () => {
-      let done = 0, failed = 0;
-      for (const a of attendance) {
-        if (!ids.has(a.id)) continue;
-        const patch = { status: newStatus, previousStatus: a.status || '', editedBy: currentUser.name, editedAt: new Date().toISOString() };
-        const ok = await DB.updateDoc('attendance', a.id, patch);
-        if (ok) { Object.assign(a, patch); done++; } else failed++;
-      }
-      generateAttReport();
-      showAlert('global-alert', failed ? 'error' : 'success', failed ? `⚠️ ${done} updated, ${failed} failed.` : `✅ ${done} record(s) marked ${newStatus}.`);
-    },
-    { title: 'Correct Attendance Records', confirmLabel: 'Yes, Update', danger: true }
-  );
+// Switches the Attendance Report's date filter between a From/To range and a
+// single exact date, so picking one day doesn't require filling both fields
+// with the same value.
+function toggleArDateMode() {
+  const single = document.querySelector('input[name="ar-date-mode"]:checked').value === 'single';
+  document.getElementById('ar-from-group').style.display = single ? 'none' : '';
+  document.getElementById('ar-to-group').style.display = single ? 'none' : '';
+  document.getElementById('ar-single-group').style.display = single ? '' : 'none';
 }
-window.fixUnmarkedAttendance = fixUnmarkedAttendance;
+window.toggleArDateMode = toggleArDateMode;
 
 function generateAttReport() {
   let base=attendance;
   const course=document.getElementById('ar-course').value;
   const batch=document.getElementById('ar-batch').value;
-  const from=document.getElementById('ar-from').value;
-  const to=document.getElementById('ar-to').value;
+  const singleMode = document.querySelector('input[name="ar-date-mode"]:checked').value === 'single';
+  const singleDate = document.getElementById('ar-single').value;
+  const from = singleMode ? singleDate : document.getElementById('ar-from').value;
+  const to   = singleMode ? singleDate : document.getElementById('ar-to').value;
   const statusFilter=document.getElementById('ar-status').value;
   if (course) base=base.filter(a=>a.course===course);
   if (batch) base=base.filter(a=>a.batch===batch);
@@ -6843,14 +6539,6 @@ function generateAttReport() {
     <div class="stat-card green" style="flex:1;min-width:140px;"><div class="stat-label">Total Present</div><div class="stat-value">${totalPresent}</div></div>
     <div class="stat-card red" style="flex:1;min-width:140px;"><div class="stat-label">Total Absent</div><div class="stat-value">${totalAbsent}</div></div>
   `;
-  // Records saved with some other status (e.g. "Active") are not Present/Absent, so they
-  // are not counted above. Flag them and let Admin fix them in one step.
-  const _unmarked = base.filter(a => !isMarkedAtt(a));
-  window._attUnmarkedIds = _unmarked.map(a => a.id);
-  const _uStatuses = [...new Set(_unmarked.map(a => a.status || 'blank'))].join(', ');
-  const _noteEl = document.getElementById('att-report-unmarked') || (() => { const d = document.createElement('div'); d.id = 'att-report-unmarked'; document.getElementById('att-report-summary').insertAdjacentElement('afterend', d); return d; })();
-  _noteEl.innerHTML = _unmarked.length ? `<div class="alert alert-warn" style="margin-bottom:16px;">⚠️ <strong>${_unmarked.length}</strong> record(s) in this list have status <strong>${_uStatuses}</strong> instead of Present/Absent, so they are <strong>not counted</strong> in Present, Absent or attendance %.
-    ${canModify() ? `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;" class="no-print"><button class="btn btn-outline" onclick="fixUnmarkedAttendance('Present')" style="padding:5px 12px;font-size:12px;">Mark these as Present</button><button class="btn btn-outline" onclick="fixUnmarkedAttendance('Absent')" style="padding:5px 12px;font-size:12px;">Mark these as Absent</button></div>` : ''}</div>` : '';
 
   let f = statusFilter ? base.filter(a=>a.status===statusFilter) : base;
   f = [...f].sort((a,b)=>b.date.localeCompare(a.date));
@@ -6863,7 +6551,7 @@ function generateAttReport() {
     <td>${studentPhotoHtml(stu, 32)}</td>
     <td>${formatDateDMY(a.date)}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.course}</td>
     <td style="font-size:12px;">${(a.batch||'').split('(')[0].trim()}</td>
-    <td>${isMarkedAtt(a) ? `<span class="chip ${a.status==='Present'?'chip-green':'chip-red'}">${a.status}</span>` : `<span class="chip" style="background:#e2e8f0;color:#475569;" title="Not Present/Absent">Unmarked (${a.status||'blank'})</span>`}</td>
+    <td><span class="chip ${a.status==='Present'?'chip-green':'chip-red'}">${a.status}</span></td>
     <td>${a.topic||'—'}</td><td>${a.software||'—'}</td>
     <td class="no-print">${canEditAttendanceRecord(a) ? `<button class="btn btn-outline" onclick="openEditAttendance('${a.id}')" style="padding:4px 10px;font-size:12px;color:var(--amber);border-color:var(--amber);">✏️ Edit</button>` : '—'}</td>
   </tr>`;
@@ -6967,7 +6655,7 @@ function searchStudentForDashboard() {
         <div class="ac-name">${s.fname} ${s.lname}</div>
         <div class="ac-meta">${s.rollNo} • ${s.course}</div>
       </div>
-      <span class="chip ${statusChipClass(s.status)}" style="font-size:10px;">${normStatus(s.status)}</span>
+      <span class="chip ${s.status==='Inactive'?'chip-red':'chip-green'}" style="font-size:10px;">${s.status||'Active'}</span>
     </div>
   `).join('');
   dropdown.style.display = 'block';
@@ -6980,59 +6668,6 @@ function selectDashboardStudent(rollNo) {
   loadStudentDashboard();
 }
 window.selectDashboardStudent = selectDashboardStudent;
-
-
-// ---- Student Dashboard attendance log with month filter -------------------
-const _MONTHS_SHORT = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-function _monthLabel(ym) { const p = ym.split('-'); return _MONTHS_SHORT[+p[1]-1] + ' ' + p[0]; }
-function populateSdAttMonthSelect(s) {
-  const sel = document.getElementById('sd-att-month'); if (!sel) return;
-  const li = getStudentLeaveInfo(s);
-  const set = new Set();
-  const now = new Date();
-  const startD = s.admDate ? _parseYmd(s.admDate) : now;
-  let y = startD.getFullYear(), m = startD.getMonth();
-  while (y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth())) { set.add(y + '-' + String(m+1).padStart(2,'0')); m++; if (m > 11) { m = 0; y++; } }
-  (window.attendance||[]).filter(a => a.rollNo === s.rollNo).forEach(a => set.add(String(a.date).slice(0,7)));
-  li.dates.forEach(d => set.add(d.slice(0,7)));
-  const months = [...set].filter(x => /^\d{4}-\d{2}$/.test(x)).sort().reverse();
-  sel.innerHTML = '<option value="">All months</option>' + months.map(mm => `<option value="${mm}">${_monthLabel(mm)}</option>`).join('');
-  sel.value = months.includes(window._sdLogMonth) ? window._sdLogMonth : '';
-}
-function renderSdAttLog() {
-  const sel = document.getElementById('sd-att-month');
-  const s = (window.students||[]).find(st => st.rollNo === window._sdCurrentRoll);
-  const body = document.getElementById('sd-att-log');
-  if (!s || !body) return;
-  const month = sel ? sel.value : '';
-  window._sdLogMonth = month;
-  const li = getStudentLeaveInfo(s);
-  const rows = [];
-  (window.attendance||[]).filter(a => a.rollNo === s.rollNo).forEach(a => rows.push({ date: a.date, kind: a.status, topic: a.topic, software: a.software }));
-  li.dates.forEach(d => rows.push({ date: d, kind: 'Leave', topic: li.reasonByDate[d] || '' }));
-  Object.keys(li.events).forEach(d => rows.push({ date: d, kind: 'event', ev: li.events[d] }));
-  const f = rows.filter(r => !month || String(r.date).slice(0,7) === month)
-                .sort((a,b) => b.date.localeCompare(a.date) || (a.kind==='event' ? -1 : 1));
-  const cP = f.filter(r => r.kind === 'Present').length, cA = f.filter(r => r.kind === 'Absent').length, cL = f.filter(r => r.kind === 'Leave').length;
-  document.getElementById('sd-att-log-summary').innerHTML = `
-    <div class="cms-item" style="flex:1;min-width:90px;text-align:center;padding:8px;border-radius:10px;background:#f8fafd;"><div style="font-size:18px;font-weight:700;color:var(--green);">${cP}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Present</div></div>
-    <div class="cms-item" style="flex:1;min-width:90px;text-align:center;padding:8px;border-radius:10px;background:#f8fafd;"><div style="font-size:18px;font-weight:700;color:var(--red);">${cA}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Absent</div></div>
-    <div class="cms-item" style="flex:1;min-width:90px;text-align:center;padding:8px;border-radius:10px;background:#f8fafd;"><div style="font-size:18px;font-weight:700;color:#8b5cf6;">${cL}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Leave</div></div>`;
-  if (!f.length) { body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No attendance records' + (month ? ' for ' + _monthLabel(month) : '') + '</td></tr>'; return; }
-  body.innerHTML = f.map(r => {
-    if (r.kind === 'event') {
-      const ic = r.ev === 'Long Leave' ? '🏖️' : r.ev === 'Rejoined' ? '🔁' : '🚪';
-      const cls = r.ev === 'Long Leave' ? 'chip-purple' : r.ev === 'Rejoined' ? 'chip-blue' : 'chip-red';
-      const h = (s.statusHistory||[]).find(x => statusEntryDate(x) === r.date && normStatus(x.status) === r.ev);
-      return `<tr style="background:#faf8ff;"><td>${formatDateDMY(r.date)}</td><td><span class="chip ${cls}">${ic} ${r.ev}</span></td><td colspan="2" style="font-size:12.5px;color:var(--muted);">${h && h.reason ? h.reason : '—'}</td></tr>`;
-    }
-    const unmarked = !['Present','Absent','Leave'].includes(r.kind);
-    const cls = r.kind === 'Present' ? 'chip-green' : r.kind === 'Absent' ? 'chip-red' : unmarked ? '' : 'chip-purple';
-    const label = unmarked ? 'Unmarked (' + (r.kind || 'blank') + ')' : r.kind;
-    return `<tr><td>${formatDateDMY(r.date)}</td><td><span class="chip ${cls}" ${unmarked ? 'style="background:#e2e8f0;color:#475569;" title="Saved without Present/Absent — ask Admin to correct it in Attendance Report"' : ''}>${label}</span></td><td>${r.topic || '—'}</td><td>${r.software || '—'}</td></tr>`;
-  }).join('');
-}
-window.renderSdAttLog = renderSdAttLog;
 
 function loadStudentDashboard() {
   const q=document.getElementById('sd-search').value.trim().toLowerCase();
@@ -7062,26 +6697,19 @@ function loadStudentDashboard() {
   window._sdCurrentRoll = s.rollNo; // remembered so the calendar modal knows which student to show
   const attLog=attendance.filter(a=>a.rollNo===s.rollNo);
   const present=attLog.filter(a=>a.status==='Present').length;
-  // Long-leave working days are counted as Leave days, from the joining date.
-  const leaveInfo=getStudentLeaveInfo(s);
-  const markedCount=attLog.filter(isMarkedAtt).length;
-  const totalDays=markedCount+leaveInfo.count;
-  const pct=totalDays?Math.round(present/totalDays*100):0;
+  const pct=attLog.length?Math.round(present/attLog.length*100):0;
   document.getElementById('sd-att-pct').textContent=pct+'%';
-  document.getElementById('sd-att-days').textContent=present+' present of '+totalDays+' days'+(leaveInfo.count?' (incl. '+leaveInfo.count+' leave days)':'');
+  document.getElementById('sd-att-days').textContent=present+' present of '+attLog.length+' days';
 
   // Total present/absent since joining. Both counts come straight from actual
   // attendance records, and a student is skipped from attendance-taking for as
   // long as their account is Inactive (see loadAttStudents/loadAbsentStudents),
-  // so the paused (long-leave) days are added on top via getStudentLeaveInfo().
+  // so a long-leave deactivation period never produces Absent records and is
+  // correctly left out of this total rather than counted as absent.
   const sinceAbsent = attLog.filter(a=>a.status==='Absent').length;
   document.getElementById('sd-att-since-present').textContent = present;
   document.getElementById('sd-att-since-absent').textContent = sinceAbsent;
-  document.getElementById('sd-att-since-leave').textContent = leaveInfo.count;
-  document.getElementById('sd-att-since-sub').textContent = 'Since ' + formatDateDMY(s.admDate)
-    + (leaveInfo.count ? ' — ' + leaveInfo.count + ' leave day' + (leaveInfo.count>1?'s':'') + ' (Long Leave)' : '')
-    + (normStatus(s.status)!=='Active' ? ' • Status: ' + normStatus(s.status) : '')
-    + ' — tap to view calendar';
+  document.getElementById('sd-att-since-sub').textContent = 'Since ' + formatDateDMY(s.admDate) + ' — tap to view calendar';
 
   // --- Fee stats (admin/office only) ---
   const feePaidCard = document.getElementById('sd-fees-paid-card');
@@ -7135,7 +6763,7 @@ function loadStudentDashboard() {
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
         <div><div class="stat-label">Duration</div><div style="font-weight:600;">${duration} months</div></div>
         <div><div class="stat-label">Start Date</div><div style="font-weight:600;">${formatDateDMY(s.admDate)}</div></div>
-        <div><div class="stat-label">End Date</div><div style="font-weight:600;">${endDate.toISOString().slice(0,10)}</div></div>
+        <div><div class="stat-label">End Date</div><div style="font-weight:600;">${formatDateDMY(localDateStr(endDate))}</div></div>
       </div>
       <div style="margin-bottom:8px;">
         <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px;">
@@ -7159,9 +6787,12 @@ function loadStudentDashboard() {
   }
 
   // --- Attendance log (all roles) ---
-  if (window._sdLogRoll !== s.rollNo) { window._sdLogRoll = s.rollNo; window._sdLogMonth = ''; }
-  populateSdAttMonthSelect(s);
-  renderSdAttLog();
+  const attBody=document.getElementById('sd-att-log');
+  attBody.innerHTML=attLog.length ? [...attLog].reverse().map(a=>`<tr>
+    <td>${formatDateDMY(a.date)}</td>
+    <td><span class="chip ${a.status==='Present'?'chip-green':'chip-red'}">${a.status}</span></td>
+    <td>${a.topic||'—'}</td><td>${a.software||'—'}</td>
+  </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No attendance records</td></tr>';
 
   // --- Marks log ---
   const studentMarks = marks.filter(m=>m.rollNo===s.rollNo);
@@ -7211,7 +6842,7 @@ function refreshDashboard() {
     document.getElementById('stat-students').textContent=students.length;
     buildDueTable('today-due-body','today-due-total',canManageFees());
     document.getElementById('stat-fees').textContent='₹'+payments.reduce((a,p)=>a+parseFloat(p.amount||0),0).toLocaleString('en-IN');
-    const _mk=attendance.filter(isMarkedAtt); const pctA=_mk.length?Math.round(_mk.filter(a=>a.status==='Present').length/_mk.length*100):0;
+    const pctA=attendance.length?Math.round(attendance.filter(a=>a.status==='Present').length/attendance.length*100):0;
     document.getElementById('stat-att').textContent=pctA+'%';
     const pending=students.reduce((a,s)=>{
       const paid=payments.filter(p=>p.rollNo===s.rollNo).reduce((x,p)=>x+parseFloat(p.amount||0),0);
@@ -7224,7 +6855,7 @@ function refreshDashboard() {
   } else {
     // Teacher / Office restricted dashboard
     document.getElementById('stat-students-r').textContent=students.length;
-    const _mk2=attendance.filter(isMarkedAtt); const pctR=_mk2.length?Math.round(_mk2.filter(a=>a.status==='Present').length/_mk2.length*100):0;
+    const pctR=attendance.length?Math.round(attendance.filter(a=>a.status==='Present').length/attendance.length*100):0;
     document.getElementById('stat-att-r').textContent=pctR+'%';
     const batchSet=new Set(students.map(s=>s.batch).filter(Boolean));
     document.getElementById('stat-batches-r').textContent=batchSet.size;
@@ -7326,11 +6957,11 @@ function getStudentDueDate(s) {
 
   const thisDue = makeDue(y, m, day);
   if (today <= thisDue) {
-    return thisDue.toISOString().slice(0, 10);
+    return localDateStr(thisDue);
   } else {
     const nm = m === 11 ? 0 : m + 1;
     const ny = m === 11 ? y + 1 : y;
-    return makeDue(ny, nm, day).toISOString().slice(0, 10);
+    return localDateStr(makeDue(ny, nm, day));
   }
 }
 
@@ -7555,7 +7186,7 @@ async function exportToExcel() {
     return;
   }
 
-  const filename = baseName + '_' + new Date().toISOString().slice(0,10) + '.xlsx';
+  const filename = baseName + '_' + localDateStr(new Date()) + '.xlsx';
   XLSX.writeFile(wb, filename);
   statusEl.innerHTML = `<div class="alert alert-success">✅ Downloaded <strong>${filename}</strong> with ${sheetCount} sheet(s). Open in Excel or Google Sheets.</div>`;
 }
@@ -8651,10 +8282,8 @@ function loadMyDashboard() {
 
   const attLog = (window.attendance||[]).filter(a => a.rollNo === s.rollNo);
   const present = attLog.filter(a => a.status === 'Present').length;
-  const leaveInfo = getStudentLeaveInfo(s);
-  const leave = attLog.filter(a => a.status === 'Absent').length + leaveInfo.count;   // absent + long-leave days
-  const totalDaysAll = attLog.filter(isMarkedAtt).length + leaveInfo.count;
-  const pct = totalDaysAll ? Math.round(present / totalDaysAll * 100) : 0;
+  const leave = attLog.length - present;
+  const pct = attLog.length ? Math.round(present / attLog.length * 100) : 0;
 
   document.getElementById('md-att-present').textContent = present;
   document.getElementById('md-att-leave').textContent = leave;
@@ -8718,40 +8347,6 @@ function myCalGoToday() {
   renderMyAttendanceCalendar();
 }
 
-
-// ---- Calendar day classification shared by My Attendance and Student Dashboard ----
-// Teacher-marked Present/Absent always wins. Days between Long Leave and Rejoined /
-// Drop Out with no teacher record are "Leave". The Long Leave, Rejoined and Drop Out
-// dates themselves carry a ribbon.
-function calDayInfo(dateStr, dow, rec, li, holiday) {
-  const ev = li.events[dateStr];
-  let cls = 'day-none', tag = '', kind = null, note = '';
-  if (holiday) { cls = 'day-holiday'; tag = 'Holiday'; kind = 'holiday'; }
-  else if (rec && rec.status === 'Present') { cls = 'day-working'; tag = 'Present'; kind = 'present'; }
-  else if (rec && rec.status === 'Absent') { cls = 'day-absent'; tag = 'Absent'; kind = 'absent'; }
-  else if (li.dates.has(dateStr)) { cls = 'day-leave'; tag = 'Leave'; kind = 'leave'; }
-  else if (dow === 0 || dow === 6) { cls = 'day-weekend'; tag = dow === 0 ? 'Sunday' : 'Saturday'; }
-  if (ev) {
-    if (kind === 'present' || kind === 'absent') note = tag;
-    else if (kind === 'leave') note = 'Leave day';
-    else if (kind === 'holiday') note = 'Holiday';
-    if (!kind || kind === 'leave') cls = ev === 'Long Leave' ? 'day-leave' : ev === 'Rejoined' ? 'day-rejoin' : 'day-dropout';
-    tag = ev;
-  }
-  return { cls, tag, kind, ev, note };
-}
-function calSummaryHtml(m, s) {
-  const li = getStudentLeaveInfo(s);
-  const log = (window.attendance||[]).filter(a => a.rollNo === s.rollNo);
-  const tP = log.filter(a => a.status === 'Present').length, tA = log.filter(a => a.status === 'Absent').length;
-  return `
-    <div class="cms-item"><div class="cms-val" style="color:var(--green);">${m.present}</div><div class="cms-label">Present</div></div>
-    <div class="cms-item"><div class="cms-val" style="color:var(--red);">${m.absent}</div><div class="cms-label">Absent</div></div>
-    <div class="cms-item"><div class="cms-val" style="color:#8b5cf6;">${m.leave}</div><div class="cms-label">Leave</div></div>
-    <div class="cms-item"><div class="cms-val" style="color:var(--amber);">${m.holiday}</div><div class="cms-label">Holidays</div></div>
-    <div style="flex-basis:100%;font-size:12.5px;color:var(--muted);text-align:center;padding-top:4px;">Since joining${s.admDate ? ' (' + formatDateDMY(s.admDate) + ')' : ''}: <strong style="color:var(--green);">${tP} Present</strong> • <strong style="color:var(--red);">${tA} Absent</strong> • <strong style="color:#8b5cf6;">${li.count} Leave</strong></div>`;
-}
-
 function renderMyAttendanceCalendar() {
   const page = document.getElementById('page-my-attendance');
   if (!page) return;
@@ -8774,31 +8369,39 @@ function renderMyAttendanceCalendar() {
   _myAttClassLog = (window.attendance||[]).filter(a => a.course === s.course && a.batch === s.batch);
 
   let html = '';
-  const li = getStudentLeaveInfo(s);
-  const m = { present: 0, absent: 0, leave: 0, holiday: 0 };
+  let mPresent = 0, mAbsent = 0, mHoliday = 0;
   for (let i = 0; i < firstDay; i++) html += `<div class="cal-day cal-empty"></div>`;
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = calDateStr(year, month, d);
     const dow = new Date(year, month, d).getDay();
     const holiday = calHolidayFor(dateStr);
     const myRec = _myAttMyLog.find(a => a.date === dateStr);
-    const info = calDayInfo(dateStr, dow, myRec, li, holiday);
-    if (info.kind === 'present') m.present++; else if (info.kind === 'absent') m.absent++; else if (info.kind === 'leave') m.leave++; else if (info.kind === 'holiday') m.holiday++;
+    let cls = 'day-none', tag = '';
+    // Present/Absent only ever exist here because attendance was actually taken
+    // that day, which never happens while a student's account is Inactive (long
+    // leave) — so a deactivated period naturally has no records at all here and
+    // is counted as neither present nor absent, not as absent.
+    if (holiday) { cls = 'day-holiday'; tag = 'Holiday'; mHoliday++; }
+    else if (myRec && myRec.status === 'Present') { cls = 'day-working'; tag = 'Present'; mPresent++; }
+    else if (myRec && myRec.status === 'Absent') { cls = 'day-absent'; tag = 'Absent'; mAbsent++; }
+    else if (dow === 0 || dow === 6) { cls = 'day-weekend'; tag = dow === 0 ? 'Sunday' : 'Saturday'; }
     const isToday = dateStr === todayStrVal;
     const isSelected = dateStr === myCalState.selectedDate;
     html += `
-      <div class="cal-day ${info.cls} ${isToday ? 'cal-today' : ''} ${isSelected ? 'cal-selected' : ''}" onclick="myCalSelectDate('${dateStr}')">
+      <div class="cal-day ${cls} ${isToday ? 'cal-today' : ''} ${isSelected ? 'cal-selected' : ''}" onclick="myCalSelectDate('${dateStr}')">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <span class="cal-day-num">${d}</span>
-          ${info.tag ? `<span class="cal-day-tag">${info.tag}</span>` : ''}
+          ${tag ? `<span class="cal-day-tag">${tag}</span>` : ''}
         </div>
         ${holiday ? `<div class="cal-day-label">${holiday.name}</div>` : ''}
-        ${info.note ? `<div class="cal-day-note">${info.note}</div>` : ''}
       </div>`;
   }
   document.getElementById('my-att-cal-grid').innerHTML = html;
   const sumEl = document.getElementById('my-att-cal-summary');
-  if (sumEl) sumEl.innerHTML = calSummaryHtml(m, s);
+  if (sumEl) sumEl.innerHTML = `
+    <div class="cms-item"><div class="cms-val" style="color:var(--green);">${mPresent}</div><div class="cms-label">Present</div></div>
+    <div class="cms-item"><div class="cms-val" style="color:var(--red);">${mAbsent}</div><div class="cms-label">Absent</div></div>
+    <div class="cms-item"><div class="cms-val" style="color:var(--amber);">${mHoliday}</div><div class="cms-label">Holidays</div></div>`;
 
   if (myCalState.selectedDate) myCalRenderDetail(myCalState.selectedDate);
 }
@@ -8858,29 +8461,33 @@ function renderSdAttCalendar() {
   const log = (window.attendance||[]).filter(a => a.rollNo === roll);
 
   let html = '';
-  const li = getStudentLeaveInfo(s);
-  const m = { present: 0, absent: 0, leave: 0, holiday: 0 };
+  let mPresent = 0, mAbsent = 0, mHoliday = 0;
   for (let i = 0; i < firstDay; i++) html += `<div class="cal-day cal-empty"></div>`;
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = calDateStr(year, month, d);
     const dow = new Date(year, month, d).getDay();
     const holiday = calHolidayFor(dateStr);
     const rec = log.find(a => a.date === dateStr);
-    const info = calDayInfo(dateStr, dow, rec, li, holiday);
-    if (info.kind === 'present') m.present++; else if (info.kind === 'absent') m.absent++; else if (info.kind === 'leave') m.leave++; else if (info.kind === 'holiday') m.holiday++;
+    let cls = 'day-none', tag = '';
+    if (holiday) { cls = 'day-holiday'; tag = 'Holiday'; mHoliday++; }
+    else if (rec && rec.status === 'Present') { cls = 'day-working'; tag = 'Present'; mPresent++; }
+    else if (rec && rec.status === 'Absent') { cls = 'day-absent'; tag = 'Absent'; mAbsent++; }
+    else if (dow === 0 || dow === 6) { cls = 'day-weekend'; tag = dow === 0 ? 'Sunday' : 'Saturday'; }
     const isToday = dateStr === todayStrVal;
     html += `
-      <div class="cal-day ${info.cls} ${isToday ? 'cal-today' : ''}" title="${rec ? rec.topic || '' : ''}">
+      <div class="cal-day ${cls} ${isToday ? 'cal-today' : ''}" title="${rec ? rec.topic || '' : ''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <span class="cal-day-num">${d}</span>
-          ${info.tag ? `<span class="cal-day-tag">${info.tag}</span>` : ''}
+          ${tag ? `<span class="cal-day-tag">${tag}</span>` : ''}
         </div>
         ${holiday ? `<div class="cal-day-label">${holiday.name}</div>` : rec && rec.topic ? `<div class="cal-day-label">${rec.topic}</div>` : ''}
-        ${info.note ? `<div class="cal-day-note">${info.note}</div>` : ''}
       </div>`;
   }
   document.getElementById('sd-cal-grid').innerHTML = html;
-  document.getElementById('sd-cal-summary').innerHTML = calSummaryHtml(m, s);
+  document.getElementById('sd-cal-summary').innerHTML = `
+    <div class="cms-item"><div class="cms-val" style="color:var(--green);">${mPresent}</div><div class="cms-label">Present</div></div>
+    <div class="cms-item"><div class="cms-val" style="color:var(--red);">${mAbsent}</div><div class="cms-label">Absent</div></div>
+    <div class="cms-item"><div class="cms-val" style="color:var(--amber);">${mHoliday}</div><div class="cms-label">Holidays</div></div>`;
 }
 window.renderSdAttCalendar = renderSdAttCalendar;
 
@@ -8903,22 +8510,6 @@ function myCalRenderDetail(dateStr) {
   if (holiday) {
     badge.innerHTML = '<span class="chip chip-amber">🟠 Holiday</span>';
     body.innerHTML = `<p style="font-size:14px;color:var(--text);">${holiday.name}</p>`;
-    return;
-  }
-  const _me = findMyStudentRecord();
-  const _li = _me ? getStudentLeaveInfo(_me) : null;
-  const _ev = _li ? _li.events[dateStr] : null;
-  if (_ev && !myRec) {
-    const h = ((_me.statusHistory)||[]).find(x => statusEntryDate(x) === dateStr && normStatus(x.status) === _ev);
-    const txt = _ev === 'Long Leave' ? 'Your long leave started on this date. Working days from here until you rejoin are counted as leave days.'
-              : _ev === 'Rejoined' ? 'You rejoined the course on this date.' : 'You dropped out of the course on this date.';
-    badge.innerHTML = `<span class="chip ${_ev==='Long Leave'?'chip-purple':_ev==='Rejoined'?'chip-blue':'chip-red'}">${_ev==='Long Leave'?'🏖️':_ev==='Rejoined'?'🔁':'🚪'} ${_ev}</span>`;
-    body.innerHTML = `<p style="color:var(--muted);font-size:13px;">${txt}${h && h.reason ? '<br><strong>Reason:</strong> ' + h.reason : ''}</p>`;
-    return;
-  }
-  if (!myRec && _li && _li.dates.has(dateStr)) {
-    badge.innerHTML = '<span class="chip chip-purple">🏖️ Leave</span>';
-    body.innerHTML = `<p style="color:var(--muted);font-size:13px;">You were on long leave on this date, so it is counted as a leave day.</p>`;
     return;
   }
   if (!myRec) {
@@ -8982,13 +8573,13 @@ window.loadMyProfile = loadMyProfile;
 // MASTER DATA
 // ============================================================
 function populateCourseBatchSelects() {
-  const courseSelects = ['adm-course','es-course','student-filter-course','ar-course','att-course','abs-course','mk-course','master-subject-course','cal-course','wp-course','enq-course','adrep-course','abshist-course','sr-course'];
-  const batchSelects = ['adm-batch','es-batch','att-batch','abs-batch','ar-batch','mk-batch','cal-batch','wp-batch','adrep-batch','abshist-batch','sr-batch'];
+  const courseSelects = ['adm-course','es-course','student-filter-course','ar-course','att-course','abs-course','mk-course','master-subject-course','cal-course','wp-course','enq-course','adrep-course','abshist-course'];
+  const batchSelects = ['adm-batch','es-batch','att-batch','abs-batch','ar-batch','mk-batch','cal-batch','wp-batch','adrep-batch','abshist-batch'];
   courseSelects.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
     const prev = sel.value;
-    const placeholder = (id==='student-filter-course'||id==='ar-course'||id==='adrep-course'||id==='abshist-course'||id==='sr-course') ? '<option value="">All Courses</option>' :
+    const placeholder = (id==='student-filter-course'||id==='ar-course'||id==='adrep-course'||id==='abshist-course') ? '<option value="">All Courses</option>' :
                          (id==='adm-course'||id==='att-course'||id==='abs-course'||id==='mk-course'||id==='cal-course'||id==='wp-course'||id==='enq-course') ? '<option value="">Select course</option>' : '';
     sel.innerHTML = placeholder + masterData.courses.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
     if (prev && [...sel.options].some(o=>o.value===prev)) sel.value = prev;
@@ -8997,7 +8588,7 @@ function populateCourseBatchSelects() {
     const sel = document.getElementById(id);
     if (!sel) return;
     const prev = sel.value;
-    const placeholder = (id==='ar-batch'||id==='adrep-batch'||id==='abshist-batch'||id==='sr-batch') ? '<option value="">All Batches</option>' :
+    const placeholder = (id==='ar-batch'||id==='adrep-batch'||id==='abshist-batch') ? '<option value="">All Batches</option>' :
                          (id==='adm-batch'||id==='att-batch'||id==='abs-batch'||id==='mk-batch'||id==='cal-batch'||id==='wp-batch') ? '<option value="">Select batch</option>' : '';
     sel.innerHTML = placeholder + masterData.batches.map(b=>`<option value="${b.name} (${b.time})">${b.name} (${b.time})</option>`).join('');
     if (prev && [...sel.options].some(o=>o.value===prev)) sel.value = prev;
@@ -9766,7 +9357,7 @@ function mkLoadStudents() {
   const filtered = students.filter(s =>
     looseMatch(s.course, course) &&
     (!batch || looseMatch(s.batch, batch)) &&
-    isAttendingStatus(s)
+    (s.status||'Active')==='Active'
   );
   if (!filtered.length) {
     sel.innerHTML='<option value="">No active students found</option>'; sel.disabled=true;
@@ -9986,7 +9577,7 @@ function switchTab(page, tab, el) {
     if (tab==='history') renderPaymentsTable();
     if (tab==='report' && !document.getElementById('fr-date').value) {
       document.getElementById('fr-date').value = todayStr();
-      document.getElementById('fr-from').value = new Date(new Date().setDate(1)).toISOString().slice(0,10);
+      document.getElementById('fr-from').value = localDateStr(new Date(new Date().setDate(1)));
       document.getElementById('fr-to').value = todayStr();
       document.getElementById('fr-month').value = todayStr().slice(0,7);
     }
@@ -10620,7 +10211,7 @@ function enqPeriodChanged() {
   const monthEl = document.getElementById('enq-filter-month');
   monthEl.value = '';
   const today = new Date();
-  const toStr = (d) => d.toISOString().slice(0, 10);
+  const toStr = (d) => localDateStr(d);
   if (period === 'today') {
     fromEl.value = toEl.value = toStr(today);
   } else if (period === 'week') {
