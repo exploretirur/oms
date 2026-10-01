@@ -1142,8 +1142,13 @@ tr:hover td { background: #f8fafd; }
           </div>
           <div class="action-bar">
             <button class="btn btn-teal" onclick="generateFeeReport()">📊 Generate Report</button>
-            <button class="btn btn-outline" onclick="printFeeReport()" id="fr-print-btn" style="display:none;">🖨️ Print</button>
-            <button class="btn btn-outline" onclick="downloadFeeReportExcel()" id="fr-excel-btn" style="display:none;">⬇️ Download Excel</button>
+            <span id="fr-download-wrap" style="display:none;align-items:center;gap:8px;">
+              <select id="fr-dl-format" title="Download format" style="width:auto;min-width:150px;">
+                <option value="xlsx">📗 Excel (.xlsx)</option>
+                <option value="pdf">📕 PDF (.pdf)</option>
+              </select>
+              <button class="btn btn-primary" onclick="downloadFeeReport()">⬇️ Download</button>
+            </span>
           </div>
         </div>
         <div class="card" id="fee-report-results" style="display:none;">
@@ -1680,7 +1685,13 @@ tr:hover td { background: #f8fafd; }
       <div class="card" id="att-report-output" style="display:none;">
         <div class="card-header">
           <div class="card-title"><span class="icon">📊</span> Attendance Report</div>
-          <button class="btn btn-outline no-print" onclick="window.print()" style="padding:6px 14px;font-size:12px;">🖨️ Print</button>
+          <div class="no-print" id="ar-download-wrap" style="display:flex;align-items:center;gap:8px;">
+            <select id="ar-dl-format" title="Download format" style="width:auto;min-width:150px;padding:6px 10px;font-size:12px;">
+              <option value="xlsx">📗 Excel (.xlsx)</option>
+              <option value="pdf">📕 PDF (.pdf)</option>
+            </select>
+            <button class="btn btn-primary" onclick="downloadAttReport()" style="padding:6px 14px;font-size:12px;">⬇️ Download</button>
+          </div>
         </div>
         <div id="att-report-summary" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;"></div>
         <div class="table-wrap">
@@ -6063,8 +6074,7 @@ function generateFeeReport() {
         </tr>`).join('')
     : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">No payments found in this period.</td></tr>';
 
-  document.getElementById('fr-print-btn').style.display = rows.length ? '' : 'none';
-  document.getElementById('fr-excel-btn').style.display = rows.length ? '' : 'none';
+  document.getElementById('fr-download-wrap').style.display = rows.length ? 'inline-flex' : 'none';
   _lastFeeReport = { rows, label, from, to, type };
   showAlert('fee-report-alert','success', `✅ Found ${rows.length} payment(s) totalling ₹${total.toLocaleString('en-IN')}.`);
 }
@@ -6138,6 +6148,156 @@ async function downloadFeeReportExcel() {
   XLSX.writeFile(wb, filename);
   showAlert('fee-report-alert','success', '✅ Downloaded <strong>'+filename+'</strong>');
 }
+
+
+// ============================================================
+// REPORT DOWNLOADS — Excel (.xlsx) or PDF, chosen by the user
+// Used by Attendance Report and Fee Collection Report
+// ============================================================
+function _loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    if ([...document.scripts].some(sc => sc.src === src)) { resolve(); return; }
+    const sc = document.createElement('script');
+    sc.src = src; sc.onload = resolve; sc.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.appendChild(sc);
+  });
+}
+async function _ensureXlsx() {
+  if (!window.XLSX) await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+  return window.XLSX;
+}
+async function _ensurePdfLibs() {
+  if (!(window.jspdf && window.jspdf.jsPDF)) await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  const probe = new window.jspdf.jsPDF();
+  if (typeof probe.autoTable !== 'function') await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+  return window.jspdf.jsPDF;
+}
+function _loadImageDims(dataUrl) {
+  return new Promise(res => { const i = new Image(); i.onload = () => res({ w: i.width, h: i.height }); i.onerror = () => res(null); i.src = dataUrl; });
+}
+
+// Builds and downloads a PDF: company header, title, summary line(s), table.
+async function _buildReportPdf(opts) {
+  const jsPDF = await _ensurePdfLibs();
+  const doc = new jsPDF({ orientation: opts.landscape ? 'landscape' : 'portrait', unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 36;
+  const cp = getCompanyProfile();
+  let y = 40, textX = margin;
+
+  if (cp.logo && /^data:image\/(png|jpe?g)/i.test(cp.logo)) {
+    try {
+      const d = await _loadImageDims(cp.logo);
+      if (d) {
+        const maxH = 48, maxW = 90, r = Math.min(maxH / d.h, maxW / d.w);
+        const fmt = /image\/png/i.test(cp.logo) ? 'PNG' : 'JPEG';
+        doc.addImage(cp.logo, fmt, margin, y - 8, d.w * r, d.h * r);
+        textX = margin + d.w * r + 12;
+      }
+    } catch (e) { /* logo is optional */ }
+  }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(15, 37, 87);
+  doc.text(cp.name || 'Explore Learning', textX, y + 6);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(71, 85, 105);
+  const contact = doc.splitTextToSize(companyContactLine(cp) || '', pageW - textX - margin);
+  doc.text(contact, textX, y + 20);
+  y += 20 + contact.length * 11 + 8;
+  doc.setDrawColor(15, 37, 87); doc.setLineWidth(1.2); doc.line(margin, y, pageW - margin, y);
+  y += 20;
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(30, 41, 59);
+  doc.text(opts.title, margin, y); y += 16;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(71, 85, 105);
+  (opts.lines || []).forEach(line => {
+    const wrapped = doc.splitTextToSize(line, pageW - margin * 2);
+    doc.text(wrapped, margin, y); y += wrapped.length * 12;
+  });
+  y += 4;
+
+  const tableOpts = {
+    startY: y, head: [opts.head], body: opts.body, margin: { left: margin, right: margin, bottom: 36 },
+    styles: { fontSize: 8.5, cellPadding: 4, lineColor: [203, 213, 225], lineWidth: 0.4, textColor: [30, 41, 59] },
+    headStyles: { fillColor: [15, 37, 87], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 253] },
+    columnStyles: opts.columnStyles || {},
+    didParseCell: opts.didParseCell,
+    didDrawPage: () => {
+      const n = doc.internal.getNumberOfPages();
+      doc.setFontSize(8); doc.setTextColor(148, 163, 184);
+      doc.text('Generated on ' + new Date().toLocaleString('en-IN'), margin, doc.internal.pageSize.getHeight() - 18);
+      doc.text('Page ' + doc.internal.getCurrentPageInfo().pageNumber, pageW - margin, doc.internal.pageSize.getHeight() - 18, { align: 'right' });
+    }
+  };
+  if (opts.foot) { tableOpts.foot = [opts.foot]; tableOpts.footStyles = { fillColor: [241, 245, 249], textColor: [15, 37, 87], fontStyle: 'bold' }; }
+  doc.autoTable(tableOpts);
+  doc.save(opts.filename);
+}
+
+// ---------- Attendance Report download ----------
+async function downloadAttReport() {
+  const r = _lastAttReport;
+  if (!r.rows.length) { showAlert('global-alert', 'error', '❌ Generate a report with at least one record first.'); return; }
+  const fmt = document.getElementById('ar-dl-format').value;
+  const cp = getCompanyProfile();
+  const head = ['Sl.No', 'Date', 'Roll No', 'Student', 'Course', 'Batch', 'Status', 'Topic', 'Software'];
+  const body = r.rows.map((a, i) => [i + 1, formatDateDMY(a.date), a.rollNo, a.studentName, a.course, (a.batch || '').split('(')[0].trim(), a.status, a.topic || '', a.software || '']);
+  const filename = 'Attendance_Report_' + r.stamp + '.' + (fmt === 'pdf' ? 'pdf' : 'xlsx');
+  try {
+    if (fmt === 'pdf') {
+      await _buildReportPdf({
+        title: 'Attendance Report', landscape: true, head, body, filename,
+        lines: [r.filters, 'Total Records: ' + r.total + '   |   Present: ' + r.present + '   |   Absent: ' + r.absent],
+        columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 60 }, 2: { cellWidth: 55 }, 6: { cellWidth: 52 } },
+        didParseCell: d => {
+          if (d.section === 'body' && d.column.index === 6) {
+            d.cell.styles.fontStyle = 'bold';
+            d.cell.styles.textColor = d.cell.raw === 'Present' ? [5, 150, 105] : [220, 38, 38];
+          }
+        }
+      });
+    } else {
+      const XLSX = await _ensureXlsx();
+      const aoa = [[cp.name || 'Explore Learning'], [companyContactLine(cp) || ''], ['Attendance Report'], [r.filters],
+        ['Total Records', r.total, 'Present', r.present, 'Absent', r.absent], [], head, ...body];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [{wch:7},{wch:12},{wch:11},{wch:24},{wch:20},{wch:22},{wch:10},{wch:26},{wch:18}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Attendance Report');
+      XLSX.writeFile(wb, filename);
+    }
+    showAlert('global-alert', 'success', '✅ Downloaded <strong>' + filename + '</strong>');
+  } catch (e) {
+    console.error(e);
+    showAlert('global-alert', 'error', '❌ Could not create the file. Check your internet connection (download libraries load online) and try again.');
+  }
+}
+window.downloadAttReport = downloadAttReport;
+
+// ---------- Fee Collection Report download ----------
+async function downloadFeeReport() {
+  const r = _lastFeeReport;
+  if (!r.rows.length) { showAlert('fee-report-alert', 'error', '❌ Generate a report with at least one payment first.'); return; }
+  const fmt = document.getElementById('fr-dl-format').value;
+  if (fmt === 'xlsx') { await downloadFeeReportExcel(); return; }
+  const total = r.rows.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+  const fmtAmt = n => 'Rs. ' + n.toLocaleString('en-IN');   // standard PDF fonts can't draw the ₹ glyph
+  const filename = 'Fee_Collection_Report_' + r.from + '_to_' + r.to + '.pdf';
+  try {
+    await _buildReportPdf({
+      title: 'Fee Collection Report — ' + r.label, landscape: true, filename,
+      lines: ['Total Payments: ' + r.rows.length + '   |   Total Collected: ' + fmtAmt(total)],
+      head: ['Receipt No', 'Date', 'Student', 'Roll No', 'Course', 'Amount', 'Mode', 'Collected By'],
+      body: r.rows.map(p => [p.receiptNo, formatDateDMY(p.date), p.studentName, p.rollNo, p.course, fmtAmt(parseFloat(p.amount || 0)), p.mode, p.recordedBy || '']),
+      foot: ['', '', '', '', 'Total', fmtAmt(total), '', ''],
+      columnStyles: { 5: { halign: 'right' } }
+    });
+    showAlert('fee-report-alert', 'success', '✅ Downloaded <strong>' + filename + '</strong>');
+  } catch (e) {
+    console.error(e);
+    showAlert('fee-report-alert', 'error', '❌ Could not create the PDF. Check your internet connection and try again.');
+  }
+}
+window.downloadFeeReport = downloadFeeReport;
 
 // ============================================================
 // RECEIPT
@@ -6516,6 +6676,8 @@ function toggleArDateMode() {
 }
 window.toggleArDateMode = toggleArDateMode;
 
+let _lastAttReport = { rows: [] };
+
 function generateAttReport() {
   let base=attendance;
   const course=document.getElementById('ar-course').value;
@@ -6543,6 +6705,12 @@ function generateAttReport() {
   let f = statusFilter ? base.filter(a=>a.status===statusFilter) : base;
   f = [...f].sort((a,b)=>b.date.localeCompare(a.date));
   const tbody=document.getElementById('att-report-body');
+  const _dateLbl = singleMode ? (singleDate ? formatDateDMY(singleDate) : 'All dates')
+                   : (from || to) ? ((from ? formatDateDMY(from) : 'Start') + ' to ' + (to ? formatDateDMY(to) : 'Today')) : 'All dates';
+  _lastAttReport = { rows: f, total: base.length, present: totalPresent, absent: totalAbsent,
+    filters: 'Course: ' + (course || 'All') + '  |  Batch: ' + (batch || 'All') + '  |  Date: ' + _dateLbl + '  |  Status: ' + (statusFilter || 'All'),
+    stamp: (singleMode ? singleDate : (from || 'all')) + (singleMode ? '' : '_to_' + (to || 'all')) };
+  document.getElementById('ar-download-wrap').style.display = f.length ? 'flex' : 'none';
   if (!f.length) { tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px;">No records for the selected filters</td></tr>'; return; }
   tbody.innerHTML=f.map((a,i)=>{
     const stu = students.find(st => st.rollNo === a.rollNo);
