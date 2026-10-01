@@ -6940,6 +6940,37 @@ function selectDashboardStudent(rollNo) {
 }
 window.selectDashboardStudent = selectDashboardStudent;
 
+// ============================================================
+// ATTENDANCE SUMMARY — one place that decides how attendance is counted.
+// Only Present / Absent records count. Each day counts once (if a day was
+// saved twice, the most recent entry wins). Anything else (blank or unknown
+// status, duplicate day) is left out of the totals and reported in `ignored`
+// so it can be found and cleaned up.
+//   attendance % = Present ÷ (Present + Absent)
+// ============================================================
+function attendanceSummary(log, keyFn) {
+  keyFn = keyFn || (a => a.date);
+  const byKey = new Map(), ignored = [];
+  const stamp = a => a.editedAt || a.recordedAt || '';
+  (log || []).forEach(a => {
+    const st = String(a.status == null ? '' : a.status).trim().toLowerCase();
+    if (st !== 'present' && st !== 'absent') {
+      ignored.push({ date: a.date, why: 'status "' + (String(a.status || '').trim() || 'blank') + '"' });
+      return;
+    }
+    const k = keyFn(a), prev = byKey.get(k);
+    if (prev) {
+      ignored.push({ date: a.date, why: 'duplicate entry' });
+      if (stamp(a) > stamp(prev.rec)) byKey.set(k, { rec: a, st });
+    } else byKey.set(k, { rec: a, st });
+  });
+  let present = 0, absent = 0;
+  byKey.forEach(v => { if (v.st === 'present') present++; else absent++; });
+  const total = present + absent;
+  return { present, absent, total, pct: total ? Math.round(present / total * 100) : 0, ignored };
+}
+window.attendanceSummary = attendanceSummary;
+
 function loadStudentDashboard() {
   const q=document.getElementById('sd-search').value.trim().toLowerCase();
   const s=students.find(st=>st.rollNo.toLowerCase()===q||(st.fname+' '+st.lname).toLowerCase()===q);
@@ -6967,17 +6998,25 @@ function loadStudentDashboard() {
   // --- Attendance stats ---
   window._sdCurrentRoll = s.rollNo; // remembered so the calendar modal knows which student to show
   const attLog=attendance.filter(a=>a.rollNo===s.rollNo);
-  const present=attLog.filter(a=>a.status==='Present').length;
-  const pct=attLog.length?Math.round(present/attLog.length*100):0;
-  document.getElementById('sd-att-pct').textContent=pct+'%';
-  document.getElementById('sd-att-days').textContent=present+' present of '+attLog.length+' days';
+  const attSum=attendanceSummary(attLog);
+  const present=attSum.present;
+  document.getElementById('sd-att-pct').textContent=attSum.pct+'%';
+  const daysEl=document.getElementById('sd-att-days');
+  daysEl.textContent=present+' present of '+attSum.total+' days';
+  if (attSum.ignored.length) {
+    const list=attSum.ignored.slice(0,3).map(i=>formatDateDMY(i.date)+' ('+i.why+')').join(', ')+(attSum.ignored.length>3?' …':'');
+    const note=document.createElement('div');
+    note.style.cssText='font-size:11px;color:var(--amber);margin-top:4px;';
+    note.textContent='⚠ '+attSum.ignored.length+' record(s) not counted: '+list;
+    daysEl.appendChild(note);
+  }
 
   // Total present/absent since joining. Both counts come straight from actual
   // attendance records, and a student is skipped from attendance-taking for as
   // long as their account is Inactive (see loadAttStudents/loadAbsentStudents),
   // so a long-leave deactivation period never produces Absent records and is
   // correctly left out of this total rather than counted as absent.
-  const sinceAbsent = attLog.filter(a=>a.status==='Absent').length;
+  const sinceAbsent = attSum.absent;
   document.getElementById('sd-att-since-present').textContent = present;
   document.getElementById('sd-att-since-absent').textContent = sinceAbsent;
   document.getElementById('sd-att-since-sub').textContent = 'Since ' + formatDateDMY(s.admDate) + ' — tap to view calendar';
@@ -7059,9 +7098,9 @@ function loadStudentDashboard() {
 
   // --- Attendance log (all roles) ---
   const attBody=document.getElementById('sd-att-log');
-  attBody.innerHTML=attLog.length ? [...attLog].reverse().map(a=>`<tr>
+  attBody.innerHTML=attLog.length ? [...attLog].sort((x,y)=>String(y.date).localeCompare(String(x.date))).map(a=>`<tr>
     <td>${formatDateDMY(a.date)}</td>
-    <td><span class="chip ${a.status==='Present'?'chip-green':'chip-red'}">${a.status}</span></td>
+    <td><span class="chip ${a.status==='Present'?'chip-green':a.status==='Absent'?'chip-red':'chip-amber'}">${_escHtml(a.status||'No status')}</span></td>
     <td>${a.topic||'—'}</td><td>${a.software||'—'}</td>
   </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No attendance records</td></tr>';
 
@@ -7113,7 +7152,7 @@ function refreshDashboard() {
     document.getElementById('stat-students').textContent=students.length;
     buildDueTable('today-due-body','today-due-total',canManageFees());
     document.getElementById('stat-fees').textContent='₹'+payments.reduce((a,p)=>a+parseFloat(p.amount||0),0).toLocaleString('en-IN');
-    const pctA=attendance.length?Math.round(attendance.filter(a=>a.status==='Present').length/attendance.length*100):0;
+    const pctA=attendanceSummary(attendance, a=>a.rollNo+'|'+a.date).pct;
     document.getElementById('stat-att').textContent=pctA+'%';
     const pending=students.reduce((a,s)=>{
       const paid=payments.filter(p=>p.rollNo===s.rollNo).reduce((x,p)=>x+parseFloat(p.amount||0),0);
@@ -7126,7 +7165,7 @@ function refreshDashboard() {
   } else {
     // Teacher / Office restricted dashboard
     document.getElementById('stat-students-r').textContent=students.length;
-    const pctR=attendance.length?Math.round(attendance.filter(a=>a.status==='Present').length/attendance.length*100):0;
+    const pctR=attendanceSummary(attendance, a=>a.rollNo+'|'+a.date).pct;
     document.getElementById('stat-att-r').textContent=pctR+'%';
     const batchSet=new Set(students.map(s=>s.batch).filter(Boolean));
     document.getElementById('stat-batches-r').textContent=batchSet.size;
@@ -8552,9 +8591,10 @@ function loadMyDashboard() {
   document.getElementById('md-admitted').textContent = formatDateDMY(s.admDate);
 
   const attLog = (window.attendance||[]).filter(a => a.rollNo === s.rollNo);
-  const present = attLog.filter(a => a.status === 'Present').length;
-  const leave = attLog.length - present;
-  const pct = attLog.length ? Math.round(present / attLog.length * 100) : 0;
+  const mdSum = attendanceSummary(attLog);
+  const present = mdSum.present;
+  const leave = mdSum.absent;
+  const pct = mdSum.pct;
 
   document.getElementById('md-att-present').textContent = present;
   document.getElementById('md-att-leave').textContent = leave;
