@@ -3008,7 +3008,7 @@ import {
   sendPasswordResetEmail
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
-  getFirestore, collection, doc, getDoc, getDocFromServer, getDocs, addDoc, setDoc,
+  getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocFromServer, getDocs, addDoc, setDoc,
   updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
@@ -3024,7 +3024,11 @@ const FIREBASE_CONFIG = {
 
 const firebaseApp = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(firebaseApp);
-const firestoreDB = getFirestore(firebaseApp);
+let firestoreDB;
+try {
+  // Local cache: after the first load only changed documents are read from the server (saves your daily read quota)
+  firestoreDB = initializeFirestore(firebaseApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+} catch (e) { console.warn('Persistent cache unavailable, using default', e); firestoreDB = getFirestore(firebaseApp); }
 const cloudFns = getFunctions(firebaseApp);
 let firebaseInitialized = true; // kept for compatibility with the rest of the app's checks
 
@@ -3135,6 +3139,15 @@ async function writeAuditLog(action, col, docId, extra) {
   } catch(e) { console.warn('Audit log write failed (non-blocking):', e.message); }
 }
 window.writeAuditLog = writeAuditLog;
+// Bulk saves write ONE audit entry (not one per record) to protect the daily write quota.
+function auditBulk(action, col, ids) {
+  if (!ids || !ids.length) return;
+  if (col === 'attendance' || ids.length > 3) {
+    writeAuditLog(action, col, ids.length + ' record(s)', { count: ids.length, sampleIds: ids.slice(0, 10) });
+  } else {
+    ids.forEach(id => writeAuditLog(action, col, id));
+  }
+}
 
 // ---- Real-time listeners ----
 // Each listener keeps the in-memory array fresh and re-renders the UI.
@@ -3149,8 +3162,7 @@ function listenCol(col, onData, constraints) {
     snap => {
       (window._listenErrors = window._listenErrors || {})[col] = null;
       // remember what the server really holds, so saves only write what changed
-      const m = {}; snap.docs.forEach(d => { m[d.id] = _stable({ ...d.data() }); });
-      _serverState[col] = m;
+      if (!snap.metadata.fromCache) { const m = {}; snap.docs.forEach(d => { m[d.id] = _stable({ ...d.data() }); }); _serverState[col] = m; }
       onData(snap.docs.map(d => ({ ...d.data(), id: d.id })));
     },
     err => {
@@ -3266,8 +3278,8 @@ const DB = {
         ...toDelete.map(id => deleteDoc(doc(firestoreDB, col, id)))
       ];
       if (ops.length) await _withTimeout(Promise.all(ops), 25000, 'The database did not confirm the save in time. Check your internet connection.');
-      toWrite.forEach(w => writeAuditLog('update', col, w.id));
-      toDelete.forEach(id => writeAuditLog('delete', col, id));
+      auditBulk('update', col, toWrite.map(w => w.id));
+      auditBulk('delete', col, toDelete);
       _lastSyncedIds[col] = currentIds;
       if (ops.length && !opts.silent && window.showSaveToast) window.showSaveToast('✅ Saved to database');
       return true;
@@ -3290,7 +3302,7 @@ const DB = {
         'Saved, but could not re-read it from the server to confirm.');
       const missing = snaps.filter(sn => !sn.exists());
       if (missing.length) throw new Error('Server did not return ' + missing.length + ' of the saved records.');
-      prepared.forEach(p => writeAuditLog('update', col, p.id));
+      auditBulk('update', col, prepared.map(p => p.id));
       return { ok: true, count: prepared.length };
     } catch(e) {
       console.error('DB.saveDocs', col, e);
