@@ -3008,7 +3008,7 @@ import {
   sendPasswordResetEmail
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
-  getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocFromServer, getDocs, addDoc, setDoc,
+  getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc,
   updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
@@ -3024,11 +3024,7 @@ const FIREBASE_CONFIG = {
 
 const firebaseApp = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(firebaseApp);
-let firestoreDB;
-try {
-  // Local cache: after the first load only changed documents are read from the server (saves your daily read quota)
-  firestoreDB = initializeFirestore(firebaseApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
-} catch (e) { console.warn('Persistent cache unavailable, using default', e); firestoreDB = getFirestore(firebaseApp); }
+const firestoreDB = getFirestore(firebaseApp);
 const cloudFns = getFunctions(firebaseApp);
 let firebaseInitialized = true; // kept for compatibility with the rest of the app's checks
 
@@ -3139,15 +3135,6 @@ async function writeAuditLog(action, col, docId, extra) {
   } catch(e) { console.warn('Audit log write failed (non-blocking):', e.message); }
 }
 window.writeAuditLog = writeAuditLog;
-// Bulk saves write ONE audit entry (not one per record) to protect the daily write quota.
-function auditBulk(action, col, ids) {
-  if (!ids || !ids.length) return;
-  if (col === 'attendance' || ids.length > 3) {
-    writeAuditLog(action, col, ids.length + ' record(s)', { count: ids.length, sampleIds: ids.slice(0, 10) });
-  } else {
-    ids.forEach(id => writeAuditLog(action, col, id));
-  }
-}
 
 // ---- Real-time listeners ----
 // Each listener keeps the in-memory array fresh and re-renders the UI.
@@ -3161,8 +3148,12 @@ function listenCol(col, onData, constraints) {
     colRef,
     snap => {
       (window._listenErrors = window._listenErrors || {})[col] = null;
-      // remember what the server really holds, so saves only write what changed
-      if (!snap.metadata.fromCache) { const m = {}; snap.docs.forEach(d => { m[d.id] = _stable({ ...d.data() }); }); _serverState[col] = m; }
+      // Keep the change-detection cache matching whatever is actually on
+      // the server (including edits from other devices/tabs), so the next
+      // local save only writes documents that genuinely differ from this.
+      const sigMap = new Map();
+      snap.docs.forEach(d => sigMap.set(d.id, _stableSig(d.data())));
+      _lastSyncedData[col] = sigMap;
       onData(snap.docs.map(d => ({ ...d.data(), id: d.id })));
     },
     err => {
@@ -3237,76 +3228,75 @@ window.masterData = {
 function _docIdFor(item, i) {
   return String(item.id || item.rollNo || item.receiptNo || item.salaryId || item.certNo || (item._localId) || ('item_' + i));
 }
-const _lastSyncedIds = {}; // (kept for compatibility)
-const _serverState = {};   // col -> { docId: stableJsonOfServerDoc }  (kept fresh by listeners)
-function _stable(o) {
-  const clean = JSON.parse(JSON.stringify(o === undefined ? null : o)); // drops undefined (Firestore rejects it)
-  const sort = v => Array.isArray(v) ? v.map(sort)
-    : (v && typeof v === 'object') ? Object.keys(v).sort().reduce((a,k)=>{ a[k]=sort(v[k]); return a; }, {}) : v;
-  return JSON.stringify(sort(clean));
-}
-function _withTimeout(promise, ms, label) {
-  return Promise.race([
-    promise,
-    new Promise((_, rej) => setTimeout(() => { const e = new Error(label || 'Timed out'); e.code = 'deadline-exceeded'; rej(e); }, ms))
-  ]);
-}
-function _notifyResult(ok, title, msg) {
-  if (window.showResultPopup) window.showResultPopup(ok ? 'success' : 'error', title, msg);
+const _lastSyncedIds = {}; // col -> Set of doc ids currently on the server
+// col -> Map(doc id -> a stable JSON signature of that doc's last-known
+// content). Lets DB.saveArray skip writing (and audit-logging) documents
+// that haven't actually changed — see the note above DB.saveArray for why
+// this matters: without it, every save of a collection re-wrote and
+// re-logged EVERY document in that collection, not just the changed one,
+// which was silently burning through both Firestore's 1 GiB free storage
+// and its 20,000-writes/day quota on every single submit.
+const _lastSyncedData = {};
+// Stringifies an object with its keys sorted, so two objects with the same
+// content but built in a different key order still compare as identical —
+// plain JSON.stringify can't guarantee that, and a false "changed" verdict
+// here just means one wasted write, so this only needs to be good enough,
+// not cryptographically perfect.
+function _stableSig(obj) {
+  const seen = (k, v) => {
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      return Object.keys(v).sort().reduce((acc, key) => { acc[key] = v[key]; return acc; }, {});
+    }
+    return v;
+  };
+  return JSON.stringify(obj, seen);
 }
 
 const DB = {
-  // Saves ONLY documents that changed (or were added/removed). Returns true/false
-  // and tells the user with a popup when something goes wrong.
-  saveArray: async (col, arr, opts) => {
-    opts = opts || {};
+  // Returns true if every write actually reached Firestore, false otherwise.
+  // CRITICAL: this used to swallow its own errors (show an alert, then just
+  // return undefined either way), so every caller that did
+  // `await DB.set(...); showAlert(...,'success',...)` would show "saved!"
+  // even when the write had actually failed (e.g. a permission error, or
+  // the connection dropping mid-submit) — the success message was never
+  // actually conditional on anything. Now it returns a real boolean so
+  // callers can check it before claiming success.
+  saveArray: async (col, arr) => {
     try {
-      const known = _serverState[col] || {};
       const currentIds = new Set();
-      const toWrite = [];
+      const sigCache = _lastSyncedData[col]; // Map(id -> last-known content signature), or undefined on a cold start
+      const newSigCache = new Map();
+      const writes = [];
+      let skipped = 0;
       for (let i = 0; i < arr.length; i++) {
         const item = arr[i];
         const id = _docIdFor(item, i);
         if (!item.id) item.id = id;
         currentIds.add(id);
-        const clean = JSON.parse(JSON.stringify(item));          // remove undefined values
-        if (known[id] !== _stable(clean)) toWrite.push({ id, clean });
+        const sig = _stableSig(item);
+        newSigCache.set(id, sig);
+        // Only write documents that actually changed since the last known
+        // server state — with no cache yet (cold start) everything is
+        // written once, which is correct and unavoidable.
+        if (sigCache && sigCache.get(id) === sig) { skipped++; continue; }
+        writes.push(setDoc(doc(firestoreDB, col, id), item).then(() => writeAuditLog('update', col, id)));
       }
-      const toDelete = Object.keys(known).filter(id => !currentIds.has(id));
-      const ops = [
-        ...toWrite.map(w => setDoc(doc(firestoreDB, col, w.id), w.clean)),
-        ...toDelete.map(id => deleteDoc(doc(firestoreDB, col, id)))
-      ];
-      if (ops.length) await _withTimeout(Promise.all(ops), 25000, 'The database did not confirm the save in time. Check your internet connection.');
-      auditBulk('update', col, toWrite.map(w => w.id));
-      auditBulk('delete', col, toDelete);
+      await Promise.all(writes);
+      const prevIds = _lastSyncedIds[col];
+      if (prevIds) {
+        const toDelete = [...prevIds].filter(id => !currentIds.has(id));
+        if (toDelete.length) {
+          await Promise.all(toDelete.map(id => deleteDoc(doc(firestoreDB, col, id)).then(() => writeAuditLog('delete', col, id))));
+        }
+      }
       _lastSyncedIds[col] = currentIds;
-      if (ops.length && !opts.silent && window.showSaveToast) window.showSaveToast('✅ Saved to database');
+      _lastSyncedData[col] = newSigCache;
+      if (skipped) console.log(`DB.saveArray(${col}): wrote ${writes.length}, skipped ${skipped} unchanged`);
       return true;
     } catch(e) {
       console.error('DB.saveArray', col, e);
-      _notifyResult(false, 'Not saved to database', friendlyFirestoreError(e).replace(/^❌\s*/, '') + '\n\n(Section: ' + col + ')');
+      showAlert('global-alert','error', friendlyFirestoreError(e));
       return false;
-    }
-  },
-  // Writes exactly the given documents (used by Attendance) and then READS THEM BACK
-  // from the server to prove they are really in the database.
-  saveDocs: async (col, items) => {
-    try {
-      const prepared = items.map((it, i) => ({ id: _docIdFor(it, i), clean: JSON.parse(JSON.stringify({ ...it, id: it.id || _docIdFor(it, i) })) }));
-      await _withTimeout(Promise.all(prepared.map(p => setDoc(doc(firestoreDB, col, p.id), p.clean))), 25000,
-        'The database did not confirm the save in time. Check your internet connection and try again.');
-      // verify from the server (not the local cache)
-      const check = prepared.length > 60 ? prepared.slice(0, 5) : prepared;
-      const snaps = await _withTimeout(Promise.all(check.map(p => getDocFromServer(doc(firestoreDB, col, p.id)))), 20000,
-        'Saved, but could not re-read it from the server to confirm.');
-      const missing = snaps.filter(sn => !sn.exists());
-      if (missing.length) throw new Error('Server did not return ' + missing.length + ' of the saved records.');
-      auditBulk('update', col, prepared.map(p => p.id));
-      return { ok: true, count: prepared.length };
-    } catch(e) {
-      console.error('DB.saveDocs', col, e);
-      return { ok: false, error: friendlyFirestoreError(e).replace(/^❌\s*/, '') };
     }
   },
   setDoc: async (col, id, data) => { const ok = await fbSetDoc(col, id, data); if (ok) writeAuditLog('create', col, id); return ok; },
@@ -3347,8 +3337,8 @@ DB.set = async (k, v) => {
     placements:'placements', staffAttendance:'staffAttendance', weekly_planner:'weekly_planner',
     enquiries:'enquiries'
   };
-  if (colMap[k]) return await DB.saveArray(colMap[k], v);
-  return false;
+  if (!colMap[k]) { console.warn('DB.set: unknown collection key', k); return false; }
+  return await DB.saveArray(colMap[k], v);
 };
 window.DB = DB;
 window.fbDeleteDoc = fbDeleteDoc;
@@ -5044,7 +5034,17 @@ async function finalizeAdmission(fields) {
   const roll = fields.rollNo;
   const newStudent = { ...fields, status:'Active', hasLogin:false, createdAt: new Date().toISOString(), addedBy: currentUser.name };
   students.push(newStudent);
-  await DB.set('students', students);
+  const admOk = await DB.set('students', students);
+  if (!admOk) {
+    // The write actually failed — remove the optimistic local add so the
+    // student doesn't appear saved when nothing reached the database, and
+    // stop here rather than going on to record a down payment or create a
+    // login for a student record that doesn't actually exist in Firestore.
+    students.pop();
+    btn.disabled = false; txt.innerHTML = '💾 Save Student';
+    showAlert('admission-alert','error','❌ This student was NOT saved to the database. See the error above, check your internet connection, and press Save Student again.');
+    return;
+  }
 
   // If a down payment was entered, record it immediately as a fee payment
   // tagged 'Down Payment' — the Fees & Payments section (paid total, balance,
@@ -5063,7 +5063,8 @@ async function finalizeAdmission(fields) {
       remarks: 'Down payment collected at admission', recordedBy: currentUser.name
     };
     payments.push(dpPayment);
-    await DB.set('payments', payments);
+    const dpOk = await DB.set('payments', payments);
+    if (!dpOk) { payments.pop(); downPaymentReceipt = '__FAILED__'; }
   }
 
   // If this admission was loaded from an Enquiry, mark that enquiry Converted now.
@@ -5072,7 +5073,9 @@ async function finalizeAdmission(fields) {
   btn.disabled = false; txt.innerHTML = '💾 Save Student';
 
   let msg = '✅ Admitted! Roll No: <strong>' + roll + '</strong>' + (firebaseInitialized ? ' — Saved to Firebase!' : ' (Local — connect Firebase in Settings for cloud sync)');
-  if (downPaymentReceipt) {
+  if (downPaymentReceipt === '__FAILED__') {
+    msg += `<br>⚠️ Student saved, but the down payment of ₹${fields.downPayment.toLocaleString('en-IN')} could NOT be saved — record it from Fees & Payments once your connection is back.`;
+  } else if (downPaymentReceipt) {
     msg += `<br>💰 Down payment of ₹${fields.downPayment.toLocaleString('en-IN')} recorded. Receipt: <strong>${downPaymentReceipt}</strong>`;
   }
 
@@ -5549,6 +5552,7 @@ async function saveStudentEdit() {
 
 async function saveStudentEditConfirmed(roll, idx) {
   const _prevStatus = normStatus(students[idx].status);
+  const _prevRecord = { ...students[idx] }; // kept so a failed save can be rolled back cleanly
   students[idx] = { ...students[idx],
     fname: document.getElementById('es-fname').value.trim(),
     lname: document.getElementById('es-lname').value.trim(),
@@ -5582,10 +5586,15 @@ async function saveStudentEditConfirmed(roll, idx) {
     students[idx].statusSince = todayStr();
     students[idx].statusHistory = [...(students[idx].statusHistory || []), { status: _newStatus, reason: 'Changed from Edit Student', effectiveDate: todayStr(), changedBy: currentUser.name, changedAt: new Date().toISOString() }];
   }
-  await DB.set('students', students);
+  const ok = await DB.set('students', students);
+  if (!ok) {
+    students[idx] = _prevRecord; // the write failed — undo the local edit so it isn't shown as saved
+    showAlert('global-alert','error','❌ This student record was NOT saved to the database. See the error above, check your connection, and try saving again.');
+    return;
+  }
   closeModal('edit-student-modal');
   renderStudentsTable();
-  showAlert('global-alert','success','✅ Student record updated.');
+  showAlert('global-alert','success','✅ Student record updated and saved to the database.');
 }
 
 async function deleteStudent() {
@@ -6081,12 +6090,19 @@ async function submitInstallmentPayment() {
   };
   pd.id = rcptNo;
   payments.push(pd);
-  await DB.set('payments', payments);
+  const ok = await DB.set('payments', payments);
 
   btn.disabled = false; btn.innerHTML = '💾 Record Payment';
+
+  if (!ok) {
+    payments.pop(); // the write failed — don't leave a phantom unsaved payment in memory
+    alertBox.innerHTML = '<div class="alert alert-error">❌ This payment was NOT saved to the database. See the error above, check your connection, and try again.</div>';
+    return;
+  }
+
   closeModal('fee-pay-modal');
   refreshFeeStudentInfo();
-  showAlert('fees-alert','success','✅ ₹'+amount.toLocaleString('en-IN')+' recorded for '+row.label+'. Receipt: <strong>'+rcptNo+'</strong>');
+  showAlert('fees-alert','success','✅ ₹'+amount.toLocaleString('en-IN')+' recorded for '+row.label+' and saved to the database. Receipt: <strong>'+rcptNo+'</strong>');
 }
 window.submitInstallmentPayment = submitInstallmentPayment;
 
@@ -6126,10 +6142,17 @@ async function finalizeCollectFee(amount) {
   };
   pd.id = rcptNo;
   payments.push(pd);
-  await DB.set('payments', payments);
+  const ok = await DB.set('payments', payments);
 
   btn.disabled = false; btn.innerHTML = '💾 Record Payment';
-  showAlert('fees-alert','success','✅ ₹'+amount.toLocaleString('en-IN')+' recorded! Receipt: <strong>'+rcptNo+'</strong>');
+
+  if (!ok) {
+    payments.pop();
+    showAlert('fees-alert','error','❌ This payment was NOT saved to the database. See the error above, check your connection, and try again.');
+    return;
+  }
+
+  showAlert('fees-alert','success','✅ ₹'+amount.toLocaleString('en-IN')+' recorded and saved to the database. Receipt: <strong>'+rcptNo+'</strong>');
   document.getElementById('fee-amount').value='';
   document.getElementById('fee-ref').value='';
   document.getElementById('fee-remarks').value='';
@@ -6876,24 +6899,26 @@ async function finalizeAttendance(date, batch, course, records) {
   const btn=document.getElementById('att-submit-btn');
   btn.disabled=true; btn.innerHTML='<span class="loader"></span> Submitting...';
 
-  const attData = records.map(r=>({ id: date+'_'+r.roll, date, rollNo:r.roll, studentName:r.name, course, batch, status:r.status, topic:r.topic||'', software:r.software||'', recordedBy:(currentUser&&currentUser.name)||'', recordedAt:new Date().toISOString() }));
-  const present = records.filter(r=>r.status==='Present').length;
-  const absent = records.filter(r=>r.status==='Absent').length;
-
-  // Write ONLY today's records, then confirm them by reading back from the server
-  const result = await DB.saveDocs('attendance', attData);
+  const attData = records.map(r=>({ id: date+'_'+r.roll, date, rollNo:r.roll, studentName:r.name, course, batch, status:r.status, topic:r.topic, software:r.software, recordedBy:currentUser.name, recordedAt:new Date().toISOString() }));
+  const previousAttendance = attendance; // kept so a failed save can be rolled back cleanly, with nothing duplicated on retry
+  attendance=[...attendance,...attData];
+  const ok = await DB.set('attendance',attendance);
 
   btn.disabled=false; btn.innerHTML='💾 Submit Attendance';
 
-  if (!result.ok) {
-    showAlert('att-alert','error','❌ Attendance was NOT saved to the database. ' + result.error);
-    showResultPopup('error','Attendance NOT saved', result.error + '\n\nNothing was confirmed in the database. Please check your connection and press Submit again.');
+  if (!ok) {
+    // The write to Firestore actually failed — undo the optimistic local
+    // update (DB.set already showed the specific error in the banner at
+    // the top of the page) so the screen never shows attendance as
+    // recorded when it wasn't, and the Submit button is left exactly as
+    // it was so pressing it again doesn't create duplicates.
+    attendance = previousAttendance;
+    showAlert('att-alert','error','❌ Attendance was NOT saved to the database. See the error above, check your internet connection, and press Submit Attendance again.');
     return;
   }
-  showAlert('att-alert','success',`✅ Attendance for ${records.length} students saved. Present: ${present}, Absent: ${absent}`);
-  showResultPopup('success','Attendance submitted successfully',
-    `Attendance for ${date} has been saved and confirmed in the database.\n\nTotal: ${records.length}  •  Present: ${present}  •  Absent: ${absent}`);
-  setTimeout(()=>{ document.getElementById('att-batch').selectedIndex=0; document.getElementById('att-course').selectedIndex=0; document.getElementById('att-student-list').style.display='none'; document.getElementById('att-empty').style.display='none'; },2000)
+
+  showAlert('att-alert','success',`✅ Attendance for ${records.length} students saved to the database. Present: ${records.filter(r=>r.status==='Present').length}, Absent: ${records.filter(r=>r.status==='Absent').length}`);
+  setTimeout(()=>{ document.getElementById('att-batch').selectedIndex=0; document.getElementById('att-course').selectedIndex=0; document.getElementById('att-student-list').style.display='none'; document.getElementById('att-empty').style.display='none'; },2000);
 }
 
 // ============================================================
@@ -7002,11 +7027,19 @@ async function submitAbsentListConfirmed(date, batch, course, absentees) {
     course, batch, reason: a.reason || 'Not specified',
     recordedBy: currentUser.name, recordedAt: new Date().toISOString()
   }));
+  const previousAbsences = absences; // kept so a failed save can be rolled back cleanly
   absences = [...absences.filter(a => !absData.some(n => n.id === a.id)), ...absData];
-  await DB.set('absences', absences);
+  const ok = await DB.set('absences', absences);
 
   btn.disabled = false; btn.innerHTML = '💾 Save Absent List';
-  showAlert('abs-alert','success', `✅ Absent list saved for ${absentees.length} student(s).`);
+
+  if (!ok) {
+    absences = previousAbsences;
+    showAlert('abs-alert','error', '❌ This absent list was NOT saved to the database. See the error above, check your connection, and press Save Absent List again.');
+    return;
+  }
+
+  showAlert('abs-alert','success', `✅ Absent list for ${absentees.length} student(s) saved to the database.`);
   renderAbsentHistory();
   setTimeout(()=>{
     document.getElementById('abs-batch').selectedIndex = 0;
@@ -10171,8 +10204,13 @@ async function saveSalaryConfirmed(month) {
     savedAt: new Date().toISOString(), savedBy: currentUser.name
   };
   salaries.push(record);
-  await DB.set('salaries', salaries);
-  showAlert('salary-alert','success','✅ Salary record saved for '+currentSalaryStaff.name+' ('+month+'). Net Pay: ₹'+netPay.toLocaleString('en-IN'));
+  const ok = await DB.set('salaries', salaries);
+  if (!ok) {
+    salaries.pop();
+    showAlert('salary-alert','error','❌ This salary record was NOT saved to the database. See the error above, check your connection, and try again.');
+    return;
+  }
+  showAlert('salary-alert','success','✅ Salary record saved for '+currentSalaryStaff.name+' ('+month+'), Net Pay: ₹'+netPay.toLocaleString('en-IN')+' — saved to the database.');
 }
 
 function clearSalaryForm() {
@@ -10415,9 +10453,17 @@ async function mkSubmitMarksConfirmed(rollNo, course, examName, student, student
       enteredBy: currentUser.name, enteredAt: new Date().toISOString()
     });
   });
+  const previousMarks = marks; // kept so a failed save can be rolled back cleanly
   marks = [...marks, ...newMarks];
-  await DB.set('marks', marks);
-  showAlert('marks-alert','success',`✅ Marks saved for ${studentName} — Exam: ${examName} (${newMarks.length} subjects)`);
+  const ok = await DB.set('marks', marks);
+
+  if (!ok) {
+    marks = previousMarks;
+    showAlert('marks-alert','error', '❌ These marks were NOT saved to the database. See the error above, check your connection, and press Save Marks again.');
+    return;
+  }
+
+  showAlert('marks-alert','success',`✅ Marks saved for ${studentName} — Exam: ${examName} (${newMarks.length} subjects) — saved to the database.`);
   clearMarksForm();
 }
 
@@ -10506,39 +10552,6 @@ function closeConfirmModal(confirmed) {
 window.confirmAction = confirmAction;
 window.closeConfirmModal = closeConfirmModal;
 
-// ---- Result popup (success / error) + small save toast ----
-function showResultPopup(type, title, msg) {
-  let m = document.getElementById('result-modal');
-  if (!m) {
-    m = document.createElement('div');
-    m.className = 'modal-backdrop'; m.id = 'result-modal'; m.style.zIndex = 400;
-    m.innerHTML = '<div class="modal" style="max-width:420px;text-align:center;">' +
-      '<div id="result-modal-icon" style="font-size:52px;line-height:1;margin-bottom:10px;"></div>' +
-      '<h3 id="result-modal-title" style="margin-bottom:10px;"></h3>' +
-      '<p id="result-modal-msg" style="font-size:14px;line-height:1.6;white-space:pre-line;margin-bottom:20px;"></p>' +
-      '<button class="btn btn-teal" onclick="document.getElementById(\'result-modal\').classList.remove(\'open\')">OK</button></div>';
-    document.body.appendChild(m);
-  }
-  const ok = type === 'success';
-  document.getElementById('result-modal-icon').textContent = ok ? '✅' : '❌';
-  document.getElementById('result-modal-title').textContent = title;
-  document.getElementById('result-modal-title').style.color = ok ? '#15803d' : '#b91c1c';
-  document.getElementById('result-modal-msg').textContent = msg || '';
-  m.classList.add('open');
-}
-window.showResultPopup = showResultPopup;
-function showSaveToast(msg) {
-  let t = document.getElementById('save-toast');
-  if (!t) {
-    t = document.createElement('div'); t.id = 'save-toast';
-    t.style.cssText = 'position:fixed;bottom:22px;right:22px;background:#15803d;color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;z-index:500;box-shadow:0 4px 14px rgba(0,0,0,.25);transition:opacity .3s;opacity:0;';
-    document.body.appendChild(t);
-  }
-  t.textContent = msg; t.style.opacity = '1';
-  clearTimeout(t._h); t._h = setTimeout(() => { t.style.opacity = '0'; }, 2500);
-}
-window.showSaveToast = showSaveToast;
-
 function showAlert(id, type, msg) {
   const el=document.getElementById(id);
   if (!el) return;
@@ -10565,10 +10578,15 @@ async function addIncome() {
 
 async function addIncomeConfirmed(date, source, amount, remarks) {
   incomes.push({ id:'INC'+Date.now(), date, source, amount, remarks, enteredBy: currentUser.name });
-  await DB.set('incomes', incomes);
+  const ok = await DB.set('incomes', incomes);
+  if (!ok) {
+    incomes.pop();
+    showAlert('finance-alert','error','❌ This income was NOT saved to the database. See the error above, check your connection, and try again.');
+    return;
+  }
   clearIncomeForm();
   renderFinance();
-  showAlert('finance-alert','success','✅ Income recorded.');
+  showAlert('finance-alert','success','✅ Income recorded and saved to the database.');
 }
 
 function clearIncomeForm() {
@@ -10592,10 +10610,15 @@ async function addExpense() {
 
 async function addExpenseConfirmed(date, category, amount, paidTo, remarks) {
   expenses.push({ id:'EXP'+Date.now(), date, category, amount, paidTo, remarks, enteredBy: currentUser.name });
-  await DB.set('expenses', expenses);
+  const ok = await DB.set('expenses', expenses);
+  if (!ok) {
+    expenses.pop();
+    showAlert('finance-alert','error','❌ This expense was NOT saved to the database. See the error above, check your connection, and try again.');
+    return;
+  }
   clearExpenseForm();
   renderFinance();
-  showAlert('finance-alert','success','✅ Expense recorded.');
+  showAlert('finance-alert','success','✅ Expense recorded and saved to the database.');
 }
 
 function clearExpenseForm() {
@@ -10819,10 +10842,16 @@ async function saveCertificateConfirmed(roll, s) {
     updatedBy: currentUser.name, updatedAt: new Date().toISOString()
   };
   const idx = certificates.findIndex(c=>c.rollNo===roll);
+  const _prevCert = idx>=0 ? { ...certificates[idx] } : null;
   if (idx>=0) certificates[idx] = record; else certificates.push(record);
-  await DB.set('certificates', certificates);
+  const ok = await DB.set('certificates', certificates);
+  if (!ok) {
+    if (idx>=0) certificates[idx] = _prevCert; else certificates.pop();
+    showAlert('cert-alert','error','❌ This certificate record was NOT saved to the database. See the error above, check your connection, and try again.');
+    return;
+  }
   renderCertificates();
-  showAlert('cert-alert','success','✅ Certificate record saved for '+record.studentName);
+  showAlert('cert-alert','success','✅ Certificate record saved for '+record.studentName+' and saved to the database.');
   clearCertificateForm();
 }
 
