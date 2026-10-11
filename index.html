@@ -1247,6 +1247,7 @@ tr:hover td { background: #f8fafd; }
       <div class="no-print" style="margin-bottom:20px;display:flex;gap:10px;">
         <select id="receipt-select" onchange="loadReceipt()" style="width:300px;"><option value="">— Select Receipt —</option></select>
         <button class="btn btn-primary" onclick="window.print()">🖨️ Print Receipt</button>
+        <button class="btn btn-teal" onclick="sendSelectedReceiptWhatsApp()">📲 Send on WhatsApp</button>
       </div>
       <div class="receipt" id="receipt-content">
         <div class="receipt-header"><div id="receipt-company-head"></div><p style="margin-top:8px;">Payment Receipt</p></div>
@@ -1681,8 +1682,8 @@ tr:hover td { background: #f8fafd; }
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Sl.No</th><th>Photo</th><th>Date</th><th>ID No.</th><th>Name</th><th>Mobile</th><th>Course</th><th>Batch</th><th>Reason</th><th>Recorded By</th></tr></thead>
-            <tbody id="abs-history-body"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px;">No absences recorded yet</td></tr></tbody>
+            <thead><tr><th>Sl.No</th><th>Photo</th><th>Date</th><th>ID No.</th><th>Name</th><th>Mobile</th><th>Course</th><th>Batch</th><th>Reason</th><th>Recorded By</th><th class="no-print">WhatsApp</th></tr></thead>
+            <tbody id="abs-history-body"><tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px;">No absences recorded yet</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -3348,6 +3349,7 @@ const DB = {
     } catch(e) {
       console.error('DB.saveArray', col, e);
       showAlert('global-alert','error', friendlyFirestoreError(e));
+      if (window.showResultPopup) window.showResultPopup('error', 'Not saved to database', friendlyFirestoreError(e).replace(/^❌\s*/, '') + '\n\n(Section: ' + col + ')');
       return false;
     }
   },
@@ -5435,6 +5437,7 @@ function renderStudentsTable(filtered) {
     const stNow = normStatus(s.status);
     const isLeave = stNow === 'Long Leave', isDrop = stNow === 'Drop Out';
     let actionBtns = _ib('i-view', '👁️', 'View', `viewStudent('${s.rollNo}')`);
+    actionBtns += _ib('i-view', '📲', 'WhatsApp', `openWhatsAppModal('${s.rollNo}')`);
     if (canModifyStudents()) {
       actionBtns += _ib('i-edit', '✏️', 'Edit', `openEditStudent('${s.rollNo}')`);
       if (isLeave || isDrop) actionBtns += _ib('i-rejoin', '🔁', 'Rejoined', `openStatusChangeModal('${s.rollNo}','Rejoined')`);
@@ -5861,6 +5864,7 @@ async function applyStatusChange(rollNo, newStatus, reason, effDate) {
   effDate = effDate || todayStr();
 
   const historyEntry = { status: newStatus, reason, effectiveDate: effDate, changedBy: currentUser.name, changedAt: new Date().toISOString() };
+  const prevStudent = students[idx];
   students[idx] = {
     ...students[idx],
     status: newStatus,
@@ -5868,7 +5872,12 @@ async function applyStatusChange(rollNo, newStatus, reason, effDate) {
     statusSince: effDate,
     statusHistory: [...(students[idx].statusHistory || []), historyEntry]
   };
-  await DB.set('students', students);
+  const okStatus = await DB.set('students', students);
+  if (!okStatus) {
+    students[idx] = prevStudent;   // not in the database, so undo on screen
+    showAlert('status-modal-alert','error','❌ The status change was NOT saved to the database. Please try again.');
+    return;
+  }
 
   closeModal('status-modal');
   statusChangeContext = null;
@@ -5876,6 +5885,9 @@ async function applyStatusChange(rollNo, newStatus, reason, effDate) {
   const li = getStudentLeaveInfo(students[idx]);
   const extra = li.count ? ` Leave days counted so far: <strong>${li.count}</strong>.` : '';
   showAlert('students-alert','success', `✅ Student marked <strong>${newStatus}</strong> from ${formatDateDMY(effDate)}. Reason recorded.${extra}`);
+  showResultPopup('success','Status updated',
+    students[idx].fname + ' ' + students[idx].lname + ' is now marked ' + newStatus + ' from ' + formatDateDMY(effDate) + '.',
+    [{ label: '📲 Notify on WhatsApp', cls: 'btn-teal', onClick: () => waOpen(rollNo, waMsgLeave(students[idx], newStatus, reason, effDate)) }]);
 }
 window.openStatusChangeModal = openStatusChangeModal;
 window.confirmStatusChange = confirmStatusChange;
@@ -5951,7 +5963,7 @@ function renderStatusReport() {
       <td style="text-align:center;"><strong style="color:#7c3aed;">${li.count}</strong></td>
       <td style="text-align:center;">${r.recAbsent}</td>
       <td style="text-align:center;"><strong style="color:var(--red);">${r.totalAbsent}</strong></td>
-      <td class="no-print"><button class="icon-btn i-view" data-tip="View" aria-label="View" onclick="viewStudent('${s.rollNo}')">👁️</button></td>
+      <td class="no-print"><button class="icon-btn i-view" data-tip="View" aria-label="View" onclick="viewStudent('${s.rollNo}')">👁️</button> <button class="icon-btn i-view" data-tip="WhatsApp" aria-label="WhatsApp" onclick="openWhatsAppModal('${s.rollNo}')">📲</button></td>
     </tr>`;
   }).join('');
 }
@@ -6231,6 +6243,9 @@ async function finalizeCollectFee(amount) {
   }
 
   showAlert('fees-alert','success','✅ ₹'+amount.toLocaleString('en-IN')+' recorded and saved to the database. Receipt: <strong>'+rcptNo+'</strong>');
+  showResultPopup('success','Payment recorded',
+    '₹' + amount.toLocaleString('en-IN') + ' received from ' + pd.studentName + '.\nReceipt No: ' + rcptNo,
+    [{ label: '📲 Send receipt on WhatsApp', cls: 'btn-teal', onClick: () => sendReceiptWhatsApp(rcptNo) }]);
   document.getElementById('fee-amount').value='';
   document.getElementById('fee-ref').value='';
   document.getElementById('fee-remarks').value='';
@@ -6277,6 +6292,7 @@ function renderPaymentsTable() {
       <td><span class="chip chip-blue">${p.mode}</span></td>
       <td style="white-space:nowrap;">
         <button class="btn btn-outline" onclick="printReceipt('${p.receiptNo}')" style="padding:4px 10px;font-size:12px;">Print</button>
+        <button class="btn btn-outline" onclick="sendReceiptWhatsApp('${p.receiptNo}')" style="padding:4px 10px;font-size:12px;color:#128c7e;border-color:#128c7e;" title="Send receipt on WhatsApp">📲</button>
         ${canEditPayments ? `<button class="btn btn-outline" onclick="editPayment('${p.receiptNo}')" style="padding:4px 10px;font-size:12px;" title="Edit">✏️</button>
         <button class="btn btn-outline" onclick="deletePayment('${p.receiptNo}')" style="padding:4px 10px;font-size:12px;color:var(--red);border-color:var(--red);" title="Delete">🗑️</button>` : ''}
       </td>
@@ -7002,6 +7018,11 @@ async function finalizeAttendance(date, batch, course, records) {
   }
 
   showAlert('att-alert','success',`✅ Attendance for ${records.length} students saved to the database. Present: ${records.filter(r=>r.status==='Present').length}, Absent: ${records.filter(r=>r.status==='Absent').length}`);
+  { const absentRecs = records.filter(r => r.status === 'Absent');
+    showResultPopup('success','Attendance submitted successfully',
+      'Attendance for ' + formatDateDMY(date) + ' is saved in the database.\nTotal: ' + records.length + '  •  Present: ' + records.filter(r => r.status === 'Present').length + '  •  Absent: ' + absentRecs.length +
+      (absentRecs.length ? '\n\nTap a name to inform an absent student on WhatsApp:' : ''),
+      absentRecs.slice(0, 20).map(r => ({ label: '📲 ' + r.name, cls: 'btn-outline', onClick: () => sendAbsentWhatsApp(r.roll, date, '') }))); }
   setTimeout(()=>{ document.getElementById('att-batch').selectedIndex=0; document.getElementById('att-course').selectedIndex=0; document.getElementById('att-student-list').style.display='none'; document.getElementById('att-empty').style.display='none'; },2000);
 }
 
@@ -7124,6 +7145,9 @@ async function submitAbsentListConfirmed(date, batch, course, absentees) {
   }
 
   showAlert('abs-alert','success', `✅ Absent list for ${absentees.length} student(s) saved to the database.`);
+  showResultPopup('success','Absent list saved',
+    absentees.length + ' student(s) marked absent on ' + formatDateDMY(date) + '. Tap a name to inform them on WhatsApp:',
+    absentees.map(a => ({ label: '📲 ' + a.name, cls: 'btn-outline', onClick: () => sendAbsentWhatsApp(a.roll, date, a.reason) })));
   renderAbsentHistory();
   setTimeout(()=>{
     document.getElementById('abs-batch').selectedIndex = 0;
@@ -7145,7 +7169,7 @@ function renderAbsentHistory() {
   if (isTeacher && (!dateFilter || !batchFilter || !courseFilter)) {
     // Teachers only ever see one date + batch + course's absences at a
     // time — nothing shows until all three are picked.
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px;">Select a date, batch and course above to view the absence list.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px;">Select a date, batch and course above to view the absence list.</td></tr>';
     return;
   }
 
@@ -7157,7 +7181,7 @@ function renderAbsentHistory() {
   const anyFilter = dateFilter || batchFilter || courseFilter;
   if (!list.length) {
     const noneMsg = anyFilter ? 'No absences recorded for the selected filters' : 'No absences recorded yet';
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px;">' + noneMsg + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px;">' + noneMsg + '</td></tr>';
     return;
   }
   const sorted = [...list].sort((a,b) => b.date.localeCompare(a.date)).slice(0, anyFilter ? list.length : 100);
@@ -7169,6 +7193,7 @@ function renderAbsentHistory() {
       <td>${studentPhotoHtml(stu, 32)}</td>
       <td>${formatDateDMY(a.date)}</td><td>${a.rollNo}</td><td>${a.studentName}</td><td>${a.mobile||'—'}</td>
       <td>${a.course}</td><td>${a.batch}</td><td>${a.reason}</td><td>${a.recordedBy}</td>
+      <td class="no-print"><button class="btn btn-outline" onclick="sendAbsenceRecordWhatsApp('${a.id}')" style="padding:4px 10px;font-size:12px;color:#128c7e;border-color:#128c7e;" title="Inform on WhatsApp">📲</button></td>
     </tr>`;
   }).join('');
 }
@@ -7939,7 +7964,7 @@ function buildDueTable(bodyId, totalId, canEdit) {
         <div style="font-size:11px;color:var(--muted);">${installLabel}</div>
       </td>
       <td>${statusBadge(status)}</td>
-      <td>${canEdit ? `<button class="btn btn-outline" onclick="editDueDate('${s.rollNo}')" style="padding:4px 10px;font-size:12px;">✏️ Edit</button>` : '—'}</td>
+      <td style="white-space:nowrap;"><button class="btn btn-outline" onclick="sendFeeDueWhatsApp('${s.rollNo}')" style="padding:4px 10px;font-size:12px;color:#128c7e;border-color:#128c7e;" title="Send fee reminder on WhatsApp">📲 Remind</button> ${canEdit ? `<button class="btn btn-outline" onclick="editDueDate('${s.rollNo}')" style="padding:4px 10px;font-size:12px;">✏️ Edit</button>` : ''}</td>
     </tr>`).join('');
 }
 
@@ -10548,6 +10573,8 @@ async function mkSubmitMarksConfirmed(rollNo, course, examName, student, student
   }
 
   showAlert('marks-alert','success',`✅ Marks saved for ${studentName} — Exam: ${examName} (${newMarks.length} subjects) — saved to the database.`);
+  showResultPopup('success','Marks saved', 'Marks for ' + studentName + ' (' + examName + ') are saved in the database.',
+    [{ label: '📲 Send result on WhatsApp', cls: 'btn-teal', onClick: () => waOpen(rollNo, waMsgMarks(rollNo, studentName, examName, newMarks)) }]);
   clearMarksForm();
 }
 
@@ -10635,6 +10662,187 @@ function closeConfirmModal(confirmed) {
 }
 window.confirmAction = confirmAction;
 window.closeConfirmModal = closeConfirmModal;
+
+
+// ============================================================
+// RESULT POPUP + WHATSAPP MESSAGING
+// ============================================================
+function showResultPopup(type, title, msg, actions) {
+  let m = document.getElementById('result-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.className = 'modal-backdrop'; m.id = 'result-modal'; m.style.zIndex = 400;
+    m.innerHTML = '<div class="modal" style="max-width:440px;text-align:center;">' +
+      '<div id="result-modal-icon" style="font-size:52px;line-height:1;margin-bottom:10px;"></div>' +
+      '<h3 id="result-modal-title" style="margin-bottom:10px;"></h3>' +
+      '<p id="result-modal-msg" style="font-size:14px;line-height:1.6;white-space:pre-line;margin-bottom:16px;"></p>' +
+      '<div id="result-modal-actions" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;max-height:200px;overflow-y:auto;"></div>' +
+      '<button class="btn btn-teal" onclick="document.getElementById(\'result-modal\').classList.remove(\'open\')">OK</button></div>';
+    document.body.appendChild(m);
+  }
+  const ok = type === 'success';
+  document.getElementById('result-modal-icon').textContent = ok ? '✅' : '❌';
+  const t = document.getElementById('result-modal-title'); t.textContent = title; t.style.color = ok ? '#15803d' : '#b91c1c';
+  document.getElementById('result-modal-msg').textContent = msg || '';
+  const box = document.getElementById('result-modal-actions'); box.innerHTML = '';
+  (actions || []).forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'btn ' + (a.cls || 'btn-primary'); b.textContent = a.label;
+    b.addEventListener('click', a.onClick);
+    box.appendChild(b);
+  });
+  m.classList.add('open');
+}
+window.showResultPopup = showResultPopup;
+
+// --- number / link helpers ---
+function waNumberFor(s) {
+  const norm = v => {
+    let d = String(v || '').replace(/\D/g, '');
+    if (d.length === 11 && d[0] === '0') d = d.slice(1);
+    if (d.length === 10) return '91' + d;                 // Indian mobile
+    if (d.length === 12 && d.startsWith('91')) return d;
+    return '';
+  };
+  return norm(s && s.mobile) || norm(s && s.guardianMobile);
+}
+function waOpen(rollNo, text) {
+  const s = (window.students || []).find(x => x.rollNo === rollNo);
+  const num = waNumberFor(s);
+  if (!num) alert('No valid mobile number found for ' + (s ? s.fname + ' ' + s.lname : rollNo) + '. WhatsApp will open so you can pick the contact manually.');
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(text), '_blank');
+}
+window.waOpen = waOpen;
+const _waInr = n => '₹' + parseFloat(n || 0).toLocaleString('en-IN');
+const _waInst = () => ((window.DB && DB.cfg && DB.cfg().instName) || 'Explore Learning');
+const _waFoot = () => '\n\n- ' + _waInst();
+const _waStu = roll => (window.students || []).find(x => x.rollNo === roll);
+const _waName = s => s ? (s.fname + ' ' + s.lname).trim() : '';
+
+// --- message builders ---
+function waMsgReceipt(p) {
+  const totalPaid = (window.payments || []).filter(x => x.rollNo === p.rollNo).reduce((a, x) => a + parseFloat(x.amount || 0), 0);
+  const isDown = (p.linkedInstallment === 'Down Payment') || (p.category === 'Down Payment');
+  const isInst = !isDown && (p.category === 'Installment');
+  const type = isDown ? 'Down Payment' : isInst ? 'Installment' + (p.linkedInstallment ? ' - ' + p.linkedInstallment : '') : (p.category || p.linkedInstallment || 'Fee Payment');
+  return ['*' + _waInst() + '*', '*Payment Receipt*', '',
+    'Receipt No: ' + p.receiptNo, 'Date: ' + formatDateDMY(p.date),
+    'Student: ' + p.studentName + ' (' + p.rollNo + ')', 'Course: ' + (p.course || '-'),
+    'Payment Type: ' + type, '*Amount Paid: ' + _waInr(p.amount) + '*',
+    'Mode: ' + p.mode + (p.reference ? ' - ' + p.reference : ''),
+    'Total Paid to Date: ' + _waInr(totalPaid), '', 'Thank you for your payment.'].join('\n');
+}
+function waMsgFeeDue(s) {
+  const paid = (window.payments || []).filter(p => p.rollNo === s.rollNo).reduce((a, p) => a + parseFloat(p.amount || 0), 0);
+  const bal = parseFloat(s.totalFees || 0) - parseFloat(s.concession || 0) - paid;
+  let due = ''; try { const d = getStudentDueDate(s); if (d) due = formatDateDMY(d); } catch (e) {}
+  return 'Dear ' + _waName(s) + ',\n\nThis is a gentle reminder from *' + _waInst() + '* that a fee balance of *' + _waInr(Math.max(bal, 0)) + '* is pending' +
+    (due ? ' (due date: ' + due + ')' : '') + ' for your ' + (s.course || '') + ' course (ID ' + s.rollNo + ').\n\nKindly pay at the earliest. Please ignore this message if already paid.' + _waFoot();
+}
+function waMsgLeave(s, status, reason, effDate) {
+  let li = null; try { li = getStudentLeaveInfo(s); } catch (e) {}
+  const lead = status === 'Long Leave' ? 'has been marked on *Long Leave*'
+             : status === 'Rejoined'  ? 'has *rejoined* the course'
+             : status === 'Drop Out'  ? 'has been marked as *Dropped Out*' : 'status is now *' + status + '*';
+  return 'Dear ' + _waName(s) + ',\n\nThis is to inform you that your admission (ID ' + s.rollNo + ', ' + (s.course || '') + ') ' + lead +
+    (effDate ? ' from ' + formatDateDMY(effDate) : '') + '.' + (reason ? '\nReason: ' + reason : '') +
+    (li && li.count && status !== 'Rejoined' ? '\nLeave days counted so far: ' + li.count : '') +
+    (status === 'Long Leave' ? '\n\nPlease contact the institute when you are ready to rejoin.' : '') + _waFoot();
+}
+function waMsgAbsent(rollNo, name, date, reason) {
+  return 'Dear ' + name + ',\n\nYou were marked *absent* on ' + formatDateDMY(date) + ' at *' + _waInst() + '*.' +
+    (reason && reason !== 'Not specified' ? '\nReason noted: ' + reason : '') + '\n\nPlease attend the next class regularly and contact us if there is any problem.' + _waFoot();
+}
+function waMsgAttendance(s) {
+  const recs = (window.attendance || []).filter(a => a.rollNo === s.rollNo);
+  const present = recs.filter(a => String(a.status).toLowerCase() === 'present').length;
+  const absent = recs.filter(a => String(a.status).toLowerCase() === 'absent').length;
+  const leave = recs.filter(a => String(a.status).toLowerCase() === 'leave').length;
+  let extra = 0; try { extra = getStudentLeaveInfo(s).count || 0; } catch (e) {}
+  const total = present + absent + leave + extra;
+  const pct = total ? Math.round(present / total * 100) : 0;
+  return 'Dear ' + _waName(s) + ',\n\n*Attendance summary* (' + s.rollNo + ', ' + (s.course || '') + ')\nPresent: ' + present + ' of ' + total + ' days (' + pct + '%)\nAbsent: ' + (absent + extra) + '\nLeave: ' + leave +
+    '\n\nRegular attendance is important for your progress.' + _waFoot();
+}
+function waMsgMarks(rollNo, studentName, examName, rows) {
+  const tot = rows.reduce((a, r) => a + (r.total || 0), 0), max = rows.reduce((a, r) => a + (r.maxTotal || 0), 0);
+  const pct = max ? Math.round(tot / max * 1000) / 10 : 0;
+  return 'Dear ' + studentName + ',\n\n*' + examName + ' - Result* (' + rollNo + ')\n' +
+    rows.map(r => r.subject + ': ' + r.total + '/' + r.maxTotal + ' (' + r.grade + ')').join('\n') +
+    '\n\n*Total: ' + tot + '/' + max + ' (' + pct + '%)*' + _waFoot();
+}
+
+// --- receipt actions ---
+function sendReceiptWhatsApp(rcptNo) {
+  const p = (window.payments || []).find(x => x.receiptNo === rcptNo);
+  if (!p) { alert('Receipt not found.'); return; }
+  waOpen(p.rollNo, waMsgReceipt(p));
+}
+window.sendReceiptWhatsApp = sendReceiptWhatsApp;
+function sendSelectedReceiptWhatsApp() {
+  const r = document.getElementById('receipt-select').value;
+  if (!r) { alert('Please select a receipt first.'); return; }
+  sendReceiptWhatsApp(r);
+}
+window.sendSelectedReceiptWhatsApp = sendSelectedReceiptWhatsApp;
+function sendFeeDueWhatsApp(rollNo) { const s = _waStu(rollNo); if (s) waOpen(rollNo, waMsgFeeDue(s)); }
+window.sendFeeDueWhatsApp = sendFeeDueWhatsApp;
+function sendAbsentWhatsApp(rollNo, date, reason) { const s = _waStu(rollNo); waOpen(rollNo, waMsgAbsent(rollNo, s ? _waName(s) : rollNo, date, reason)); }
+window.sendAbsentWhatsApp = sendAbsentWhatsApp;
+function sendAbsenceRecordWhatsApp(id) {
+  const a = (window.absences || []).find(x => x.id === id); if (!a) return;
+  sendAbsentWhatsApp(a.rollNo, a.date, a.reason);
+}
+window.sendAbsenceRecordWhatsApp = sendAbsenceRecordWhatsApp;
+
+// --- general "Send WhatsApp" box for any student (templates, editable) ---
+function openWhatsAppModal(rollNo) {
+  const s = _waStu(rollNo); if (!s) return;
+  let m = document.getElementById('wa-modal');
+  if (!m) {
+    m = document.createElement('div'); m.className = 'modal-backdrop'; m.id = 'wa-modal'; m.style.zIndex = 350;
+    m.innerHTML = '<div class="modal" style="max-width:520px;">' +
+      '<h3>📲 Send WhatsApp message</h3>' +
+      '<p id="wa-to" style="font-size:13px;color:var(--muted);margin-bottom:12px;"></p>' +
+      '<div class="form-group"><label>Message type</label><select id="wa-type" onchange="waFillTemplate()">' +
+        '<option value="fee">Fee reminder</option><option value="receipt">Latest fee receipt</option><option value="attendance">Attendance summary</option>' +
+        '<option value="leave">Leave / status update</option><option value="custom">Custom message</option></select></div>' +
+      '<div class="form-group"><label>Message (you can edit before sending)</label><textarea id="wa-text" rows="9" style="width:100%;"></textarea></div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">' +
+        '<button class="btn btn-outline" onclick="document.getElementById(\'wa-modal\').classList.remove(\'open\')">Cancel</button>' +
+        '<button class="btn btn-teal" onclick="waSendFromModal()">📲 Open WhatsApp</button></div></div>';
+    document.body.appendChild(m);
+  }
+  m.dataset.roll = rollNo;
+  const num = waNumberFor(s);
+  document.getElementById('wa-to').textContent = _waName(s) + ' (' + rollNo + ') — ' + (num ? '+' + num : 'no valid mobile number saved');
+  document.getElementById('wa-type').value = 'fee';
+  waFillTemplate();
+  m.classList.add('open');
+}
+window.openWhatsAppModal = openWhatsAppModal;
+function waFillTemplate() {
+  const m = document.getElementById('wa-modal'); const s = _waStu(m.dataset.roll); if (!s) return;
+  const t = document.getElementById('wa-type').value; let txt = '';
+  if (t === 'fee') txt = waMsgFeeDue(s);
+  else if (t === 'attendance') txt = waMsgAttendance(s);
+  else if (t === 'receipt') {
+    const last = (window.payments || []).filter(p => p.rollNo === s.rollNo).slice(-1)[0];
+    txt = last ? waMsgReceipt(last) : 'No fee receipt found for this student yet.';
+  } else if (t === 'leave') {
+    const st = normStatus(s.status);
+    txt = waMsgLeave(s, st, s.statusReason || '', s.statusSince || '');
+  } else txt = 'Dear ' + _waName(s) + ',\n\n' + _waFoot().trim();
+  document.getElementById('wa-text').value = txt;
+}
+window.waFillTemplate = waFillTemplate;
+function waSendFromModal() {
+  const m = document.getElementById('wa-modal');
+  const text = document.getElementById('wa-text').value.trim();
+  if (!text) { alert('Please type a message.'); return; }
+  waOpen(m.dataset.roll, text);
+}
+window.waSendFromModal = waSendFromModal;
 
 function showAlert(id, type, msg) {
   const el=document.getElementById(id);
