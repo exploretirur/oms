@@ -6911,13 +6911,13 @@ function loadAttStudents() {
   );
 
   document.getElementById('att-rows').innerHTML = doneBox + pending.map(s => {
-    // No default marking: the teacher must choose Present or Absent for each student.
-    // If office already logged this student absent, only a hint badge is shown.
+    // No default marking for normal students — the teacher must choose Present or Absent.
+    // The only pre-marked students are those office already logged as absent for this date.
     const isAbsent = officeAbsent.has(String(s.rollNo||'').trim());
     const pChecked = '';
-    const aChecked = '';
-    const disabled = '';
-    const rowStyle = '';
+    const aChecked = isAbsent ? 'checked' : '';
+    const disabled = isAbsent ? 'disabled' : '';
+    const rowStyle = isAbsent ? 'opacity:0.5;' : '';
 
     return `
     <div class="att-student-row" id="att-row-${s.rollNo}"
