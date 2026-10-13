@@ -1614,7 +1614,7 @@ tr:hover td { background: #f8fafd; }
           <div style="font-size:12px;color:var(--muted);">Mark Present / Absent</div>
         </div>
         <div style="display:grid;grid-template-columns:60px 1fr 100px 1fr 1fr;gap:8px;padding:8px 0;border-bottom:1.5px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">
-          <span>Roll</span><span>Name</span><span>Status</span><span>Topic Covered</span><span>Software Used</span>
+          <span>Roll</span><span>Name</span><span>Status</span><span>Topic Covered <span style="color:var(--red);">*</span></span><span>Software Used</span>
         </div>
         <div id="att-rows"></div>
         <div class="action-bar" style="margin-top:16px;" id="att-actions">
@@ -3115,7 +3115,7 @@ function withWriteTimeout(promise, ms) {
 function friendlyFirestoreError(err) {
   const code = err && err.code ? err.code : '';
   if (code === 'write-timeout' || code === 'resource-exhausted') {
-    return '❌ The database did not confirm this save. This usually means the free daily database limit has been reached (it resets at about ' + nextQuotaResetText() + ') or the internet dropped. This entry was NOT saved — reload the page before trying again so it is not saved twice.';
+    return '❌ The database did not confirm this save. This usually means the free daily database limit has been reached (it resets at about ' + nextQuotaResetText() + ') or the internet dropped. This entry was NOT confirmed. This computer keeps it and may save it automatically once the limit resets, so check the list before entering it again.';
   }
   const map = {
     'permission-denied': '❌ You do not have permission to perform this action.',
@@ -6864,13 +6864,16 @@ function loadAttStudents() {
 
   document.getElementById('att-alert').innerHTML='';
 
-  // Has the teacher already submitted attendance for this exact date + batch + course?
-  const existingAtt = (window.attendance||[]).filter(a =>
-    String(a.date||'').trim()   === String(date||'').trim()   &&
-    String(a.course||'').trim() === String(course||'').trim() &&
-    String(a.batch||'').trim()  === String(batch||'').trim()
-  );
-  const alreadyEntered = existingAtt.length > 0;
+  // Attendance is saved as ONE record per student per date (id = date_rollNo), so
+  // "already entered" must be decided per STUDENT, not per batch. The old rule hid
+  // the whole batch as soon as one student had a record, so anyone the teacher had
+  // skipped — or who was moved into this batch later by admin/office — could never
+  // be entered. Now students who already have a record for this date are listed as
+  // done, and only the remaining students are shown for entry.
+  const recordedByRoll = new Map();
+  (window.attendance||[]).forEach(a => {
+    if (String(a.date||'').trim() === String(date||'').trim()) recordedByRoll.set(String(a.rollNo||'').trim(), a);
+  });
 
   const filtered = students.filter(s =>
     looseMatch(s.batch, batch) && looseMatch(s.course, course) && isAttendingStatus(s)
@@ -6879,37 +6882,42 @@ function loadAttStudents() {
   const emptyEl = document.getElementById('att-empty');
   if (!filtered.length) { listEl.style.display='none'; emptyEl.style.display='block'; return; }
 
-  if (alreadyEntered) {
+  const done    = filtered.filter(s =>  recordedByRoll.has(String(s.rollNo||'').trim()));
+  const pending = filtered.filter(s => !recordedByRoll.has(String(s.rollNo||'').trim()));
+  const doneRecs = done.map(s => recordedByRoll.get(String(s.rollNo||'').trim()));
+  const by = [...new Set(doneRecs.map(a => a.recordedBy).filter(Boolean))].join(', ') || 'someone';
+  const times = doneRecs.map(a => a.recordedAt).filter(Boolean).sort();
+  const when = times.length ? new Date(times[times.length-1]).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'numeric', minute:'2-digit' }) : '';
+
+  if (!pending.length) {
     listEl.style.display='none'; emptyEl.style.display='none';
     showAlert('att-alert','warn',
-      (() => {
-        const by = [...new Set(existingAtt.map(a => a.recordedBy).filter(Boolean))].join(', ') || 'someone';
-        const times = existingAtt.map(a => a.recordedAt).filter(Boolean).sort();
-        const when = times.length ? new Date(times[times.length-1]).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'numeric', minute:'2-digit' }) : '';
-        return `⚠️ Attendance for this batch and date is already entered — ${existingAtt.length} student record(s) recorded by <b>${by}</b>${when ? ' on ' + when : ''}. Open <b>Attendance Report</b> (choose this date) to view or edit them. If you did not expect this and just had a failed or stuck submit, reload the page and check the report before entering it again.`;
-      })());
+      `⚠️ Attendance for all <b>${done.length}</b> student(s) of this batch is already entered for this date (recorded by <b>${by}</b>${when ? ' on ' + when : ''}). Open <b>Attendance Report</b> (choose this date) to view or edit. If a student is missing from this batch, check the batch in Student Records.`);
     return;
   }
 
   listEl.style.display='block'; emptyEl.style.display='none';
+  if (done.length) {
+    showAlert('att-alert','warn',
+      `ℹ️ <b>${done.length}</b> of ${filtered.length} student(s) already have attendance for this date (recorded by <b>${by}</b>${when ? ' on ' + when : ''}). Showing the remaining <b>${pending.length}</b> student(s) below.`);
+  }
+  const doneBox = done.length ? `<div id="att-done-box" style="margin:0 0 10px;padding:10px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:12.5px;line-height:1.9;">✅ <b>Already recorded for this date</b> (edit these from Attendance Report): ${done.map(s => { const r = recordedByRoll.get(String(s.rollNo||'').trim()); return `<span style="white-space:nowrap;margin-right:12px;">${_escHtml(s.fname + ' ' + s.lname)} <span class="chip ${r.status==='Present'?'chip-green':'chip-red'}" style="font-size:10px;">${_escHtml(r.status)}</span></span>`; }).join('')}</div>` : '';
 
   // Find students office has marked absent for today's date + this course + batch
   const officeAbsent = new Set(
     (window.absences || [])
-      .filter(a =>
-        String(a.date||'').trim()   === String(date||'').trim()   &&
-        String(a.course||'').trim() === String(course||'').trim() &&
-        String(a.batch||'').trim()  === String(batch||'').trim()
-      )
+      .filter(a => String(a.date||'').trim() === String(date||'').trim())
       .map(a => String(a.rollNo||'').trim())
   );
 
-  document.getElementById('att-rows').innerHTML = filtered.map(s => {
+  document.getElementById('att-rows').innerHTML = doneBox + pending.map(s => {
+    // No default marking: the teacher must choose Present or Absent for each student.
+    // If office already logged this student absent, only a hint badge is shown.
     const isAbsent = officeAbsent.has(String(s.rollNo||'').trim());
-    const pChecked = isAbsent ? ''        : 'checked';
-    const aChecked = isAbsent ? 'checked' : '';
-    const disabled = isAbsent ? 'disabled' : '';
-    const rowStyle = isAbsent ? 'opacity:0.5;' : '';
+    const pChecked = '';
+    const aChecked = '';
+    const disabled = '';
+    const rowStyle = '';
 
     return `
     <div class="att-student-row" id="att-row-${s.rollNo}"
@@ -6919,7 +6927,7 @@ function loadAttStudents() {
       ${studentPhotoHtml(s, 34)}
       <div class="att-name">
         ${s.fname} ${s.lname}
-        ${isAbsent ? '<span style="font-size:11px;background:#fee2e2;color:#b91c1c;padding:1px 7px;border-radius:8px;margin-left:6px;">Office: Absent</span>' : ''}
+        ${isAbsent ? '<span style="font-size:11px;background:#fee2e2;color:#b91c1c;padding:1px 7px;border-radius:8px;margin-left:6px;" title="Office has logged this student as absent today">Office: Absent</span>' : ''}
       </div>
       <div class="att-status">
         <label class="att-radio">
@@ -6932,7 +6940,7 @@ function loadAttStudents() {
         </label>
       </div>
       <div class="att-fields">
-        <input type="text" id="topic-${s.rollNo}"    placeholder="Topic covered"  style="flex:1;" ${disabled}>
+        <input type="text" id="topic-${s.rollNo}"    placeholder="Topic covered *"  style="flex:1;" ${disabled}>
         <input type="text" id="software-${s.rollNo}" placeholder="Software used"  style="flex:1;" ${disabled}>
       </div>
     </div>`;
@@ -6977,25 +6985,38 @@ async function submitAttendance() {
   if (!rows.length) { showAlert('att-alert','error','No students loaded.'); return; }
 
   const records = [];
-  let missing = false;
+  let unmarked = 0;         // students the teacher has not marked yet — they stay in the list
+  const noTopic = [];       // Present students whose Topic Covered is still empty
+  let firstNoTopic = null;
   rows.forEach(row=>{
     const roll=row.dataset.roll, name=row.dataset.name;
     const checked=document.querySelector(`input[name="att-${roll}"]:checked`);
-    if (!checked) { missing = true; return; }
-    records.push({ roll, name, status:checked.value, topic:document.getElementById('topic-'+roll).value.trim(), software:document.getElementById('software-'+roll).value.trim() });
+    const topicEl=document.getElementById('topic-'+roll);
+    if (topicEl) topicEl.style.borderColor = '';
+    if (!checked) { unmarked++; return; }
+    const topic = topicEl.value.trim();
+    if (checked.value === 'Present' && !topic) { noTopic.push(name); if (topicEl) { topicEl.style.borderColor = 'var(--red)'; if (!firstNoTopic) firstNoTopic = topicEl; } }
+    records.push({ roll, name, status:checked.value, topic, software:document.getElementById('software-'+roll).value.trim() });
   });
-  if (missing) { showAlert('att-alert','error','❌ Please mark Present/Absent for every student before submitting.'); return; }
+  if (!records.length) { showAlert('att-alert','error','❌ Please mark at least one student as Present or Absent before submitting.'); return; }
+  if (noTopic.length) {
+    showAlert('att-alert','error',`❌ Topic Covered is required for every Present student. Missing for: <b>${noTopic.slice(0,8).map(_escHtml).join(', ')}${noTopic.length > 8 ? ' and ' + (noTopic.length - 8) + ' more' : ''}</b>.`);
+    if (firstNoTopic) { firstNoTopic.scrollIntoView({ block:'center', behavior:'smooth' }); firstNoTopic.focus(); }
+    return;
+  }
 
   const presentCount = records.filter(r=>r.status==='Present').length;
   const absentCount = records.filter(r=>r.status==='Absent').length;
   confirmAction(
-    `Submit attendance for ${date}?\n\nTotal: ${records.length} • Present: ${presentCount} • Absent: ${absentCount}`,
-    () => finalizeAttendance(date, batch, course, records),
+    `Submit attendance for ${date}?\n\nMarked: ${records.length} • Present: ${presentCount} • Absent: ${absentCount}` +
+      (unmarked ? `\n\n${unmarked} student(s) not marked yet — they will stay in the list for you to mark later.` : ''),
+    () => finalizeAttendance(date, batch, course, records, unmarked),
     { title: 'Confirm Attendance', confirmLabel: 'Yes, Submit Attendance' }
   );
 }
 
-async function finalizeAttendance(date, batch, course, records) {
+async function finalizeAttendance(date, batch, course, records, remaining) {
+  remaining = remaining || 0;
   const btn=document.getElementById('att-submit-btn');
   btn.disabled=true; btn.innerHTML='<span class="loader"></span> Submitting...';
 
@@ -7017,13 +7038,15 @@ async function finalizeAttendance(date, batch, course, records) {
     return;
   }
 
-  showAlert('att-alert','success',`✅ Attendance for ${records.length} students saved to the database. Present: ${records.filter(r=>r.status==='Present').length}, Absent: ${records.filter(r=>r.status==='Absent').length}`);
+  if (remaining > 0) loadAttStudents();   // re-draw the list: saved students drop out, unmarked ones remain
+  showAlert('att-alert','success',`✅ Attendance for ${records.length} student(s) saved to the database. Present: ${records.filter(r=>r.status==='Present').length}, Absent: ${records.filter(r=>r.status==='Absent').length}.` +
+    (remaining > 0 ? ` <b>${remaining}</b> student(s) still need to be marked — they are shown below.` : ''));
   { const absentRecs = records.filter(r => r.status === 'Absent');
     showResultPopup('success','Attendance submitted successfully',
       'Attendance for ' + formatDateDMY(date) + ' is saved in the database.\nTotal: ' + records.length + '  •  Present: ' + records.filter(r => r.status === 'Present').length + '  •  Absent: ' + absentRecs.length +
       (absentRecs.length ? '\n\nTap a name to inform an absent student on WhatsApp:' : ''),
       absentRecs.slice(0, 20).map(r => ({ label: '📲 ' + r.name, cls: 'btn-outline', onClick: () => sendAbsentWhatsApp(r.roll, date, '') }))); }
-  setTimeout(()=>{ document.getElementById('att-batch').selectedIndex=0; document.getElementById('att-course').selectedIndex=0; document.getElementById('att-student-list').style.display='none'; document.getElementById('att-empty').style.display='none'; },2000);
+  if (remaining === 0) setTimeout(()=>{ document.getElementById('att-batch').selectedIndex=0; document.getElementById('att-course').selectedIndex=0; document.getElementById('att-student-list').style.display='none'; document.getElementById('att-empty').style.display='none'; },2000);
 }
 
 // ============================================================
@@ -7248,8 +7271,13 @@ function generateAttReport() {
   const from = singleMode ? singleDate : document.getElementById('ar-from').value;
   const to   = singleMode ? singleDate : document.getElementById('ar-to').value;
   const statusFilter=document.getElementById('ar-status').value;
-  if (course) base=base.filter(a=>a.course===course);
-  if (batch) base=base.filter(a=>a.batch===batch);
+  // Each attendance record keeps the batch/course the student was in on THAT day.
+  // When admin/office later moves a student to another batch, filtering only on the
+  // saved text made all her earlier records vanish from the new batch's report. So a
+  // record now also matches when the student's CURRENT batch/course is the one chosen.
+  const _stuByRoll = new Map((students||[]).map(st => [st.rollNo, st]));
+  if (course) base=base.filter(a => a.course===course || (_stuByRoll.get(a.rollNo) && looseMatch(_stuByRoll.get(a.rollNo).course, course)));
+  if (batch) base=base.filter(a => a.batch===batch || (_stuByRoll.get(a.rollNo) && looseMatch(_stuByRoll.get(a.rollNo).batch, batch)));
   if (from) base=base.filter(a=>a.date>=from);
   if (to) base=base.filter(a=>a.date<=to);
 
