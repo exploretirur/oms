@@ -12224,6 +12224,51 @@ function renderSaSummary() {
   #m-sheet .g span{font-size:22px}
 }
 </style>
+<style>
+/* ===== FLUID SIZING — desktop untouched; phones/tablets scale to the screen ===== */
+@media screen and (max-width:768px){
+  html,body{max-width:100vw;overflow-x:hidden}
+  body{font-size:clamp(12.5px,3.5vw,14px)}
+  .content{min-width:0;padding-left:clamp(8px,3vw,16px)!important;padding-right:clamp(8px,3vw,16px)!important}
+  .topbar h2{font-size:clamp(14px,4.3vw,17px)!important}
+  #topbar-uname{font-size:clamp(11px,3vw,12.5px)!important;max-width:28vw}
+  .role-badge{font-size:clamp(9.5px,2.6vw,11px)!important;padding:3px 8px!important}
+  .card{padding:clamp(10px,3.4vw,16px)!important}
+  .card-title{font-size:clamp(13px,3.7vw,15px)!important}
+  label{font-size:clamp(11.5px,3.2vw,13px)!important}
+  input,select,textarea{font-size:clamp(13px,3.7vw,14.5px)!important;padding:clamp(9px,2.6vw,11px) clamp(10px,3vw,12px)!important;max-width:100%;min-width:0}
+  .btn{font-size:clamp(12.5px,3.6vw,14px)!important;padding:clamp(10px,3vw,12px) clamp(12px,4vw,16px)!important}
+  .stat-label{font-size:clamp(10.5px,3vw,12px)!important}
+  .stat-value{font-size:clamp(17px,5.6vw,22px)!important}
+  .stat-sub{font-size:clamp(10px,2.8vw,11.5px)!important}
+  #dash-fees-collected-card .stat-value{font-size:clamp(24px,8vw,32px)!important}
+  .page td{font-size:clamp(12px,3.3vw,13.5px)!important}
+  .page td[data-l]::before{font-size:clamp(11px,3vw,12px)}
+  .tab{font-size:clamp(11.5px,3.2vw,13px)!important;padding:8px 4px!important}
+  .modal h3{font-size:clamp(15px,4.4vw,18px)!important}
+  .m-quick button{font-size:clamp(10px,2.9vw,11.5px)}
+  #m-nav button{font-size:clamp(9.5px,2.7vw,10.5px)}
+  #m-nav .pl{width:clamp(40px,12vw,48px)}
+  #m-sheet .g button{font-size:clamp(9.5px,2.7vw,10.5px)}
+  .page img,.page canvas,.page svg{max-width:100%;height:auto}
+  .page div[style*="display:flex"],.page div[style*="display: flex"]{flex-wrap:wrap}
+  .page .form-grid-2col,.page .form-grid-3,.page .form-grid{gap:clamp(8px,2.6vw,14px)!important}
+}
+/* wider phones & small tablets: forms use two columns */
+@media screen and (min-width:560px) and (max-width:768px){
+  .form-grid{grid-template-columns:1fr 1fr!important}
+  .stats-grid{grid-template-columns:repeat(3,1fr)!important}
+  #dash-fees-collected-card{grid-column:1/-1}
+}
+/* small phones: stack inline multi-column form rows */
+@media screen and (max-width:480px){
+  .page div[style*="grid-template-columns"]:not(.stats-grid){grid-template-columns:1fr!important}
+}
+/* iPhone only: keep inputs at 16px so Safari does not zoom in on tap */
+@supports (-webkit-touch-callout:none){
+  @media screen and (max-width:768px){input,select,textarea{font-size:16px!important}}
+}
+</style>
 <nav id="m-nav"></nav>
 <div id="m-sheet" onclick="if(event.target===this)mClose()"><div class="bx" id="m-bx"></div></div>
 <script>
