@@ -10,7 +10,7 @@
 // latest deployed version of the app; only if the network request fails
 // (offline) does it fall back to whatever shell was last cached.
 
-const CACHE_NAME = 'explore-oms-shell-v1';
+const CACHE_NAME = 'explore-oms-shell-v2';
 const APP_SHELL = [
   './',
   './index.html',

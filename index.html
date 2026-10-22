@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Explore Learning — Computer Institute Management System</title>
 
 <!-- PWA: lets this be installed as an app on Android and iOS -->
@@ -12164,5 +12164,70 @@ function renderSaSummary() {
   }).join('');
 }
 </script>
+<!-- ===== MOBILE APP MODE (bottom navigation) — added layer, original logic untouched ===== -->
+<style>
+#m-nav,#m-sheet{display:none}
+@media (max-width:768px){
+  .hamburger,.sidebar,.sidebar-overlay{display:none!important}
+  html{-webkit-text-size-adjust:100%}
+  input,select,textarea{font-size:16px!important}
+  .topbar{background:var(--navy)!important;border:0!important;height:auto!important;min-height:52px;padding:env(safe-area-inset-top,0px) 14px 0!important}
+  .topbar h2,#topbar-uname{color:#fff!important}
+  #current-date{display:none!important}
+  .content{padding:12px 12px calc(84px + env(safe-area-inset-bottom,0px))!important}
+  .page table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .modal{max-height:92vh;overflow-y:auto}
+  body.m-in #m-nav{display:flex}
+  #m-nav{position:fixed;left:0;right:0;bottom:0;z-index:90;background:#fff;border-top:1px solid var(--border);padding:6px 4px calc(8px + env(safe-area-inset-bottom,0px))}
+  #m-nav button{flex:1;background:none;border:0;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;font:600 10.5px 'DM Sans',sans-serif;padding:3px 0;cursor:pointer}
+  #m-nav .pl{width:48px;height:28px;border-radius:14px;display:grid;place-items:center;font-size:19px}
+  #m-nav button.on{color:var(--navy)}#m-nav button.on .pl{background:var(--brand-orange)}
+  #m-sheet{position:fixed;inset:0;z-index:120;background:rgba(5,10,30,.5);align-items:flex-end}
+  #m-sheet.show{display:flex}
+  #m-sheet .bx{background:var(--surface);width:100%;max-height:82%;overflow-y:auto;border-radius:22px 22px 0 0;padding:8px 14px calc(16px + env(safe-area-inset-bottom,0px))}
+  #m-sheet .gr{width:40px;height:4px;border-radius:2px;background:var(--border);margin:4px auto 10px}
+  #m-sheet h4{font-size:13px;margin:10px 2px 8px;color:var(--navy)}
+  #m-sheet .g{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  #m-sheet .g button{background:#fff;border:1px solid var(--border);border-radius:14px;padding:10px 2px 8px;font:600 10.5px 'DM Sans',sans-serif;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:5px;line-height:1.2;text-align:center;cursor:pointer}
+  #m-sheet .g span{font-size:22px}
+}
+</style>
+<nav id="m-nav"></nav>
+<div id="m-sheet" onclick="if(event.target===this)mClose()"><div class="bx" id="m-bx"></div></div>
+<script>
+(function(){
+  var cur='dashboard';
+  var STAFF=[['dashboard','🏠','Home'],['students','👥','Students'],['fees','💳','Fees'],['attendance','✅','Attendance'],['admission','📝','Admission'],['enquiry','📞','Enquiry']];
+  var STU=[['my-dashboard','🏠','Home'],['my-attendance','🗓️','Attendance'],['study-material','📚','Study'],['my-profile','🧑‍🎓','Profile']];
+  function isStu(){return window.currentUser&&currentUser.role==='student'}
+  function go(p){var el=document.getElementById('nav-'+p);navTo(p,el);}
+  window.mGo=function(p){mClose();go(p);};
+  window.mClose=function(){document.getElementById('m-sheet').classList.remove('show')};
+  window.mMore=function(){
+    var root=document.getElementById(isStu()?'student-nav-groups':'staff-nav-groups'),h='';
+    var grp='',items=[];
+    function flush(){if(items.length)h+='<h4>'+grp+'</h4><div class="g">'+items.join('')+'</div>';items=[]}
+    Array.prototype.forEach.call(root.children,function(c){
+      if(c.classList.contains('sidebar-section')){flush();grp=c.style.display==='none'?'':c.textContent.trim();return}
+      if(!c.classList.contains('nav-item')||c.style.display==='none'||!grp&&!isStu())return;
+      var t=c.textContent.trim(),i=t.indexOf(' '),em=t.slice(0,i),lb=t.slice(i+1);
+      items.push('<button onclick="mClose();document.getElementById(\''+c.id+'\').click()"><span>'+em+'</span>'+lb+'</button>');
+    });flush();
+    h='<div class="gr"></div>'+h+'<h4>Account</h4><div class="g"><button onclick="mClose();openChangePasswordModal()"><span>🔑</span>Password</button><button onclick="mClose();window.doLogout()"><span>🚪</span>Sign out</button></div>';
+    document.getElementById('m-bx').innerHTML=h;document.getElementById('m-sheet').classList.add('show');
+  };
+  function build(){
+    var list=isStu()?STU:STAFF.filter(function(x){return canAccess(x[0])}).slice(0,4);
+    document.getElementById('m-nav').innerHTML=list.map(function(x){return '<button data-p="'+x[0]+'" onclick="mGo(\''+x[0]+'\')"><span class="pl">'+x[1]+'</span>'+x[2]+'</button>'}).join('')+'<button onclick="mMore()"><span class="pl">☰</span>More</button>';
+    document.body.classList.add('m-in');mark();
+  }
+  function mark(){Array.prototype.forEach.call(document.querySelectorAll('#m-nav button[data-p]'),function(b){b.classList.toggle('on',b.dataset.p===cur)})}
+  var _a=window.applyRoleUI;window.applyRoleUI=function(){var r=_a.apply(this,arguments);try{build()}catch(e){console.warn(e)}return r};
+  var _n=window.navTo;window.navTo=function(p){var r=_n.apply(this,arguments);cur=p;mark();var c=document.querySelector('.content');window.scrollTo(0,0);return r};
+  var ls=document.getElementById('login-screen');
+  if(ls)new MutationObserver(function(){if(ls.style.display!=='none')document.body.classList.remove('m-in')}).observe(ls,{attributes:true,attributeFilter:['style']});
+})();
+</script>
+
 </body>
 </html>
