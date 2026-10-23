@@ -12269,13 +12269,40 @@ function renderSaSummary() {
   @media screen and (max-width:768px){input,select,textarea{font-size:16px!important}}
 }
 </style>
+<style>
+/* ===== MOBILE FIXES: radios/checkboxes, attendance entry, absent list ===== */
+@media screen and (max-width:768px){
+  input[type=radio],input[type=checkbox]{width:auto!important;height:auto;min-width:0!important;max-width:none!important;padding:0!important;border-radius:0!important;font-size:inherit!important;margin:0}
+  .att-student-row{display:flex!important;flex-wrap:wrap!important;align-items:center;gap:8px 10px!important;padding:10px 12px!important;background:#fff;border:1px solid var(--border)!important;border-radius:14px;margin-bottom:10px}
+  .att-student-row>div:first-child{width:auto!important}
+  .att-name{flex:1 1 0;min-width:0;font-size:clamp(13px,3.8vw,14.5px)!important}
+  .att-status{width:100%;display:grid!important;grid-template-columns:1fr 1fr;gap:8px!important}
+  .att-fields{flex:none!important;width:100%;min-width:0!important;flex-direction:column}
+  .att-fields input{width:100%!important;flex:none!important}
+  .page div.abs-student-row[style]{grid-template-columns:auto auto auto 1fr!important;gap:6px 10px!important;background:#fff;border:1px solid var(--border)!important;border-radius:14px;padding:10px 12px!important;margin-bottom:10px}
+  .page div.abs-student-row>div:nth-child(5){grid-column:2/-1}
+  .page div.abs-student-row>div:nth-child(6){grid-column:1/-1}
+  .page div.abs-student-row input[type=checkbox]{width:22px!important;height:22px!important}
+}
+@media screen and (max-width:768px){
+@supports selector(:has(a)){
+  .att-radio{position:relative;font-size:0!important;justify-content:center;border:1.5px solid var(--border);border-radius:12px;padding:12px 0;background:#fff;cursor:pointer;margin:0}
+  .att-radio input{position:absolute;opacity:0;pointer-events:none}
+  .att-radio::after{font-size:14px;font-weight:700;color:var(--text)}
+  .att-radio:has(input[value=Present])::after{content:'✓ Present'}
+  .att-radio:has(input[value=Absent])::after{content:'✕ Absent'}
+  .att-radio:has(input[value=Present]:checked){background:#10b981;border-color:#10b981}
+  .att-radio:has(input[value=Absent]:checked){background:#ef4444;border-color:#ef4444}
+  .att-radio:has(input:checked)::after{color:#fff}
+}}
+</style>
 <nav id="m-nav"></nav>
 <div id="m-sheet" onclick="if(event.target===this)mClose()"><div class="bx" id="m-bx"></div></div>
 <script>
 (function(){
   var cur='dashboard';
-  var STAFF=[['dashboard','🏠','Home'],['students','👥','Students'],['fees','💳','Fees'],['attendance','✅','Attendance'],['admission','📝','Admission'],['enquiry','📞','Enquiry']];
-  var STU=[['my-dashboard','🏠','Home'],['my-attendance','🗓️','Attendance'],['study-material','📚','Study'],['my-profile','🧑‍🎓','Profile']];
+  var STAFF=[['dashboard','🏠','Home'],['students','👥','Students'],['fees','💳','Fees'],['attendance','✅','Attendance'],['admission','📝','Admission'],['enquiry','📞','Enquiry'],['mocktest','📝','Tests']];
+  var STU=[['my-dashboard','🏠','Home'],['my-attendance','🗓️','Attendance'],['my-mocktest','📝','Tests'],['study-material','📚','Study']];
   var QK=[['admission','📝','Admission'],['fees','💳','Collect'],['attendance','✅','Attendance'],['enquiry','📞','Enquiry']];
   function isStu(){return window.currentUser&&currentUser.role==='student'}
   window.mGo=function(p){mClose();navTo(p,document.getElementById('nav-'+p))};
@@ -12315,6 +12342,219 @@ function renderSaSummary() {
     Array.prototype.forEach.call(t.querySelectorAll('tbody tr'),function(tr){Array.prototype.forEach.call(tr.children,function(td,i){if(td.tagName==='TD'&&!td.hasAttribute('colspan')&&th[i]&&td.dataset.l!==th[i])td.dataset.l=th[i]})})})}
   var ct=document.querySelector('.content');
   if(ct)new MutationObserver(function(){if(!pend){pend=true;requestAnimationFrame(label)}}).observe(ct,{childList:true,subtree:true});
+})();
+</script>
+
+<!-- ===== MOCK TESTS: teachers create module-wise MCQ tests; students attempt and get instant results ===== -->
+<style>
+.mt-wrap{max-width:820px}
+.mt-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mt-grow{flex:1;min-width:0}
+.mt-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+.mt-card h4{margin:0 0 3px;font-size:15px;color:var(--navy)}
+.mt-sub{font-size:12.5px;color:var(--muted)}
+.mt-tag{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:#eef2fb;color:var(--navy)}
+.mt-ok{background:#dcfce7;color:#15803d}.mt-no{background:#fee2e2;color:#b91c1c}.mt-am{background:#fef3c7;color:#b45309}
+.mt-btn{border:0;border-radius:10px;padding:9px 14px;font:700 13px inherit;font-family:inherit;cursor:pointer;background:var(--navy);color:#fff}
+.mt-btn.o{background:#fff;color:var(--navy);border:1.5px solid var(--border)}
+.mt-btn.g{background:#10b981}.mt-btn.r{background:#fff;color:#b91c1c;border:1.5px solid #fecaca}
+.mt-btn:disabled{opacity:.5}
+.mt-q{border:1.5px solid var(--border);border-radius:14px;padding:12px;margin-bottom:12px;background:#fff}
+.mt-qh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.mt-x{border:0;background:#fee2e2;color:#b91c1c;border-radius:8px;width:30px;height:30px;font-weight:700;cursor:pointer}
+.mt-o{display:flex;gap:8px;align-items:center;margin-top:7px}
+.mt-r{display:flex;align-items:center;gap:5px;cursor:pointer;flex:none;width:44px}
+.mt-q textarea,.mt-q input.mt-ot,.mt-q input.mt-ex{width:100%}
+.mt-bar{height:7px;background:#e4e8f1;border-radius:6px;overflow:hidden;margin:8px 0 14px}
+.mt-bar i{display:block;height:100%;background:var(--brand-orange)}
+.mt-opt{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:13px;margin-bottom:10px;font:600 14.5px inherit;font-family:inherit;color:var(--text);cursor:pointer}
+.mt-opt b{flex:none;width:28px;height:28px;border-radius:50%;background:#eef2fb;color:var(--navy);display:grid;place-items:center;font-size:13px}
+.mt-opt.sel{border-color:var(--navy);background:#eef2fb}.mt-opt.sel b{background:var(--navy);color:#fff}
+.mt-opt.good{border-color:#10b981;background:#ecfdf5}.mt-opt.good b{background:#10b981;color:#fff}
+.mt-opt.bad{border-color:#ef4444;background:#fef2f2}.mt-opt.bad b{background:#ef4444;color:#fff}
+.mt-score{text-align:center;padding:18px 10px}
+.mt-score .n{font-size:44px;font-weight:800;color:var(--navy);line-height:1.1}
+.mt-ex{font-size:12.5px;color:#475569;background:#f8fafc;border-radius:10px;padding:8px 10px;margin-top:6px}
+.mt-msg{padding:10px 12px;border-radius:10px;margin-bottom:12px;font-weight:600;font-size:13px}
+@media screen and (max-width:768px){.mt-btn{padding:11px 14px}.mt-row .mt-btn{flex:1}.mt-opt{font-size:clamp(13px,3.8vw,14.5px)}}
+</style>
+<script>
+(function(){
+  var $=function(i){return document.getElementById(i)},FB=function(){return window.__fb};
+  var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+  var tests=[],results=[],loaded=false,T=null,qn=0,run=null,tmr=null,L='ABCD';
+  ['admin','manager','hrmanager','teacher'].forEach(function(r){if(PERMISSIONS[r]&&PERMISSIONS[r].pages.indexOf('mocktest')<0)PERMISSIONS[r].pages.push('mocktest')});
+  PERMISSIONS.student.pages.push('my-mocktest');
+  /* sidebar items + page containers */
+  function navItem(id,page,icon,label){var d=document.createElement('div');d.className='nav-item';d.id=id;d.setAttribute('onclick',"navTo('"+page+"',this)");d.innerHTML='<span class="icon">'+icon+'</span> '+label;return d}
+  var nm=$('nav-marks');if(nm)nm.insertAdjacentElement('afterend',navItem('nav-mocktest','mocktest','📝','Mock Tests'));
+  var ns=$('nav-study-material');if(ns)ns.insertAdjacentElement('afterend',navItem('nav-my-mocktest','my-mocktest','📝','Mock Tests'));
+  var pr=$('page-resources');
+  [['page-mocktest'],['page-my-mocktest']].forEach(function(a){var d=document.createElement('div');d.id=a[0];d.className='page';d.innerHTML='<div class="mt-wrap" id="'+a[0]+'-in"></div>';pr.insertAdjacentElement('afterend',d)});
+  function msg(box,t,ok){var m=$(box);if(m)m.innerHTML='<div class="mt-msg" style="background:'+(ok?'#dcfce7;color:#15803d':'#fee2e2;color:#b91c1c')+'">'+esc(t)+'</div>'}
+  function fmt(t){return t?new Date(t).toLocaleString([],{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):''}
+  async function loadTests(f){if(loaded&&!f)return;var s=await FB().getDocs(FB().collection(FB().firestoreDB,'mock_tests'));tests=s.docs.map(function(d){var o=d.data();o.id=d.id;return o}).sort(function(a,b){return(b.createdAt||0)-(a.createdAt||0)});loaded=true}
+  async function loadRes(field,val){var s=await FB().getDocs(FB().query(FB().collection(FB().firestoreDB,'mock_results'),FB().where(field,'==',val)));return s.docs.map(function(d){var o=d.data();o.id=d.id;return o}).sort(function(a,b){return(b.at||0)-(a.at||0)})}
+  function myStudent(){return(window.students||[]).find(function(s){return s.rollNo===currentUser.rollNo})||null}
+  function byId(id){return tests.find(function(t){return t.id===id})}
+
+  /* ---------- parse pasted questions (pure) ---------- */
+  function parseQs(text){
+    var out=[],c=null,lines=String(text).split(/\r?\n/);
+    function push(){if(c&&c.q&&c.opts.length>=2)out.push({q:c.q,opts:c.opts,ans:c.ans>=0&&c.ans<c.opts.length?c.ans:0,ex:c.ex||''});c=null}
+    lines.forEach(function(raw){var l=raw.trim();if(!l)return;var m;
+      if((m=l.match(/^\(?([A-Da-d])[\).:\-]\s*(.+)$/))&&c){c.opts.push(m[2].trim());return}
+      if((m=l.match(/^ans(?:wer)?\s*[:\-]\s*\(?([A-Da-d])/i))&&c){c.ans='ABCD'.indexOf(m[1].toUpperCase());return}
+      if((m=l.match(/^(?:explanation|exp)\s*[:\-]\s*(.+)$/i))&&c){c.ex=m[1].trim();return}
+      var q=l.replace(/^(?:q(?:uestion)?\s*)?\d+\s*[\).:\-]\s*/i,'');
+      if(c&&c.opts.length===0){c.q+=' '+q;return}
+      push();c={q:q,opts:[],ans:-1,ex:''}});
+    push();return out}
+  window.__mtParse=parseQs;
+
+  /* ---------- Excel rows -> questions (pure) ---------- */
+  function rowsToQs(rows){
+    rows=rows.filter(function(r){return r&&r.some(function(c){return String(c).trim()})});if(!rows.length)return[];
+    var col={q:0,a:1,b:2,c:3,d:4,ans:5,ex:6},h=rows[0].map(function(c){return String(c).trim().toLowerCase()});
+    if(h.some(function(x){return /^(q(\.|uestion)?|question)/.test(x)})){
+      rows=rows.slice(1);
+      h.forEach(function(x,i){
+        if(/^q(uestion)?\b|^question/.test(x))col.q=i;
+        else if(/^(option\s*)?a$|^option\s*(a|1)\b|^a\b/.test(x))col.a=i;
+        else if(/^(option\s*)?b$|^option\s*(b|2)\b|^b\b/.test(x))col.b=i;
+        else if(/^(option\s*)?c$|^option\s*(c|3)\b|^c\b/.test(x))col.c=i;
+        else if(/^(option\s*)?d$|^option\s*(d|4)\b|^d\b/.test(x))col.d=i;
+        else if(/^(correct|ans)/.test(x))col.ans=i;
+        else if(/^(expl|exp|reason)/.test(x))col.ex=i;
+      })}
+    var out=[];
+    rows.forEach(function(r){var g=function(i){return r[i]==null?'':String(r[i]).trim()},q=g(col.q),o=[g(col.a),g(col.b),g(col.c),g(col.d)].filter(Boolean);
+      if(!q||o.length<2)return;
+      var raw=g(col.ans),a=-1,all=[g(col.a),g(col.b),g(col.c),g(col.d)];
+      var m=raw.match(/^\(?([A-Da-d1-4])\)?\.?$/);
+      if(m){var k='ABCD1234'.indexOf(m[1].toUpperCase());k=k%4;var t=all[k];a=t?o.indexOf(t):-1}
+      else if(raw){a=o.findIndex(function(x){return x.toLowerCase()===raw.toLowerCase()})}
+      out.push({q:q,opts:o,ans:a<0?0:a,ex:g(col.ex),_unsure:a<0})});
+    return out}
+  window.__mtRows=rowsToQs;
+  function loadLib(url,ok){return new Promise(function(res,rej){if(ok())return res();var s=document.createElement('script');s.src=url;s.onload=res;s.onerror=function(){rej(new Error('lib'))};document.head.appendChild(s)})}
+  function addQs(qs,from){
+    var first=document.querySelector('#mt-qs .mt-q');
+    if(first&&!first.querySelector('.mt-qt').value.trim()&&!first.querySelector('.mt-ot').value.trim()&&document.querySelectorAll('#mt-qs .mt-q').length===1)first.remove();
+    qs.forEach(function(q){$('mt-qs').insertAdjacentHTML('beforeend',qHtml(q))});renum();
+    var bad=qs.filter(function(q){return q._unsure}).length;
+    msg('mt-msg',qs.length+' questions added from '+from+'.'+(bad?' '+bad+' had no readable answer and were set to option A — please check them.':' Please check the correct answers.'),!bad)}
+
+  /* ================= TEACHER SIDE ================= */
+  function staffList(){
+    var h='<div id="mt-msg"></div><div class="mt-row" style="margin-bottom:12px"><div class="mt-grow"><div class="mt-sub">Create module-wise multiple-choice tests. Students in the chosen course can attempt them and see results instantly.</div></div><button class="mt-btn g" onclick="MT.edit()">+ New test</button></div>';
+    if(!tests.length)h+='<div class="mt-card" style="text-align:center;color:var(--muted)">No tests yet. Tap “+ New test” to create one.</div>';
+    tests.forEach(function(t){var mine=t.createdBy===currentUser.uid||isAdminLevel();
+      h+='<div class="mt-card"><div class="mt-row"><div class="mt-grow"><h4>'+esc(t.title)+'</h4><div class="mt-sub">'+esc(t.course||'All courses')+' · '+esc(t.module||'General')+' · '+t.qs.length+' questions'+(t.mins?' · '+t.mins+' min':'')+'</div><div class="mt-sub">By '+esc(t.createdByName||'—')+' · '+fmt(t.createdAt)+'</div></div><span class="mt-tag '+(t.active===false?'mt-am':'mt-ok')+'">'+(t.active===false?'Hidden':'Live')+'</span></div>'
+        +'<div class="mt-row" style="margin-top:10px"><button class="mt-btn o" onclick="MT.results(\''+t.id+'\')">📊 Results</button>'+(mine?'<button class="mt-btn o" onclick="MT.edit(\''+t.id+'\')">✏️ Edit</button><button class="mt-btn o" onclick="MT.toggle(\''+t.id+'\')">'+(t.active===false?'Publish':'Hide')+'</button><button class="mt-btn r" onclick="MT.del(\''+t.id+'\')">🗑</button>':'')+'</div></div>'});
+    $('page-mocktest-in').innerHTML=h}
+  async function showStaff(f){$('page-mocktest-in').innerHTML='<div class="mt-sub">Loading…</div>';try{await loadTests(f);staffList()}catch(e){console.warn(e);$('page-mocktest-in').innerHTML='<div class="mt-msg" style="background:#fee2e2;color:#b91c1c">Could not load tests. Check that the Firestore rules for mock_tests are published.</div>'}}
+  var uq=0;
+  function qHtml(q){q=q||{q:'',opts:['','','',''],ans:0,ex:''};var o=q.opts.concat(['','','','']).slice(0,4);uq++;
+    return '<div class="mt-q"><div class="mt-qh"><b>Question <span class="mt-n"></span></b><button class="mt-x" onclick="MT.delQ(this)">✕</button></div><textarea class="mt-qt" rows="2" placeholder="Type the question">'+esc(q.q)+'</textarea>'
+      +o.map(function(t,i){return '<div class="mt-o"><label class="mt-r"><input type="radio" name="mr'+uq+'" value="'+i+'"'+(q.ans===i?' checked':'')+'><b>'+L[i]+'</b></label><input class="mt-ot" value="'+esc(t)+'" placeholder="Option '+L[i]+'"></div>'}).join('')
+      +'<div class="mt-sub" style="margin:6px 0 4px">Select the round button beside the correct answer.</div><input class="mt-ex" value="'+esc(q.ex||'')+'" placeholder="Explanation (optional)"></div>'}
+  function renum(){[].forEach.call(document.querySelectorAll('#mt-qs .mt-n'),function(e,i){e.textContent=i+1})}
+  function courseOpts(sel){var c=((window.masterData&&masterData.courses)||[]).map(function(x){return x.name});if(sel&&c.indexOf(sel)<0)c.push(sel);return '<option value="">All courses</option>'+c.map(function(n){return '<option'+(n===sel?' selected':'')+'>'+esc(n)+'</option>'}).join('')}
+  function editor(t){T=t||null;var mods={};tests.forEach(function(x){if(x.module)mods[x.module]=1});
+    $('page-mocktest-in').innerHTML='<div id="mt-msg"></div><div class="mt-card"><h4>'+(t?'Edit test':'New mock test')+'</h4>'
+     +'<label>Test title *</label><input id="mt-title" value="'+esc(t&&t.title)+'" placeholder="e.g. Tally – Module 2 Test">'
+     +'<div class="mt-row" style="margin-top:10px"><div class="mt-grow"><label>Course</label><select id="mt-course">'+courseOpts(t&&t.course)+'</select></div><div class="mt-grow"><label>Module *</label><input id="mt-module" list="mt-mods" value="'+esc(t&&t.module)+'" placeholder="e.g. Module 2 – Vouchers"><datalist id="mt-mods">'+Object.keys(mods).map(function(m){return '<option value="'+esc(m)+'">'}).join('')+'</datalist></div></div>'
+     +'<div class="mt-row" style="margin-top:10px"><div class="mt-grow"><label>Time limit (minutes, 0 = none)</label><input id="mt-mins" type="number" min="0" value="'+(t?t.mins||0:0)+'"></div><div class="mt-grow"><label>Pass mark (%)</label><input id="mt-pass" type="number" min="1" max="100" value="'+(t?t.pass||50:50)+'"></div></div></div>'
+     +'<div id="mt-qs"></div><div class="mt-row" style="margin-bottom:12px"><button class="mt-btn o" onclick="MT.addQ()">➕ Add question</button><button class="mt-btn o" onclick="MT.paste()">📋 Paste questions</button><button class="mt-btn o" onclick="document.getElementById(\'mt-file\').click()">📤 Upload Excel / Word</button><button class="mt-btn o" onclick="MT.template()">⬇ Excel template</button><input type="file" id="mt-file" accept=".xlsx,.xls,.csv,.docx" style="display:none" onchange="MT.upload(this)"></div>'
+     +'<div id="mt-paste" style="display:none" class="mt-card"><div class="mt-sub" style="margin-bottom:6px">One question after another:<br>1. Question text<br>A) option &nbsp; B) option &nbsp; C) option &nbsp; D) option<br>Answer: B &nbsp; (optional: Explanation: …)</div><textarea id="mt-pt" rows="9" style="width:100%"></textarea><div class="mt-row" style="margin-top:8px"><button class="mt-btn g" onclick="MT.doPaste()">Add these questions</button></div></div>'
+     +'<div class="mt-row"><button class="mt-btn g" id="mt-save" onclick="MT.save()">💾 Save test</button><button class="mt-btn o" onclick="MT.list()">Cancel</button></div>';
+    var qs=t?t.qs:[{}];qs.forEach(function(q){$('mt-qs').insertAdjacentHTML('beforeend',qHtml(q.q?q:null))});renum()}
+  function collect(){var qs=[],err='';
+    [].forEach.call(document.querySelectorAll('#mt-qs .mt-q'),function(el,k){if(err)return;
+      var q=el.querySelector('.mt-qt').value.trim(),raw=[].map.call(el.querySelectorAll('.mt-ot'),function(i){return i.value.trim()}),r=el.querySelector('input[type=radio]:checked'),ci=r?+r.value:-1;
+      if(!q&&!raw.some(Boolean))return;
+      var o=[],a=-1;raw.forEach(function(x,i){if(x){if(i===ci)a=o.length;o.push(x)}});
+      if(!q)err='Question '+(k+1)+' has no text.';else if(o.length<2)err='Question '+(k+1)+' needs at least two options.';else if(a<0)err='Question '+(k+1)+': select the correct answer.';
+      else qs.push({q:q,opts:o,ans:a,ex:el.querySelector('.mt-ex').value.trim()})});
+    return{qs:qs,err:err}}
+  window.MT={
+    list:function(){showStaff(false)},
+    edit:function(id){editor(id?byId(id):null)},
+    addQ:function(){$('mt-qs').insertAdjacentHTML('beforeend',qHtml());renum();var q=$('mt-qs').lastChild;q.scrollIntoView({behavior:'smooth',block:'center'})},
+    delQ:function(b){var q=b.closest('.mt-q');if(document.querySelectorAll('#mt-qs .mt-q').length>1||confirm('Remove the only question?')){q.remove();renum()}},
+    paste:function(){var p=$('mt-paste');p.style.display=p.style.display==='none'?'block':'none'},
+    doPaste:function(){var qs=parseQs($('mt-pt').value);if(!qs.length)return msg('mt-msg','No questions found. Check the format: each question needs at least two options (A, B …).');addQs(qs,'pasted text');$('mt-pt').value='';$('mt-paste').style.display='none'},
+    template:async function(){try{await loadLib('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',function(){return window.XLSX})}catch(e){return msg('mt-msg','Could not load the Excel library. Check your internet connection.')}
+      var ws=XLSX.utils.aoa_to_sheet([['Question','Option A','Option B','Option C','Option D','Answer','Explanation'],['What is the shortcut key for a Payment voucher in Tally?','F4','F5','F6','F7','B','F5 opens the Payment voucher'],['Which of these is an accounting software?','Tally','Chrome','Paint','Notepad','A','']]);ws['!cols']=[{wch:50},{wch:18},{wch:18},{wch:18},{wch:18},{wch:9},{wch:36}];
+      var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Questions');XLSX.writeFile(wb,'Mock_Test_Template.xlsx')},
+    upload:async function(inp){var f=inp.files&&inp.files[0];inp.value='';if(!f)return;var ext=(f.name.split('.').pop()||'').toLowerCase();msg('mt-msg','Reading '+f.name+' …',true);
+      try{var buf=await f.arrayBuffer(),qs;
+        if(ext==='docx'){await loadLib('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js',function(){return window.mammoth});var r=await mammoth.extractRawText({arrayBuffer:buf});qs=parseQs(r.value)}
+        else if(ext==='xlsx'||ext==='xls'||ext==='csv'){await loadLib('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',function(){return window.XLSX});var wb=XLSX.read(buf,{type:'array'});qs=rowsToQs(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''}))}
+        else return msg('mt-msg','Please choose an Excel (.xlsx, .xls, .csv) or Word (.docx) file. Older .doc files: open in Word and Save As .docx.');
+        if(!qs.length)return msg('mt-msg','No questions found in '+f.name+'. Excel: use the template columns. Word: write each question with options A–D and an “Answer: B” line.');
+        addQs(qs,f.name)}catch(e){console.warn(e);msg('mt-msg','Could not read that file. Make sure it is not password-protected, and you are online.')}},
+    save:async function(){
+      var title=$('mt-title').value.trim(),mod=$('mt-module').value.trim(),c=collect();
+      if(!title)return msg('mt-msg','Enter a test title.');if(!mod)return msg('mt-msg','Enter the module name.');if(c.err)return msg('mt-msg',c.err);if(!c.qs.length)return msg('mt-msg','Add at least one question.');
+      var o=T||{},id=o.id||('mt_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+      var d={title:title,course:$('mt-course').value,module:mod,mins:Math.max(0,+$('mt-mins').value||0),pass:Math.min(100,Math.max(1,+$('mt-pass').value||50)),qs:c.qs,active:o.active!==false,createdBy:o.createdBy||currentUser.uid,createdByName:o.createdByName||currentUser.name,createdAt:o.createdAt||Date.now(),updatedAt:Date.now()};
+      var b=$('mt-save');b.disabled=true;b.textContent='Saving…';
+      var ok=await window.fbSetDoc('mock_tests',id,d);b.disabled=false;b.textContent='💾 Save test';
+      if(ok){d.id=id;var i=tests.findIndex(function(x){return x.id===id});if(i<0)tests.unshift(d);else tests[i]=d;staffList();msg('mt-msg','Test saved. Students can attempt it now'+(d.active?'.':' once you publish it.'),true)}},
+    toggle:async function(id){var t=byId(id);if(!t)return;var d=Object.assign({},t);delete d.id;d.active=t.active===false;if(await window.fbSetDoc('mock_tests',id,d)){t.active=d.active;staffList()}},
+    del:async function(id){var t=byId(id);if(!t||!confirm('Delete “'+t.title+'”? Student results for it are kept.'))return;if(await window.fbDeleteDoc('mock_tests',id)){tests=tests.filter(function(x){return x.id!==id});staffList()}},
+    results:async function(id){var t=byId(id);$('page-mocktest-in').innerHTML='<div class="mt-sub">Loading results…</div>';
+      try{var r=await loadRes('testId',id)}catch(e){return $('page-mocktest-in').innerHTML='<div class="mt-msg" style="background:#fee2e2;color:#b91c1c">Could not load results. Check the mock_results Firestore rules.</div>'}
+      var avg=r.length?Math.round(r.reduce(function(a,x){return a+x.pct},0)/r.length):0,top=r.reduce(function(a,x){return Math.max(a,x.pct)},0),stu={};r.forEach(function(x){stu[x.rollNo]=1});
+      var h='<button class="mt-btn o" onclick="MT.list()" style="margin-bottom:12px">← All tests</button><div class="mt-card"><h4>'+esc(t.title)+'</h4><div class="mt-sub">'+esc(t.module)+' · pass mark '+(t.pass||50)+'%</div><div class="mt-row" style="margin-top:10px"><span class="mt-tag">'+Object.keys(stu).length+' students</span><span class="mt-tag">'+r.length+' attempts</span><span class="mt-tag">Average '+avg+'%</span><span class="mt-tag">Highest '+top+'%</span></div></div>';
+      if(!r.length)h+='<div class="mt-card" style="text-align:center;color:var(--muted)">No one has attempted this test yet.</div>';
+      r.forEach(function(x){var p=x.pct>=(t.pass||50);h+='<div class="mt-card"><div class="mt-row"><div class="mt-grow"><b>'+esc(x.name)+'</b><div class="mt-sub">'+esc(x.rollNo)+' · '+fmt(x.at)+'</div></div><div style="text-align:right"><b>'+x.score+' / '+x.total+'</b><br><span class="mt-tag '+(p?'mt-ok':'mt-no')+'">'+x.pct+'% · '+(p?'Pass':'Fail')+'</span></div></div></div>'});
+      $('page-mocktest-in').innerHTML=h}
+  };
+
+  /* ================= STUDENT SIDE ================= */
+  var myRes=[];
+  function stuList(){var s=myStudent(),h='<div id="mt-msg"></div>',av=tests.filter(function(t){return t.active!==false&&(!t.course||!s||t.course===s.course)});
+    h+='<div class="mt-sub" style="margin-bottom:12px">Pick a test, answer the questions and see your result as soon as you submit. You can retake a test any time.</div>';
+    if(!av.length)h+='<div class="mt-card" style="text-align:center;color:var(--muted)">No mock tests are available for your course yet.</div>';
+    av.forEach(function(t){var mine=myRes.filter(function(r){return r.testId===t.id}),best=mine.reduce(function(a,r){return Math.max(a,r.pct)},-1);
+      h+='<div class="mt-card"><div class="mt-row"><div class="mt-grow"><h4>'+esc(t.title)+'</h4><div class="mt-sub">'+esc(t.module||'General')+' · '+t.qs.length+' questions'+(t.mins?' · '+t.mins+' min':' · no time limit')+'</div>'+(mine.length?'<div class="mt-sub">Attempts: '+mine.length+' · Best: '+best+'%</div>':'')+'</div><span class="mt-tag '+(mine.length?(best>=(t.pass||50)?'mt-ok':'mt-am'):'')+'">'+(mine.length?best+'%':'New')+'</span></div><div class="mt-row" style="margin-top:10px"><button class="mt-btn g" onclick="MS.start(\''+t.id+'\')">'+(mine.length?'Retake test':'Start test')+'</button></div></div>'});
+    if(myRes.length){h+='<h4 style="margin:18px 2px 8px;color:var(--navy)">My recent attempts</h4>';
+      myRes.slice(0,10).forEach(function(r){var t=byId(r.testId),p=r.pct>=((t&&t.pass)||50);h+='<div class="mt-card" '+(t?'onclick="MS.review(\''+r.id+'\')" style="cursor:pointer"':'')+'><div class="mt-row"><div class="mt-grow"><b>'+esc(r.testTitle)+'</b><div class="mt-sub">'+fmt(r.at)+'</div></div><div style="text-align:right"><b>'+r.score+' / '+r.total+'</b><br><span class="mt-tag '+(p?'mt-ok':'mt-no')+'">'+r.pct+'%</span></div></div></div>'})}
+    $('page-my-mocktest-in').innerHTML=h}
+  async function showStu(f){if(run)return drawQ();$('page-my-mocktest-in').innerHTML='<div class="mt-sub">Loading tests…</div>';
+    try{await loadTests(f);myRes=await loadRes('rollNo',currentUser.rollNo);stuList()}catch(e){console.warn(e);$('page-my-mocktest-in').innerHTML='<div class="mt-msg" style="background:#fee2e2;color:#b91c1c">Could not load tests. Please try again later.</div>'}}
+  function drawQ(){var t=run.t,q=t.qs[run.i],h='<div class="mt-row"><div class="mt-grow"><b>'+esc(t.title)+'</b></div>'+(t.mins?'<span class="mt-tag mt-am" id="mt-tm">⏱ --:--</span>':'')+'</div><div class="mt-bar"><i style="width:'+Math.round((run.i+1)/t.qs.length*100)+'%"></i></div><div class="mt-sub">Question '+(run.i+1)+' of '+t.qs.length+'</div><div class="mt-card" style="margin-top:8px"><div style="font-weight:700;font-size:15.5px;line-height:1.45">'+esc(q.q)+'</div></div>';
+    q.opts.forEach(function(o,i){h+='<button class="mt-opt'+(run.a[run.i]===i?' sel':'')+'" onclick="MS.pick('+i+')"><b>'+L[i]+'</b><span>'+esc(o)+'</span></button>'});
+    var last=run.i===t.qs.length-1,un=run.a.filter(function(x){return x<0}).length;
+    h+='<div class="mt-row" style="margin-top:6px">'+(run.i?'<button class="mt-btn o" onclick="MS.go(-1)">← Previous</button>':'')+(last?'<button class="mt-btn g" onclick="MS.submit()">Submit test</button>':'<button class="mt-btn" onclick="MS.go(1)">Next →</button>')+'</div>'
+     +'<div class="mt-sub" style="margin-top:10px;text-align:center">'+(un?un+' unanswered':'All answered')+(last?'':' · <a href="#" onclick="MS.submit();return false">Submit now</a>')+'</div>';
+    $('page-my-mocktest-in').innerHTML=h;tick()}
+  function tick(){var e=$('mt-tm');if(!e||!run)return;var s=Math.max(0,Math.round((run.end-Date.now())/1000));e.textContent='⏱ '+String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');if(s<=60)e.className='mt-tag mt-no'}
+  function resultView(t,a,score,pct,saved){var p=pct>=(t.pass||50),h='<div id="mt-msg"></div><div class="mt-card mt-score"><div class="mt-sub">'+esc(t.title)+'</div><div class="n">'+score+' / '+t.qs.length+'</div><div style="font-size:18px;font-weight:700;margin:4px 0 8px">'+pct+'%</div><span class="mt-tag '+(p?'mt-ok':'mt-no')+'">'+(p?'🎉 Passed':'Keep practising')+' · pass mark '+(t.pass||50)+'%</span></div><div class="mt-row" style="margin-bottom:14px"><button class="mt-btn o" onclick="MS.back()">← All tests</button><button class="mt-btn g" onclick="MS.start(\''+t.id+'\')">Retake</button></div><h4 style="margin:6px 2px 8px;color:var(--navy)">Review answers</h4>';
+    t.qs.forEach(function(q,k){var ok=a[k]===q.ans;h+='<div class="mt-card"><div class="mt-sub">Question '+(k+1)+' · '+(a[k]<0?'<b style="color:#b45309">Not answered</b>':ok?'<b style="color:#15803d">Correct</b>':'<b style="color:#b91c1c">Wrong</b>')+'</div><div style="font-weight:700;margin:4px 0 8px">'+esc(q.q)+'</div>'
+      +q.opts.map(function(o,i){return '<div class="mt-opt '+(i===q.ans?'good':i===a[k]?'bad':'')+'" style="cursor:default;margin-bottom:6px"><b>'+L[i]+'</b><span>'+esc(o)+'</span></div>'}).join('')+(q.ex?'<div class="mt-ex">💡 '+esc(q.ex)+'</div>':'')+'</div>'});
+    $('page-my-mocktest-in').innerHTML=h;if(saved===false)msg('mt-msg','Your result is shown below but could not be saved. Please check your connection.');window.scrollTo(0,0)}
+  window.MS={
+    back:function(){run=null;clearInterval(tmr);showStu(false)},
+    start:function(id){var t=byId(id);if(!t)return;run={t:t,i:0,a:t.qs.map(function(){return-1}),end:t.mins?Date.now()+t.mins*60000:0};clearInterval(tmr);if(t.mins)tmr=setInterval(function(){if(!run)return clearInterval(tmr);tick();if(Date.now()>=run.end)MS.submit(true)},1000);drawQ();window.scrollTo(0,0)},
+    pick:function(i){run.a[run.i]=i;drawQ()},
+    go:function(d){run.i=Math.min(run.t.qs.length-1,Math.max(0,run.i+d));drawQ();window.scrollTo(0,0)},
+    submit:async function(auto){if(!run)return;var un=run.a.filter(function(x){return x<0}).length;if(!auto&&un&&!confirm(un+' question(s) are unanswered. Submit anyway?'))return;
+      var t=run.t,a=run.a.slice(),score=0;clearInterval(tmr);run=null;t.qs.forEach(function(q,i){if(a[i]===q.ans)score++});
+      var pct=Math.round(score/t.qs.length*100),s=myStudent(),id='mr_'+t.id+'_'+currentUser.rollNo+'_'+Date.now();
+      var rec={testId:t.id,testTitle:t.title,course:t.course||'',module:t.module||'',rollNo:currentUser.rollNo,name:s?(s.fname+' '+s.lname).trim():currentUser.name,score:score,total:t.qs.length,pct:pct,answers:a,at:Date.now()};
+      resultView(t,a,score,pct);var ok=await window.fbSetDoc('mock_results',id,rec);if(ok){rec.id=id;myRes.unshift(rec)}else msg('mt-msg','Your result is shown below but could not be saved. Please check your connection.')},
+    review:function(rid){var r=myRes.find(function(x){return x.id===rid}),t=r&&byId(r.testId);if(t&&r.answers&&r.answers.length===t.qs.length)resultView(t,r.answers,r.score,r.pct,true)}
+  };
+
+  /* hooks */
+  var _a=window.applyRoleUI;window.applyRoleUI=function(){var r=_a.apply(this,arguments);var n=$('nav-mocktest');if(n)n.style.display=canAccess('mocktest')?'':'none';return r};
+  var _n=window.navTo;window.navTo=function(p){var r=_n.apply(this,arguments);
+    if(p==='mocktest'&&canAccess(p)){$('page-title').textContent='Mock Tests';showStaff(false)}
+    if(p==='my-mocktest'&&canAccess(p)){$('page-title').textContent='Mock Tests';showStu(false)}return r};
 })();
 </script>
 
