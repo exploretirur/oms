@@ -738,12 +738,11 @@ tr:hover td { background: #f8fafd; }
       <!-- Admin stats row -->
       <div id="admin-stats-row">
         <div class="stats-grid">
-          <div class="stat-card teal"><div class="stat-label">Total Students</div><div class="stat-value" id="stat-students">0</div><div class="stat-sub">Enrolled</div></div>
+          <div class="stat-card teal total"><div class="stat-label">Total Students</div><div class="stat-value" id="stat-students">0</div><div class="stat-modes"><span>🌐 Online <b id="stat-online">0</b></span><span>🏫 Offline <b id="stat-offline">0</b></span></div></div>
           <div class="stat-card amber" id="dash-fees-collected-card"><div class="stat-label">Fees Collected</div><div class="stat-value" id="stat-fees">₹0</div><div class="stat-sub">Total</div></div>
-          <div class="stat-card green"><div class="stat-label">Avg Attendance</div><div class="stat-value" id="stat-att">0%</div><div class="stat-sub">Overall</div></div>
           <div class="stat-card red" id="dash-fees-pending-card"><div class="stat-label">Pending Fees</div><div class="stat-value" id="stat-pending">₹0</div><div class="stat-sub">Outstanding</div></div>
-          <div class="stat-card teal"><div class="stat-label">Online Students</div><div class="stat-value" id="stat-online">0</div><div class="stat-sub">Online Mode</div></div>
-          <div class="stat-card amber"><div class="stat-label">Offline Students</div><div class="stat-value" id="stat-offline">0</div><div class="stat-sub">Offline Mode</div></div>
+          <div class="stat-card green"><div class="stat-label">Active Students</div><div class="stat-value" id="stat-active">0</div><div class="stat-sub">Attending</div></div><div class="stat-card amber"><div class="stat-label">Long Leave</div><div class="stat-value" id="stat-leave">0</div><div class="stat-sub">On leave</div></div><div class="stat-card blue"><div class="stat-label">Completed</div><div class="stat-value" id="stat-completed">0</div><div class="stat-sub">Course finished</div></div>
+          <div style="display:none"><span id="stat-att">0%</span></div>
         </div>
         <!-- TODAY'S DUE (admin + office) -->
         <div class="card" id="today-due-card">
@@ -770,11 +769,10 @@ tr:hover td { background: #f8fafd; }
       <!-- Teacher / Office restricted stats row -->
       <div id="restricted-stats-row" style="display:none;">
         <div class="stats-grid">
-          <div class="stat-card teal"><div class="stat-label">Total Students</div><div class="stat-value" id="stat-students-r">0</div><div class="stat-sub">Enrolled</div></div>
-          <div class="stat-card green"><div class="stat-label">Avg Attendance</div><div class="stat-value" id="stat-att-r">0%</div><div class="stat-sub">Overall</div></div>
+          <div class="stat-card teal total"><div class="stat-label">Total Students</div><div class="stat-value" id="stat-students-r">0</div><div class="stat-modes"><span>🌐 Online <b id="stat-online-r">0</b></span><span>🏫 Offline <b id="stat-offline-r">0</b></span></div></div>
           <div class="stat-card amber"><div class="stat-label">Active Batches</div><div class="stat-value" id="stat-batches-r">0</div><div class="stat-sub">Running</div></div>
-          <div class="stat-card teal"><div class="stat-label">Online Students</div><div class="stat-value" id="stat-online-r">0</div><div class="stat-sub">Online Mode</div></div>
-          <div class="stat-card amber"><div class="stat-label">Offline Students</div><div class="stat-value" id="stat-offline-r">0</div><div class="stat-sub">Offline Mode</div></div>
+          <div class="stat-card green"><div class="stat-label">Active Students</div><div class="stat-value" id="stat-active-r">0</div><div class="stat-sub">Attending</div></div><div class="stat-card amber"><div class="stat-label">Long Leave</div><div class="stat-value" id="stat-leave-r">0</div><div class="stat-sub">On leave</div></div><div class="stat-card blue"><div class="stat-label">Completed</div><div class="stat-value" id="stat-completed-r">0</div><div class="stat-sub">Course finished</div></div>
+          <div style="display:none"><span id="stat-att-r">0%</span></div>
         </div>
         <!-- TODAY'S DUE (office view) -->
         <div class="card" id="today-due-card-r" style="display:none;">
@@ -12173,7 +12171,7 @@ function renderSaSummary() {
   :root{--surface:#f2f4f9;--border:#e4e8f1;--muted:#6b7590}
   body,input,select,textarea,button{font-family:'Plus Jakarta Sans','DM Sans',system-ui,sans-serif}
   body{background:var(--surface)}
-  .hamburger,.sidebar,.sidebar-overlay,.section-desc,#current-date{display:none!important}
+  .hamburger,.section-desc,#current-date{display:none!important}
   html{-webkit-text-size-adjust:100%}
   input,select,textarea{font-size:16px!important;border-radius:12px!important;padding:11px 12px!important}
   .topbar{background:var(--navy)!important;border:0!important;height:auto!important;min-height:52px;padding:env(safe-area-inset-top,0px) 14px 0!important}
@@ -12558,5 +12556,180 @@ function renderSaSummary() {
 })();
 </script>
 
+<!-- ===== HOME LAUNCHER: graphs on top, tools as categorised icon buttons ===== -->
+<style>
+.ht-wrap{margin:4px 0 18px}
+.ht-cat{background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px 14px 10px;margin-bottom:12px}
+.ht-cat h3{margin:0 0 10px;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--navy);display:flex;align-items:center;gap:8px}
+.ht-cat h3::before{content:'';width:4px;height:16px;border-radius:2px;background:var(--c,var(--brand-orange))}
+.ht-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+.ht-tile{display:flex;flex-direction:column;align-items:center;gap:7px;background:#f6f8fc;border:1px solid transparent;border-radius:14px;padding:12px 6px 10px;cursor:pointer;font:600 12px 'DM Sans','Plus Jakarta Sans',sans-serif;color:var(--text);text-align:center;line-height:1.25;transition:transform .12s,box-shadow .12s,border-color .12s}
+.ht-tile:hover{border-color:var(--c,var(--navy));box-shadow:0 4px 14px rgba(15,37,87,.12);transform:translateY(-2px)}
+.ht-tile:active{transform:scale(.97)}
+.ht-ic{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;font-size:23px;background:color-mix(in srgb,var(--c,#0f2557) 14%,#fff)}
+@media screen and (max-width:768px){
+  .m-quick{display:none!important}
+  .ht-grid{grid-template-columns:repeat(4,1fr);gap:8px}
+  .ht-tile{padding:10px 2px 8px;font-size:clamp(9.5px,2.7vw,11px);border-radius:12px}
+  .ht-ic{width:clamp(38px,11vw,44px);height:clamp(38px,11vw,44px);font-size:clamp(20px,6vw,23px)}
+  .ht-cat{padding:12px 10px 8px;border-radius:16px}
+}
+@media print{#home-tools{display:none!important}}
+</style>
+<script>
+(function(){
+  var COL=['#0f9d8a','#f47b00','#3b6fd4','#8b5cf6','#e0457b','#16a34a'];
+  function root(stu){return document.getElementById(stu?'student-nav-groups':'staff-nav-groups')}
+  function build(){
+    var stu=window.currentUser&&currentUser.role==='student',r=root(stu);if(!r)return;
+    var groups=[],cur=null;
+    Array.prototype.forEach.call(r.children,function(c){
+      if(c.classList.contains('sidebar-section')){cur=c.style.display==='none'?null:{t:c.textContent.trim(),items:[]};if(cur)groups.push(cur);return}
+      if(!cur||!c.classList.contains('nav-item')||c.style.display==='none'||!c.id)return;
+      var ic=c.querySelector('.icon'),em=ic?ic.textContent.trim():c.textContent.trim().split(' ')[0];
+      var lb=c.textContent.replace(ic?ic.textContent:'','').replace(/\s+/g,' ').trim();
+      if(/^nav-(dashboard|my-dashboard)$/.test(c.id))return;
+      cur.items.push({id:c.id,em:em,lb:lb})});
+    groups=groups.filter(function(g){return g.items.length});
+    var h='<div class="ht-wrap">'+groups.map(function(g,i){return '<div class="ht-cat" style="--c:'+COL[i%COL.length]+'"><h3>'+g.t.replace(/[<>&]/g,'')+'</h3><div class="ht-grid">'+g.items.map(function(x){return '<button class="ht-tile" onclick="document.getElementById(\''+x.id+'\').click()"><span class="ht-ic">'+x.em+'</span>'+x.lb.replace(/[<>&]/g,'')+'</button>'}).join('')+'</div></div>'}).join('')+'</div>';
+    var pg=document.getElementById(stu?'page-my-dashboard':'page-dashboard');if(!pg)return;
+    var box=document.getElementById('home-tools');
+    if(!box){box=document.createElement('div');box.id='home-tools'}
+    box.innerHTML=h;
+    if(stu){
+      /* students: profile card, then tools, then charts and notifications */
+      var cards=pg.querySelectorAll(':scope > .card');
+      if(cards[0])cards[0].insertAdjacentElement('afterend',box);else pg.appendChild(box);
+    }else{
+      /* staff: stats + charts first, then tools, then the due-fee list */
+      ['admin-stats-row','restricted-stats-row'].forEach(function(id){
+        var row=document.getElementById(id);if(!row)return;
+        var due=row.querySelector('#today-due-card,#today-due-card-r');
+        var charts=Array.prototype.filter.call(row.children,function(e){return e.style&&e.style.gridTemplateColumns});
+        if(charts[0])row.appendChild(charts[0]);
+        if(due){due.dataset.moved=1;if(!row.contains(box))row.appendChild(box);row.appendChild(due)}
+      });
+      if(!box.parentNode){var a=document.getElementById('admin-stats-row');a.appendChild(box)}
+      /* tools are shown inside whichever stats row is visible for this role */
+      var rr=document.getElementById('restricted-stats-row'),ar=document.getElementById('admin-stats-row');
+      var vis=(rr&&rr.style.display!=='none')?rr:ar;if(vis&&box.parentNode!==vis)vis.insertBefore(box,vis.querySelector('#today-due-card,#today-due-card-r'));
+    }
+  }
+  var _a=window.applyRoleUI;window.applyRoleUI=function(){var r=_a.apply(this,arguments);try{build()}catch(e){console.warn('home tools',e)}return r};
+})();
+</script>
+
+<!-- ===== LAYOUT v2: no side menu, trimmed dashboard (stats > course & batch charts > fee dues > tool icons) ===== -->
+<style>
+/* side panel: hidden on open, slides in when the page title is clicked */
+.hamburger{display:none!important}
+.main{margin-left:0!important}
+.sidebar{width:272px;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1),box-shadow .28s;z-index:210}
+.sidebar.open{transform:none;box-shadow:14px 0 44px rgba(5,15,40,.38)}
+.sidebar-overlay{display:block!important;z-index:200;background:rgba(10,20,50,.45);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .25s}
+.sidebar-overlay.open{opacity:1;pointer-events:auto}
+#page-title{cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:9px;padding:6px 12px 6px 10px;margin-left:-6px;border-radius:10px;transition:background .15s}
+#page-title:hover{background:rgba(15,37,87,.07)}
+#page-title::before{content:'☰';font-size:18px;line-height:1;color:var(--brand-orange)}
+#page-title::after{content:'▾';font-size:11px;opacity:.55}
+.topbar h2#page-title{white-space:nowrap}
+@media screen and (max-width:768px){#page-title:hover{background:rgba(255,255,255,.12)}}
+.tb-btn{border:1.5px solid var(--border);background:#fff;color:var(--navy);border-radius:10px;padding:6px 12px;font:600 13px 'DM Sans',sans-serif;cursor:pointer;white-space:nowrap}
+.tb-btn:hover{border-color:var(--navy)}
+.tb-out{color:#b91c1c}
+@media screen and (min-width:769px){.content{max-width:1180px;margin-left:auto;margin-right:auto;width:100%}}
+@media screen and (max-width:768px){.tb-btn{display:none}.tb-home{display:inline-block;background:rgba(255,255,255,.15);border-color:transparent;color:#fff;padding:5px 10px}}
+@media print{.tb-btn{display:none!important}}
+</style>
+<script>
+(function(){
+  var tr=document.querySelector('.topbar-right');
+  if(tr&&!document.getElementById('tb-home')){
+    var h=document.createElement('button');h.id='tb-home';h.className='tb-btn tb-home';h.textContent='🏠 Home';
+    h.onclick=function(){navTo(currentUser&&currentUser.role==='student'?'my-dashboard':'dashboard',document.getElementById(currentUser&&currentUser.role==='student'?'nav-my-dashboard':'nav-dashboard'))};
+    tr.insertBefore(h,tr.firstChild)}
+  function batchHtml(){var b={},st=window.students||[];st.forEach(function(s){if(s.batch){var k=s.batch.split('(')[0].trim();b[k]=(b[k]||0)+1}});
+    var mx=Math.max.apply(null,Object.keys(b).map(function(k){return b[k]}).concat([1]));
+    return Object.keys(b).length?Object.keys(b).map(function(k){return '<div class="dash-chart-bar"><div class="dash-bar-label">'+k.replace(/[<>&]/g,'')+'</div><div class="dash-bar-fill" style="width:'+Math.round(b[k]/mx*160)+'px;background:var(--amber);">'+b[k]+'</div></div>'}).join(''):'<p style="color:var(--muted);font-size:13px;">No data</p>'}
+  function adminCharts(){
+    var rec=document.getElementById('recent-admissions');if(!rec)return;var rc=rec.closest('.card');
+    if(rc)rc.style.display='none';
+    if(!document.getElementById('batch-card-a')&&rc){var d=document.createElement('div');d.className='card';d.id='batch-card-a';d.innerHTML='<div class="card-header"><div class="card-title"><span class="icon">🕐</span> Batch Wise Students</div></div><div id="batch-chart-a"></div>';rc.insertAdjacentElement('beforebegin',d)}
+    var t=document.querySelector('#admin-stats-row .card-title');
+    [].forEach.call(document.querySelectorAll('#admin-stats-row .card-title'),function(e){if(/Course Enrollment/.test(e.textContent))e.lastChild.textContent=' Course Wise Students'});
+    var c=document.getElementById('batch-chart-a');if(c)c.innerHTML=batchHtml()}
+  function order(){
+    var box=document.getElementById('home-tools');if(!box||!box.parentNode||box.parentNode.id==='page-my-dashboard'||box.parentNode.id==='page-dashboard')return;
+    var row=box.parentNode,due=row.querySelector('#today-due-card,#today-due-card-r');
+    if(due)row.appendChild(due);row.appendChild(box)}
+  adminCharts();
+  var _a=window.applyRoleUI;window.applyRoleUI=function(){var r=_a.apply(this,arguments);try{adminCharts();order()}catch(e){console.warn('layout2',e)}return r};
+  var _d=window.refreshDashboard;if(_d)window.refreshDashboard=function(){var r=_d.apply(this,arguments);try{if(isAdminLevel())adminCharts()}catch(e){console.warn(e)}return r};
+})();
+</script>
+
+
+<script>
+/* ===== SIDE PANEL: open by clicking the page title, close on overlay / menu click / Esc ===== */
+(function(){
+  var sb=document.querySelector('.sidebar'),ov=document.getElementById('sidebar-overlay'),t=document.getElementById('page-title');
+  if(!sb||!ov||!t)return;
+  function close(){sb.classList.remove('open');ov.classList.remove('open')}
+  function open(){sb.classList.add('open');ov.classList.add('open')}
+  t.title='Open menu';t.setAttribute('role','button');t.tabIndex=0;
+  t.addEventListener('click',function(){sb.classList.contains('open')?close():open()});
+  t.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();t.click()}});
+  sb.addEventListener('click',function(e){if(e.target.closest('.nav-item,.sidebar-logout'))close()});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')close()});
+  window.mClosePanel=close;
+})();
+</script>
+<style>
+/* ===== COMPACT TOP STATISTICS ===== */
+#page-dashboard .stats-grid{grid-template-columns:repeat(auto-fit,minmax(138px,1fr))!important;gap:10px!important;margin-bottom:14px!important}
+#page-dashboard .stat-card{padding:9px 13px!important;border-radius:12px!important;border-left-width:3px!important}
+#page-dashboard .stat-label{font-size:10.5px!important;letter-spacing:.3px!important;margin-bottom:2px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-dashboard .stat-value{font-size:19px!important;line-height:1.25!important}
+#page-dashboard .stat-sub{font-size:10.5px!important;margin-top:1px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media screen and (max-width:768px){
+  #page-dashboard .stats-grid{grid-template-columns:repeat(3,1fr)!important;gap:7px!important;margin-bottom:10px!important}
+  #page-dashboard .stat-card{padding:7px 8px!important;border-radius:11px!important}
+  #page-dashboard .stat-label{font-size:clamp(8.5px,2.5vw,10px)!important}
+  #page-dashboard .stat-value{font-size:clamp(14px,4.4vw,17px)!important}
+  #page-dashboard .stat-sub{display:none!important}
+  #page-dashboard #dash-fees-collected-card{grid-column:1/-1;padding:9px 12px!important}
+  #page-dashboard #dash-fees-collected-card .stat-value{font-size:clamp(20px,6.4vw,24px)!important}
+}
+</style>
+<style>
+.stat-dual{display:flex;align-items:center;gap:12px;margin-top:1px}
+.stat-dual>div{display:flex;flex-direction:column;line-height:1.15}
+.stat-dual b{font-size:19px;font-weight:600;color:var(--navy)}
+.stat-dual span{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.stat-dual i{width:1px;align-self:stretch;background:var(--border)}
+.stat-dual>div:last-child b{color:var(--green,#16a34a)}
+@media screen and (max-width:768px){.stat-dual{gap:7px;justify-content:space-between}.stat-dual b{font-size:clamp(14px,4.4vw,17px)}.stat-dual span{font-size:clamp(8px,2.3vw,9.5px)}}
+</style>
+<script>
+/* Student status counts for the dashboard cards */
+(function(){
+  function put(){
+    var st=window.students||[],c={a:0,l:0,d:0};
+    st.forEach(function(x){var v=normStatus(x&&x.status);if(v==='Active'||v==='Rejoined')c.a++;else if(v==='Long Leave')c.l++;else if(v==='Completed')c.d++});
+    ['','-r'].forEach(function(k){var m={'stat-active':c.a,'stat-leave':c.l,'stat-completed':c.d};Object.keys(m).forEach(function(id){var e=document.getElementById(id+k);if(e)e.textContent=m[id]})})}
+  var _d=window.refreshDashboard;if(_d)window.refreshDashboard=function(){var r=_d.apply(this,arguments);try{put()}catch(e){console.warn(e)}return r};
+  var _a=window.applyRoleUI;window.applyRoleUI=function(){var r=_a.apply(this,arguments);try{put()}catch(e){}return r};
+})();
+</script>
+<style>
+/* Total Students card: online / offline inside */
+.stat-modes{display:flex;gap:12px;flex-wrap:wrap;margin-top:2px;font-size:11px;color:var(--muted)}
+.stat-modes b{color:var(--navy);font-weight:700;margin-left:2px}
+#page-dashboard .stat-card.total{min-width:0}
+@media screen and (max-width:768px){
+  #page-dashboard .stat-card.total{grid-column:span 2}
+  .stat-modes{gap:8px;font-size:clamp(9px,2.6vw,10.5px)}
+}
+</style>
 </body>
 </html>
