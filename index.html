@@ -1806,7 +1806,6 @@ tr:hover td { background: #f8fafd; }
           <div style="display:flex;gap:22px;">
             <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:var(--green);" id="sd-att-since-present">0</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Present</div></div>
             <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:var(--red);" id="sd-att-since-absent">0</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Absent</div></div>
-            <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#8b5cf6;" id="sd-att-since-leave">0</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Leave</div></div>
             <div style="align-self:center;color:var(--muted);font-size:20px;">›</div>
           </div>
         </div>
@@ -1895,7 +1894,7 @@ tr:hover td { background: #f8fafd; }
           <span class="cal-legend-item"><span class="cal-dot cal-dot-red"></span> Absent</span>
           <span class="cal-legend-item"><span class="cal-dot cal-dot-orange"></span> Holiday</span>
           <span class="cal-legend-item"><span class="cal-dot" style="background:#3b82f6;"></span> Sat/Sun</span>
-          <span class="cal-legend-item"><span class="cal-dot" style="background:#8b5cf6;"></span> Long Leave / Leave</span>
+          <span class="cal-legend-item"><span class="cal-dot" style="background:#8b5cf6;"></span> Long Leave</span>
           <span class="cal-legend-item"><span class="cal-dot" style="background:#0ea5e9;"></span> Rejoined</span>
           <span class="cal-legend-item"><span class="cal-dot" style="background:#475569;"></span> Drop Out</span>
         </div>
@@ -2221,7 +2220,7 @@ tr:hover td { background: #f8fafd; }
           <span class="cal-legend-item"><span class="cal-dot cal-dot-red"></span> Absent</span>
           <span class="cal-legend-item"><span class="cal-dot cal-dot-orange"></span> Holiday</span>
           <span class="cal-legend-item"><span class="cal-dot" style="background:#3b82f6;"></span> Sat/Sun</span>
-          <span class="cal-legend-item"><span class="cal-dot" style="background:#8b5cf6;"></span> Long Leave / Leave</span>
+          <span class="cal-legend-item"><span class="cal-dot" style="background:#8b5cf6;"></span> Long Leave</span>
           <span class="cal-legend-item"><span class="cal-dot" style="background:#0ea5e9;"></span> Rejoined</span>
           <span class="cal-legend-item"><span class="cal-dot" style="background:#475569;"></span> Drop Out</span>
         </div>
@@ -7589,11 +7588,11 @@ function renderSdAttLog() {
   Object.keys(li.events).forEach(d => rows.push({ date: d, kind: 'event', ev: li.events[d] }));
   const f = rows.filter(r => !month || String(r.date).slice(0,7) === month)
                 .sort((a,b) => b.date.localeCompare(a.date) || (a.kind==='event' ? -1 : 1));
-  const cP = f.filter(r => r.kind === 'Present').length, cA = f.filter(r => r.kind === 'Absent').length, cL = f.filter(r => r.kind === 'Leave').length;
+  const cP = f.filter(r => r.kind === 'Present').length, cA = f.filter(r => r.kind === 'Absent' || r.kind === 'Leave').length; // Absent + Long Leave days combined
   document.getElementById('sd-att-log-summary').innerHTML = `
     <div class="cms-item" style="flex:1;min-width:90px;text-align:center;padding:8px;border-radius:10px;background:#f8fafd;"><div style="font-size:18px;font-weight:700;color:var(--green);">${cP}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Present</div></div>
     <div class="cms-item" style="flex:1;min-width:90px;text-align:center;padding:8px;border-radius:10px;background:#f8fafd;"><div style="font-size:18px;font-weight:700;color:var(--red);">${cA}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Absent</div></div>
-    <div class="cms-item" style="flex:1;min-width:90px;text-align:center;padding:8px;border-radius:10px;background:#f8fafd;"><div style="font-size:18px;font-weight:700;color:#8b5cf6;">${cL}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;">Leave</div></div>`;
+`;
   if (!f.length) { body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No attendance records' + (month ? ' for ' + _monthLabel(month) : '') + '</td></tr>'; return; }
   body.innerHTML = f.map(r => {
     if (r.kind === 'event') {
@@ -7604,7 +7603,7 @@ function renderSdAttLog() {
     }
     const unmarked = !['Present','Absent','Leave'].includes(r.kind);
     const cls = r.kind === 'Present' ? 'chip-green' : r.kind === 'Absent' ? 'chip-red' : unmarked ? '' : 'chip-purple';
-    const label = unmarked ? 'Unmarked (' + (r.kind || 'blank') + ')' : r.kind;
+    const label = unmarked ? 'Unmarked (' + (r.kind || 'blank') + ')' : (r.kind === 'Leave' ? 'Long Leave' : r.kind);
     return `<tr><td>${formatDateDMY(r.date)}</td><td><span class="chip ${cls}" ${unmarked ? 'style="background:#e2e8f0;color:#475569;" title="Saved without Present/Absent — ask Admin to correct it in Attendance Report"' : ''}>${label}</span></td><td>${r.topic || '—'}</td><td>${r.software || '—'}</td></tr>`;
   }).join('');
 }
@@ -7661,10 +7660,10 @@ function loadStudentDashboard() {
   // correctly left out of this total rather than counted as absent.
   const sinceAbsent = attSum.absent;
   document.getElementById('sd-att-since-present').textContent = present;
-  document.getElementById('sd-att-since-absent').textContent = sinceAbsent;
-  document.getElementById('sd-att-since-leave').textContent = leaveInfo.count;
+  // Absent = recorded absences + long-leave working days (single combined count)
+  document.getElementById('sd-att-since-absent').textContent = sinceAbsent + leaveInfo.count;
   document.getElementById('sd-att-since-sub').textContent = 'Since ' + formatDateDMY(s.admDate)
-    + (leaveInfo.count ? ' — ' + leaveInfo.count + ' leave day' + (leaveInfo.count>1?'s':'') + ' (Long Leave)' : '')
+    + (leaveInfo.count ? ' — Absent includes ' + leaveInfo.count + ' long leave day' + (leaveInfo.count>1?'s':'') : '')
     + (normStatus(s.status)!=='Active' ? ' • Status: ' + normStatus(s.status) : '')
     + ' — tap to view calendar';
 
