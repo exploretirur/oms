@@ -1,0 +1,25 @@
+// ADD these two blocks inside your existing:  match /databases/{database}/documents { ... }
+// (keep all your current rules; do not replace them)
+
+function mtRole() {
+  return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+}
+function mtIsStaff() {
+  return request.auth != null && mtRole() in ['admin','manager','hrmanager','teacher'];
+}
+
+// Tests created by teachers: every signed-in user can read, staff can write
+match /mock_tests/{testId} {
+  allow read: if request.auth != null;
+  allow create, update, delete: if mtIsStaff();
+}
+
+// Student results: staff can read all; a student can read and create only their own
+match /mock_results/{resultId} {
+  allow read: if request.auth != null &&
+    (mtIsStaff() ||
+     resource.data.rollNo == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rollNo);
+  allow create: if request.auth != null && mtRole() == 'student' &&
+    request.resource.data.rollNo == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rollNo;
+  allow delete: if request.auth != null && mtRole() in ['admin','hrmanager'];
+}
